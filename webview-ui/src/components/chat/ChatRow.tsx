@@ -664,11 +664,11 @@ export const ChatRowContent = ({
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
-                  alignItems: 'center',
+                  alignItems: 'flex-start',
                   gap: '10px',
                 }}
               >
-                <span style={{ display: 'block', flexGrow: 1 }}>
+                <span style={{ display: 'block', flexGrow: 1, padding: '4px' }}>
                   {highlightMentions(message.text)}
                 </span>
                 <VSCodeButton
