@@ -1,5 +1,5 @@
 export function getSharedToolUseSection(): string {
-	return `====
+  return `====
 
 TOOL USE
 
@@ -21,5 +21,5 @@ For example:
 <path>src/main.js</path>
 </read_file>
 
-Always adhere to this format for the tool use to ensure proper parsing and execution.`
+Always adhere to this format for the tool use to ensure proper parsing and execution.`;
 }

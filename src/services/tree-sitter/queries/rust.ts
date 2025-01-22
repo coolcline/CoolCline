@@ -13,4 +13,4 @@ export default `
 
 (function_item
     name: (identifier) @name.definition.function) @definition.function
-`
+`;

@@ -62,4 +62,4 @@ export default `
   (#strip! @doc "^[\\s\\*/]+|^[\\s\\*/]$")
   (#select-adjacent! @doc @definition.function)
 )
-`
+`;

@@ -42,4 +42,4 @@ export default `
 
 (function_declaration
     name: (simple_identifier) @name) @definition.function
-`
+`;

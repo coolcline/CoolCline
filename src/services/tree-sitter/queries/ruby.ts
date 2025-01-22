@@ -49,4 +49,4 @@ export default `
         name: (_) @name.definition.module)
     ]) @definition.module
 )
-`
+`;

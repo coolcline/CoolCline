@@ -1,16 +1,16 @@
-export type ApiStream = AsyncGenerator<ApiStreamChunk>
-export type ApiStreamChunk = ApiStreamTextChunk | ApiStreamUsageChunk
+export type ApiStream = AsyncGenerator<ApiStreamChunk>;
+export type ApiStreamChunk = ApiStreamTextChunk | ApiStreamUsageChunk;
 
 export interface ApiStreamTextChunk {
-	type: "text"
-	text: string
+  type: 'text';
+  text: string;
 }
 
 export interface ApiStreamUsageChunk {
-	type: "usage"
-	inputTokens: number
-	outputTokens: number
-	cacheWriteTokens?: number
-	cacheReadTokens?: number
-	totalCost?: number // openrouter
+  type: 'usage';
+  inputTokens: number;
+  outputTokens: number;
+  cacheWriteTokens?: number;
+  cacheReadTokens?: number;
+  totalCost?: number; // openrouter
 }

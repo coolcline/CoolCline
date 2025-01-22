@@ -12,4 +12,4 @@ export default `
 
 (method_declaration
   name: (name) @name.definition.function) @definition.function
-`
+`;

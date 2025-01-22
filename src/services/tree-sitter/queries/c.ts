@@ -12,4 +12,4 @@ export default `
 (function_declarator declarator: (identifier) @name.definition.function) @definition.function
 
 (type_definition declarator: (type_identifier) @name.definition.type) @definition.type
-`
+`;

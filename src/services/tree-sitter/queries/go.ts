@@ -24,4 +24,4 @@ export default `
 
 (type_spec
   name: (type_identifier) @name.definition.type) @definition.type
-`
+`;

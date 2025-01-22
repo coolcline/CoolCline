@@ -12,4 +12,4 @@ export default `
 
 (interface_declaration
   name: (identifier) @name.definition.interface) @definition.interface
-`
+`;

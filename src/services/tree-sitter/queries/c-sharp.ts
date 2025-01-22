@@ -20,4 +20,4 @@ export default `
 (namespace_declaration
  name: (identifier) @name.definition.module
 ) @definition.module
-`
+`;
