@@ -27,7 +27,10 @@ describe('ApiConfigManager', () => {
 
   const defaultProps = {
     currentApiConfigName: 'Default Config',
-    listApiConfigMeta: [{ name: 'Default Config' }, { name: 'Another Config' }],
+    listApiConfigMeta: [
+      { id: '1', name: 'Default Config' },
+      { id: '2', name: 'Another Config' },
+    ],
     onSelectConfig: mockOnSelectConfig,
     onDeleteConfig: mockOnDeleteConfig,
     onRenameConfig: mockOnRenameConfig,
@@ -117,7 +120,7 @@ describe('ApiConfigManager', () => {
     render(
       <ApiConfigManager
         {...defaultProps}
-        listApiConfigMeta={[{ name: 'Default Config' }]}
+        listApiConfigMeta={[{ id: '1', name: 'Default Config' }]}
       />
     );
 
