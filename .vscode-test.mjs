@@ -8,7 +8,7 @@ export default defineConfig({
 		ui: 'tdd'
 	},
 	launchArgs: [
-		'--enable-proposed-api=RooVeterinaryInc.roo-cline',
+		'--enable-proposed-api=CoolCline.coolcline',
 		'--disable-extensions'
 	]
 });

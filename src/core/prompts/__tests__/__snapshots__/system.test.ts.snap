@@ -1,7 +1,7 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`SYSTEM_PROMPT should exclude diff strategy tool description when diffEnabled is false 1`] = `
-"You are Roo, a highly skilled software engineer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.
+"You are CoolCline, a highly skilled software engineer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.
 
 ====
 
@@ -279,14 +279,14 @@ USER'S CUSTOM INSTRUCTIONS
 The following additional instructions are provided by the user, and should be followed to the best of your ability without interfering with the TOOL USE guidelines.
 
 Rules:
-# Rules from .clinerules-code:
+# Rules from .coolclinerules-code:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;
 
 exports[`SYSTEM_PROMPT should exclude diff strategy tool description when diffEnabled is undefined 1`] = `
-"You are Roo, a highly skilled software engineer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.
+"You are CoolCline, a highly skilled software engineer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.
 
 ====
 
@@ -564,14 +564,14 @@ USER'S CUSTOM INSTRUCTIONS
 The following additional instructions are provided by the user, and should be followed to the best of your ability without interfering with the TOOL USE guidelines.
 
 Rules:
-# Rules from .clinerules-code:
+# Rules from .coolclinerules-code:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;
 
 exports[`SYSTEM_PROMPT should explicitly handle undefined mcpHub 1`] = `
-"You are Roo, a highly skilled software engineer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.
+"You are CoolCline, a highly skilled software engineer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.
 
 ====
 
@@ -849,14 +849,14 @@ USER'S CUSTOM INSTRUCTIONS
 The following additional instructions are provided by the user, and should be followed to the best of your ability without interfering with the TOOL USE guidelines.
 
 Rules:
-# Rules from .clinerules-code:
+# Rules from .coolclinerules-code:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;
 
 exports[`SYSTEM_PROMPT should handle different browser viewport sizes 1`] = `
-"You are Roo, a highly skilled software engineer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.
+"You are CoolCline, a highly skilled software engineer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.
 
 ====
 
@@ -1183,14 +1183,14 @@ USER'S CUSTOM INSTRUCTIONS
 The following additional instructions are provided by the user, and should be followed to the best of your ability without interfering with the TOOL USE guidelines.
 
 Rules:
-# Rules from .clinerules-code:
+# Rules from .coolclinerules-code:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;
 
 exports[`SYSTEM_PROMPT should include MCP server info when mcpHub is provided 1`] = `
-"You are Roo, a highly skilled software engineer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.
+"You are CoolCline, a highly skilled software engineer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.
 
 ====
 
@@ -1881,14 +1881,14 @@ USER'S CUSTOM INSTRUCTIONS
 The following additional instructions are provided by the user, and should be followed to the best of your ability without interfering with the TOOL USE guidelines.
 
 Rules:
-# Rules from .clinerules-code:
+# Rules from .coolclinerules-code:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;
 
 exports[`SYSTEM_PROMPT should include browser actions when supportsComputerUse is true 1`] = `
-"You are Roo, a highly skilled software engineer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.
+"You are CoolCline, a highly skilled software engineer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.
 
 ====
 
@@ -2215,14 +2215,14 @@ USER'S CUSTOM INSTRUCTIONS
 The following additional instructions are provided by the user, and should be followed to the best of your ability without interfering with the TOOL USE guidelines.
 
 Rules:
-# Rules from .clinerules-code:
+# Rules from .coolclinerules-code:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;
 
 exports[`SYSTEM_PROMPT should include diff strategy tool description when diffEnabled is true 1`] = `
-"You are Roo, a highly skilled software engineer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.
+"You are CoolCline, a highly skilled software engineer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.
 
 ====
 
@@ -2560,14 +2560,14 @@ USER'S CUSTOM INSTRUCTIONS
 The following additional instructions are provided by the user, and should be followed to the best of your ability without interfering with the TOOL USE guidelines.
 
 Rules:
-# Rules from .clinerules-code:
+# Rules from .coolclinerules-code:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;
 
 exports[`SYSTEM_PROMPT should maintain consistent system prompt 1`] = `
-"You are Roo, a highly skilled software engineer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.
+"You are CoolCline, a highly skilled software engineer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.
 
 ====
 
@@ -2845,9 +2845,9 @@ USER'S CUSTOM INSTRUCTIONS
 The following additional instructions are provided by the user, and should be followed to the best of your ability without interfering with the TOOL USE guidelines.
 
 Rules:
-# Rules from .clinerules-code:
+# Rules from .coolclinerules-code:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;
 
@@ -2866,9 +2866,9 @@ Mode-specific Instructions:
 Custom test instructions
 
 Rules:
-# Rules from .clinerules-code:
+# Rules from .coolclinerules-code:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;
 
@@ -2887,9 +2887,9 @@ Mode-specific Instructions:
 Mode-specific instructions
 
 Rules:
-# Rules from .clinerules-code:
+# Rules from .coolclinerules-code:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;
 
@@ -2902,14 +2902,14 @@ USER'S CUSTOM INSTRUCTIONS
 The following additional instructions are provided by the user, and should be followed to the best of your ability without interfering with the TOOL USE guidelines.
 
 Rules:
-# Rules from .clinerules-code:
+# Rules from .coolclinerules-code:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;
 
 exports[`addCustomInstructions should generate correct prompt for architect mode 1`] = `
-"You are Roo, a software architecture expert specializing in analyzing codebases, identifying patterns, and providing high-level technical guidance. You excel at understanding complex systems, evaluating architectural decisions, and suggesting improvements while maintaining a read-only approach to the codebase. Make sure to help the user come up with a solid implementation plan for their project and don't rush to switch to implementing code.
+"You are CoolCline, a software architecture expert specializing in analyzing codebases, identifying patterns, and providing high-level technical guidance. You excel at understanding complex systems, evaluating architectural decisions, and suggesting improvements while maintaining a read-only approach to the codebase. Make sure to help the user come up with a solid implementation plan for their project and don't rush to switch to implementing code.
 
 ====
 
@@ -3136,14 +3136,14 @@ USER'S CUSTOM INSTRUCTIONS
 The following additional instructions are provided by the user, and should be followed to the best of your ability without interfering with the TOOL USE guidelines.
 
 Rules:
-# Rules from .clinerules-architect:
+# Rules from .coolclinerules-architect:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;
 
 exports[`addCustomInstructions should generate correct prompt for ask mode 1`] = `
-"You are Roo, a knowledgeable technical assistant focused on answering questions and providing information about software development, technology, and related topics. You can analyze code, explain concepts, and access external resources while maintaining a read-only approach to the codebase. Make sure to answer the user's questions and don't rush to switch to implementing code.
+"You are CoolCline, a knowledgeable technical assistant focused on answering questions and providing information about software development, technology, and related topics. You can analyze code, explain concepts, and access external resources while maintaining a read-only approach to the codebase. Make sure to answer the user's questions and don't rush to switch to implementing code.
 
 ====
 
@@ -3370,9 +3370,9 @@ USER'S CUSTOM INSTRUCTIONS
 The following additional instructions are provided by the user, and should be followed to the best of your ability without interfering with the TOOL USE guidelines.
 
 Rules:
-# Rules from .clinerules-ask:
+# Rules from .coolclinerules-ask:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;
 
@@ -3385,9 +3385,9 @@ USER'S CUSTOM INSTRUCTIONS
 The following additional instructions are provided by the user, and should be followed to the best of your ability without interfering with the TOOL USE guidelines.
 
 Rules:
-# Rules from .clinerules-code:
+# Rules from .coolclinerules-code:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;
 
@@ -3400,9 +3400,9 @@ USER'S CUSTOM INSTRUCTIONS
 The following additional instructions are provided by the user, and should be followed to the best of your ability without interfering with the TOOL USE guidelines.
 
 Rules:
-# Rules from .clinerules-code:
+# Rules from .coolclinerules-code:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;
 
@@ -3418,9 +3418,9 @@ Mode-specific Instructions:
 Custom test instructions
 
 Rules:
-# Rules from .clinerules-code:
+# Rules from .coolclinerules-code:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;
 
@@ -3436,9 +3436,9 @@ Language Preference:
 You should always speak and think in the Spanish language.
 
 Rules:
-# Rules from .clinerules-code:
+# Rules from .coolclinerules-code:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;
 
@@ -3457,9 +3457,9 @@ Mode-specific Instructions:
 Second instruction
 
 Rules:
-# Rules from .clinerules-code:
+# Rules from .coolclinerules-code:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;
 
@@ -3472,9 +3472,9 @@ USER'S CUSTOM INSTRUCTIONS
 The following additional instructions are provided by the user, and should be followed to the best of your ability without interfering with the TOOL USE guidelines.
 
 Rules:
-# Rules from .clinerules-architect:
+# Rules from .coolclinerules-architect:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;
 
@@ -3487,9 +3487,9 @@ USER'S CUSTOM INSTRUCTIONS
 The following additional instructions are provided by the user, and should be followed to the best of your ability without interfering with the TOOL USE guidelines.
 
 Rules:
-# Rules from .clinerules-ask:
+# Rules from .coolclinerules-ask:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;
 
@@ -3502,9 +3502,9 @@ USER'S CUSTOM INSTRUCTIONS
 The following additional instructions are provided by the user, and should be followed to the best of your ability without interfering with the TOOL USE guidelines.
 
 Rules:
-# Rules from .clinerules-code:
+# Rules from .coolclinerules-code:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;
 
@@ -3517,9 +3517,9 @@ USER'S CUSTOM INSTRUCTIONS
 The following additional instructions are provided by the user, and should be followed to the best of your ability without interfering with the TOOL USE guidelines.
 
 Rules:
-# Rules from .clinerules-review:
+# Rules from .coolclinerules-review:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;
 
@@ -3532,9 +3532,9 @@ USER'S CUSTOM INSTRUCTIONS
 The following additional instructions are provided by the user, and should be followed to the best of your ability without interfering with the TOOL USE guidelines.
 
 Rules:
-# Rules from .clinerules-test:
+# Rules from .coolclinerules-test:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;
 
@@ -3550,8 +3550,8 @@ Mode-specific Instructions:
   Custom mode instructions  
 
 Rules:
-# Rules from .clinerules-code:
+# Rules from .coolclinerules-code:
 Mock mode-specific rules
-# Rules from .clinerules:
+# Rules from .coolclinerules:
 Mock generic rules"
 `;

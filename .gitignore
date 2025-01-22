@@ -7,7 +7,7 @@ coverage/
 
 # Builds
 bin/
-roo-cline-*.vsix
+coolcline-*.vsix
 
 # Local prompts and rules
 /local-prompts
@@ -15,3 +15,4 @@ roo-cline-*.vsix
 # Test environment
 .test_env
 .vscode-test/
+re/
