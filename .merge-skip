@@ -1,0 +1,14 @@
+8d0acfa9871ac0848746fcd4600d9cf4311f99fc # 2025-01-23 03:08:56 - style: Align text and button in user input box - 需要按照 CoolCline 的代码风格和命名规范重新实现
+851e8ced5172b8cc247f4c68fc93079c332f923d # 2025-01-23 03:31:45 - Merge pull request #478 - 合并提交，已处理过源提交 8d0acfa
+21c7ac7046ef45a0214623f53407f6450461e4d8 # 2025-01-23 03:32:16 - Merge pull request #481 - 合并提交，已处理过源提交 8ad904a
+b91bffb61cb802af6dd05becfbd6eca693e12d3b # 2025-01-23 03:33:33 - Merge pull request #480 - 合并提交，已处理过源提交 93a5710
+b4594d36f6e3f7ef8353c416948cdae10a0ee509 # 2025-01-23 03:39:30 - Merge pull request #484 - 合并提交，已处理过源提交 4b24564 和 ece6310
+c021c3d2ff80050111945564bfbce54700147735 # 2025-01-23 03:40:05 - v3.2.5 - 版本更新提交，我们使用自己的版本号
+34205d9b9fae33d76b9d86d4b12d9c5408f67d57 # 2025-01-23 03:46:40 - Merge pull request #487 - 合并提交，已处理过源提交 82a6d13
+212f60970981dfd5b70fd5420e78348319f9bb9f # 2025-01-23 04:13:25 - changeset version bump - 版本更新提交
+6e17442ed8edb9429975b02e923072c044d1106b # 2025-01-23 04:13:25 - Updating CHANGELOG.md format - 更新 CHANGELOG 格式
+e211d83ba9fb93263c04026a546e239134ea63ae # 2025-01-23 04:13:25 - Merge pull request #489 - 合并发布分支
+d479d8417cbc62843d13811ac607a8881bbe24e6 # 2025-01-23 04:13:25 - Merge pull request #492 - 合并功能分支
+28df0ab0040e22c48f1d8a825ba2fc3e949195b5 # 2025-01-23 04:13:25 - changeset version bump - 版本更新提交
+447400fecc08a3fa4698a71cfe0dd326a6ac1d90 # 2025-01-23 04:13:25 - Updating CHANGELOG.md format - 更新 CHANGELOG 格式
+d6ebfb981a9645705ff7e0e27535488eb93cf4c2 # 2025-01-23 04:13:25 - Merge pull request #493 - 合并发布分支
