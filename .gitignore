@@ -16,3 +16,4 @@ coolcline-*.vsix
 .test_env
 .vscode-test/
 re/
+.merge-skip
