@@ -57,7 +57,7 @@ const WelcomeView = () => {
           disabled={disableLetsGoButton}
           style={{ marginTop: '3px' }}
         >
-          Let's go!
+          Let&apos;s go!
         </VSCodeButton>
       </div>
     </div>

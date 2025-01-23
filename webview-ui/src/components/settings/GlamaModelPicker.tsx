@@ -282,15 +282,15 @@ const GlamaModelPicker: React.FC = () => {
           >
             Glama.
           </VSCodeLink>
-          If you're unsure which model to choose, CoolCline works best with{' '}
+          If you&apos;re unsure which model to choose, CoolCline works best with{' '}
           <VSCodeLink
             style={{ display: 'inline', fontSize: 'inherit' }}
             onClick={() => handleModelChange('anthropic/claude-3.5-sonnet')}
           >
             anthropic/claude-3.5-sonnet.
           </VSCodeLink>
-          You can also try searching "free" for no-cost options currently
-          available.
+          You can also try searching &quot;free&quot; for no-cost options
+          currently available.
         </p>
       )}
     </>

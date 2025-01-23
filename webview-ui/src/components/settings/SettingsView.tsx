@@ -454,8 +454,8 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
               }}
             >
               Enable auto-approval of individual MCP tools in the MCP Servers
-              view (requires both this setting and the tool's individual "Always
-              allow" checkbox)
+              view (requires both this setting and the tool&apos;s individual
+              &quot;Always allow&quot; checkbox)
             </p>
           </div>
 
@@ -491,8 +491,8 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
                     color: 'var(--vscode-descriptionForeground)',
                   }}
                 >
-                  Command prefixes that can be auto-executed when "Always
-                  approve execute operations" is enabled.
+                  Command prefixes that can be auto-executed when &quot;Always
+                  approve execute operations&quot; is enabled.
                 </p>
 
                 <div style={{ display: 'flex', gap: '5px', marginTop: '10px' }}>

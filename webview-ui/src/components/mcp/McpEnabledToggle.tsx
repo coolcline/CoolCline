@@ -27,8 +27,8 @@ const McpEnabledToggle = () => {
         }}
       >
         When enabled, CoolCline will be able to interact with MCP servers for
-        advanced functionality. If you're not using MCP, you can disable this to
-        reduce CoolCline's token usage.
+        advanced functionality. If you&apos;re not using MCP, you can disable
+        this to reduce CoolCline&apos;s token usage.
       </p>
     </div>
   );

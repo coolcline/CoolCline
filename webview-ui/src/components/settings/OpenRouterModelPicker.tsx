@@ -282,7 +282,7 @@ const OpenRouterModelPicker: React.FC = () => {
           >
             OpenRouter.
           </VSCodeLink>
-          If you're unsure which model to choose, CoolCline works best with{' '}
+          If you&apos;re unsure which model to choose, CoolCline works best with{' '}
           <VSCodeLink
             style={{ display: 'inline', fontSize: 'inherit' }}
             onClick={() =>
@@ -291,8 +291,8 @@ const OpenRouterModelPicker: React.FC = () => {
           >
             anthropic/claude-3.5-sonnet:beta.
           </VSCodeLink>
-          You can also try searching "free" for no-cost options currently
-          available.
+          You can also try searching &quot;free&quot; for no-cost options
+          currently available.
         </p>
       )}
     </>

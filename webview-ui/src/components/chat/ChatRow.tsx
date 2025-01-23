@@ -579,8 +579,8 @@ export const ChatRowContent = ({
                       <>
                         <br />
                         <br />
-                        It seems like you're having Windows PowerShell issues,
-                        please see this{' '}
+                        It seems like you&apos;re having Windows PowerShell
+                        issues, please see this{' '}
                         <a
                           href="https://github.com/coolcline/coolcline/wiki/TroubleShooting-%E2%80%90-%22PowerShell-is-not-recognized-as-an-internal-or-external-command%22"
                           style={{
@@ -781,11 +781,12 @@ export const ChatRowContent = ({
                   </span>
                 </div>
                 <div>
-                  CoolCline won't be able to view the command's output. Please
-                  update VSCode (<code>CMD/CTRL + Shift + P</code> → "Update")
-                  and make sure you're using a supported shell: zsh, bash, fish,
-                  or PowerShell (<code>CMD/CTRL + Shift + P</code> → "Terminal:
-                  Select Default Profile").{' '}
+                  CoolCline won&apos;t be able to view the command&apos;s
+                  output. Please update VSCode (
+                  <code>CMD/CTRL + Shift + P</code> → &quot;Update&quot;) and
+                  make sure you&apos;re using a supported shell: zsh, bash,
+                  fish, or PowerShell (<code>CMD/CTRL + Shift + P</code> →
+                  &quot;Terminal: Select Default Profile&quot;).{' '}
                   <a
                     href="https://github.com/coolcline/coolcline/wiki/Troubleshooting-%E2%80%90-Shell-Integration-Unavailable"
                     style={{ color: 'inherit', textDecoration: 'underline' }}
