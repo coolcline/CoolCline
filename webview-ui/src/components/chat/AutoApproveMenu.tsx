@@ -1,5 +1,6 @@
 import { VSCodeCheckbox } from '@vscode/webview-ui-toolkit/react';
 import { useCallback, useState } from 'react';
+
 import { useExtensionState } from '../../context/ExtensionStateContext';
 import { vscode } from '../../utils/vscode';
 

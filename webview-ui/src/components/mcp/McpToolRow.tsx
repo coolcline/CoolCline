@@ -1,4 +1,5 @@
 import { VSCodeCheckbox } from '@vscode/webview-ui-toolkit/react';
+
 import { McpTool } from '../../../../src/shared/mcp';
 import { vscode } from '../../utils/vscode';
 

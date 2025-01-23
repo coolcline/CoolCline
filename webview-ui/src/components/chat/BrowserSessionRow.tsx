@@ -1,17 +1,19 @@
+import { VSCodeButton } from '@vscode/webview-ui-toolkit/react';
 import deepEqual from 'fast-deep-equal';
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useSize } from 'react-use';
-import { useExtensionState } from '../../context/ExtensionStateContext';
+
 import {
   BrowserAction,
   BrowserActionResult,
   CoolClineMessage,
   CoolClineSayBrowserAction,
 } from '../../../../src/shared/ExtensionMessage';
+import { useExtensionState } from '../../context/ExtensionStateContext';
 import { vscode } from '../../utils/vscode';
 import CodeBlock, { CODE_BLOCK_BG_COLOR } from '../common/CodeBlock';
+
 import { ChatRowContent, ProgressIndicator } from './ChatRow';
-import { VSCodeButton } from '@vscode/webview-ui-toolkit/react';
 
 interface BrowserSessionRowProps {
   messages: CoolClineMessage[];

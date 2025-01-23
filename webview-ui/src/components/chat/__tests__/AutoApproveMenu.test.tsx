@@ -1,7 +1,8 @@
 import { render, fireEvent, screen } from '@testing-library/react';
+
+import { codeMode, defaultPrompts } from '../../../../../src/shared/modes';
 import { useExtensionState } from '../../../context/ExtensionStateContext';
 import AutoApproveMenu from '../AutoApproveMenu';
-import { codeMode, defaultPrompts } from '../../../../../src/shared/modes';
 
 // Mock the ExtensionStateContext hook
 jest.mock('../../../context/ExtensionStateContext');

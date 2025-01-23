@@ -6,13 +6,14 @@ import {
 import deepEqual from 'fast-deep-equal';
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useSize } from 'react-use';
+
+import { COMMAND_OUTPUT_STRING } from '../../../../src/shared/combineCommandSequences';
 import {
   CoolClineApiReqInfo,
   CoolClineAskUseMcpServer,
   CoolClineMessage,
   CoolClineSayTool,
 } from '../../../../src/shared/ExtensionMessage';
-import { COMMAND_OUTPUT_STRING } from '../../../../src/shared/combineCommandSequences';
 import { useExtensionState } from '../../context/ExtensionStateContext';
 import { findMatchingResourceOrTemplate } from '../../utils/mcp';
 import { vscode } from '../../utils/vscode';
@@ -24,6 +25,7 @@ import MarkdownBlock from '../common/MarkdownBlock';
 import Thumbnails from '../common/Thumbnails';
 import McpResourceRow from '../mcp/McpResourceRow';
 import McpToolRow from '../mcp/McpToolRow';
+
 import { highlightMentions } from './TaskHeader';
 
 interface ChatRowProps {
@@ -36,7 +38,7 @@ interface ChatRowProps {
   isStreaming: boolean;
 }
 
-interface ChatRowContentProps extends Omit<ChatRowProps, 'onHeightChange'> {}
+type ChatRowContentProps = Omit<ChatRowProps, 'onHeightChange'>;
 
 const ChatRow = memo(
   (props: ChatRowProps) => {

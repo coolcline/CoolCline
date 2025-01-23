@@ -1,4 +1,3 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   VSCodeButton,
   VSCodeTextArea,
@@ -7,7 +6,8 @@ import {
   VSCodeTextField,
   VSCodeCheckbox,
 } from '@vscode/webview-ui-toolkit/react';
-import { useExtensionState } from '../../context/ExtensionStateContext';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+
 import {
   Mode,
   PromptComponent,
@@ -21,6 +21,7 @@ import {
   GROUP_DISPLAY_NAMES,
   ToolGroup,
 } from '../../../../src/shared/tool-groups';
+import { useExtensionState } from '../../context/ExtensionStateContext';
 import { vscode } from '../../utils/vscode';
 
 // Get all available groups from GROUP_DISPLAY_NAMES

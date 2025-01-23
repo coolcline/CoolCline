@@ -1,5 +1,3 @@
-import { Checkbox, Dropdown, Pane } from 'vscrui';
-import type { DropdownOption } from 'vscrui';
 import {
   VSCodeLink,
   VSCodeRadio,
@@ -15,6 +13,10 @@ import {
   useState,
 } from 'react';
 import { useEvent, useInterval } from 'react-use';
+import * as vscodemodels from 'vscode';
+import { Checkbox, Dropdown, Pane } from 'vscrui';
+import type { DropdownOption } from 'vscrui';
+
 import {
   ApiConfiguration,
   ModelInfo,
@@ -42,14 +44,14 @@ import {
 import { ExtensionMessage } from '../../../../src/shared/ExtensionMessage';
 import { useExtensionState } from '../../context/ExtensionStateContext';
 import { vscode } from '../../utils/vscode';
-import * as vscodemodels from 'vscode';
 import VSCodeButtonLink from '../common/VSCodeButtonLink';
+
+import GlamaModelPicker from './GlamaModelPicker';
+import OpenAiModelPicker from './OpenAiModelPicker';
 import OpenRouterModelPicker, {
   ModelDescriptionMarkdown,
   OPENROUTER_MODEL_PICKER_Z_INDEX,
 } from './OpenRouterModelPicker';
-import OpenAiModelPicker from './OpenAiModelPicker';
-import GlamaModelPicker from './GlamaModelPicker';
 
 interface ApiOptionsProps {
   apiErrorMessage?: string;

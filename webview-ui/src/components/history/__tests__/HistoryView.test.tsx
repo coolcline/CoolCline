@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   render,
   screen,
@@ -7,9 +6,11 @@ import {
   waitFor,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import HistoryView from '../HistoryView';
+import React from 'react';
+
 import { useExtensionState } from '../../../context/ExtensionStateContext';
 import { vscode } from '../../../utils/vscode';
+import HistoryView from '../HistoryView';
 
 // Mock dependencies
 jest.mock('../../../context/ExtensionStateContext');

@@ -1,8 +1,9 @@
-import React from 'react';
 import { render, waitFor } from '@testing-library/react';
-import ChatView from '../ChatView';
+import React from 'react';
+
 import { ExtensionStateContextProvider } from '../../../context/ExtensionStateContext';
 import { vscode } from '../../../utils/vscode';
+import ChatView from '../ChatView';
 
 // Define minimal types needed for testing
 interface CoolClineMessage {

@@ -1,9 +1,10 @@
 import { render, fireEvent, screen } from '@testing-library/react';
+
 import '@testing-library/jest-dom';
-import ChatTextArea from '../ChatTextArea';
+import { defaultModeSlug } from '../../../../../src/shared/modes';
 import { useExtensionState } from '../../../context/ExtensionStateContext';
 import { vscode } from '../../../utils/vscode';
-import { defaultModeSlug } from '../../../../../src/shared/modes';
+import ChatTextArea from '../ChatTextArea';
 
 // Mock modules
 jest.mock('../../../utils/vscode', () => ({

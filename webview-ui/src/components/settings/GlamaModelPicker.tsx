@@ -12,10 +12,12 @@ import React, {
 import { useRemark } from 'react-remark';
 import { useMount } from 'react-use';
 import styled from 'styled-components';
+
 import { glamaDefaultModelId } from '../../../../src/shared/api';
 import { useExtensionState } from '../../context/ExtensionStateContext';
-import { vscode } from '../../utils/vscode';
 import { highlightFzfMatch } from '../../utils/highlight';
+import { vscode } from '../../utils/vscode';
+
 import { ModelInfoView, normalizeApiConfiguration } from './ApiOptions';
 
 const GlamaModelPicker: React.FC = () => {

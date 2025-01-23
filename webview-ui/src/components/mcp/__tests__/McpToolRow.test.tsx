@@ -1,7 +1,8 @@
-import React from 'react';
 import { render, fireEvent, screen } from '@testing-library/react';
-import McpToolRow from '../McpToolRow';
+import React from 'react';
+
 import { vscode } from '../../../utils/vscode';
+import McpToolRow from '../McpToolRow';
 
 jest.mock('../../../utils/vscode', () => ({
   vscode: {

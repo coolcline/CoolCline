@@ -8,10 +8,13 @@ import React, {
   useState,
 } from 'react';
 import DynamicTextArea from 'react-textarea-autosize';
+
 import {
   mentionRegex,
   mentionRegexGlobal,
 } from '../../../../src/shared/context-mentions';
+import { Mode, getAllModes } from '../../../../src/shared/modes';
+import { WebviewMessage } from '../../../../src/shared/WebviewMessage';
 import { useExtensionState } from '../../context/ExtensionStateContext';
 import {
   ContextMenuOptionType,
@@ -20,13 +23,12 @@ import {
   removeMention,
   shouldShowContextMenu,
 } from '../../utils/context-mentions';
+import { vscode } from '../../utils/vscode';
+import { CaretIcon } from '../common/CaretIcon';
+import Thumbnails from '../common/Thumbnails';
+
 import { MAX_IMAGES_PER_MESSAGE } from './ChatView';
 import ContextMenu from './ContextMenu';
-import Thumbnails from '../common/Thumbnails';
-import { vscode } from '../../utils/vscode';
-import { WebviewMessage } from '../../../../src/shared/WebviewMessage';
-import { Mode, getAllModes } from '../../../../src/shared/modes';
-import { CaretIcon } from '../common/CaretIcon';
 
 interface ChatTextAreaProps {
   inputValue: string;

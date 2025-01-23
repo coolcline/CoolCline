@@ -1,7 +1,7 @@
 export function highlightFzfMatch(
   text: string,
   positions: number[],
-  highlightClassName: string = 'history-item-highlight'
+  highlightClassName = 'history-item-highlight'
 ) {
   if (!positions.length) return text;
 

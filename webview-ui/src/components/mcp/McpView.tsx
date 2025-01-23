@@ -6,12 +6,14 @@ import {
   VSCodePanelView,
 } from '@vscode/webview-ui-toolkit/react';
 import { useState } from 'react';
-import { vscode } from '../../utils/vscode';
-import { useExtensionState } from '../../context/ExtensionStateContext';
+
 import { McpServer } from '../../../../src/shared/mcp';
-import McpToolRow from './McpToolRow';
-import McpResourceRow from './McpResourceRow';
+import { useExtensionState } from '../../context/ExtensionStateContext';
+import { vscode } from '../../utils/vscode';
+
 import McpEnabledToggle from './McpEnabledToggle';
+import McpResourceRow from './McpResourceRow';
+import McpToolRow from './McpToolRow';
 
 type McpViewProps = {
   onDone: () => void;

@@ -10,9 +10,9 @@ export interface GitCommit {
 
 class GitService {
   private commits: GitCommit[] | null = null;
-  private lastQuery: string = '';
+  private lastQuery = '';
 
-  async searchCommits(query: string = ''): Promise<GitCommit[]> {
+  async searchCommits(query = ''): Promise<GitCommit[]> {
     if (query === this.lastQuery && this.commits) {
       return this.commits;
     }

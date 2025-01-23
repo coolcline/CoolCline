@@ -1,5 +1,6 @@
 import { VSCodeCheckbox } from '@vscode/webview-ui-toolkit/react';
 import { FormEvent } from 'react';
+
 import { useExtensionState } from '../../context/ExtensionStateContext';
 import { vscode } from '../../utils/vscode';
 

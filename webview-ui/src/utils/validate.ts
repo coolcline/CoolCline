@@ -2,8 +2,8 @@ import {
   ApiConfiguration,
   glamaDefaultModelId,
   openRouterDefaultModelId,
+  ModelInfo,
 } from '../../../src/shared/api';
-import { ModelInfo } from '../../../src/shared/api';
 export function validateApiConfiguration(
   apiConfiguration?: ApiConfiguration
 ): string | undefined {

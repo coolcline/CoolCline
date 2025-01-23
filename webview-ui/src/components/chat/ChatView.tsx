@@ -4,6 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDeepCompareEffect, useEvent, useMount } from 'react-use';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import styled from 'styled-components';
+
+import { findLast } from '../../../../src/shared/array';
+import { combineApiRequests } from '../../../../src/shared/combineApiRequests';
+import { combineCommandSequences } from '../../../../src/shared/combineCommandSequences';
 import {
   CoolClineAsk,
   CoolClineMessage,
@@ -11,23 +15,21 @@ import {
   CoolClineSayTool,
   ExtensionMessage,
 } from '../../../../src/shared/ExtensionMessage';
-import { McpServer, McpTool } from '../../../../src/shared/mcp';
-import { findLast } from '../../../../src/shared/array';
-import { combineApiRequests } from '../../../../src/shared/combineApiRequests';
-import { combineCommandSequences } from '../../../../src/shared/combineCommandSequences';
 import { getApiMetrics } from '../../../../src/shared/getApiMetrics';
+import { McpServer, McpTool } from '../../../../src/shared/mcp';
+import { AudioType } from '../../../../src/shared/WebviewMessage';
 import { useExtensionState } from '../../context/ExtensionStateContext';
+import { validateCommand } from '../../utils/command-validation';
 import { vscode } from '../../utils/vscode';
 import HistoryPreview from '../history/HistoryPreview';
 import { normalizeApiConfiguration } from '../settings/ApiOptions';
+
 import Announcement from './Announcement';
+import AutoApproveMenu from './AutoApproveMenu';
 import BrowserSessionRow from './BrowserSessionRow';
 import ChatRow from './ChatRow';
 import ChatTextArea from './ChatTextArea';
 import TaskHeader from './TaskHeader';
-import AutoApproveMenu from './AutoApproveMenu';
-import { AudioType } from '../../../../src/shared/WebviewMessage';
-import { validateCommand } from '../../utils/command-validation';
 
 interface ChatViewProps {
   isHidden: boolean;

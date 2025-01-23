@@ -5,14 +5,16 @@ import {
   VSCodeTextField,
 } from '@vscode/webview-ui-toolkit/react';
 import { memo, useEffect, useState } from 'react';
+
 import { useExtensionState } from '../../context/ExtensionStateContext';
 import {
   validateApiConfiguration,
   validateModelId,
 } from '../../utils/validate';
 import { vscode } from '../../utils/vscode';
-import ApiOptions from './ApiOptions';
+
 import ApiConfigManager from './ApiConfigManager';
+import ApiOptions from './ApiOptions';
 
 type SettingsViewProps = {
   onDone: () => void;

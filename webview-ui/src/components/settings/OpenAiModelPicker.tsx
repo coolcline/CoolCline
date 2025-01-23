@@ -1,4 +1,5 @@
 import { VSCodeLink, VSCodeTextField } from '@vscode/webview-ui-toolkit/react';
+import debounce from 'debounce';
 import { Fzf } from 'fzf';
 import React, {
   KeyboardEvent,
@@ -8,12 +9,12 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import debounce from 'debounce';
 import { useRemark } from 'react-remark';
 import styled from 'styled-components';
+
 import { useExtensionState } from '../../context/ExtensionStateContext';
-import { vscode } from '../../utils/vscode';
 import { highlightFzfMatch } from '../../utils/highlight';
+import { vscode } from '../../utils/vscode';
 
 const OpenAiModelPicker: React.FC = () => {
   const {

@@ -4,13 +4,14 @@ import {
   VSCodeRadioGroup,
   VSCodeRadio,
 } from '@vscode/webview-ui-toolkit/react';
-import { useExtensionState } from '../../context/ExtensionStateContext';
-import { vscode } from '../../utils/vscode';
-import { Virtuoso } from 'react-virtuoso';
-import React, { memo, useMemo, useState, useEffect } from 'react';
 import { Fzf } from 'fzf';
+import React, { memo, useMemo, useState, useEffect } from 'react';
+import { Virtuoso } from 'react-virtuoso';
+
+import { useExtensionState } from '../../context/ExtensionStateContext';
 import { formatLargeNumber } from '../../utils/format';
 import { highlightFzfMatch } from '../../utils/highlight';
+import { vscode } from '../../utils/vscode';
 
 type HistoryViewProps = {
   onDone: () => void;

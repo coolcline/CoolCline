@@ -1,5 +1,6 @@
 import { VSCodeButton, VSCodeLink } from '@vscode/webview-ui-toolkit/react';
 import { useEffect, useState } from 'react';
+
 import { useExtensionState } from '../../context/ExtensionStateContext';
 import { validateApiConfiguration } from '../../utils/validate';
 import { vscode } from '../../utils/vscode';

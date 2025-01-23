@@ -1,8 +1,9 @@
 import { render, screen, fireEvent } from '@testing-library/react';
+
 import '@testing-library/jest-dom';
-import PromptsView from '../PromptsView';
 import { ExtensionStateContext } from '../../../context/ExtensionStateContext';
 import { vscode } from '../../../utils/vscode';
+import PromptsView from '../PromptsView';
 
 // Mock vscode API
 jest.mock('../../../utils/vscode', () => ({

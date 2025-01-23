@@ -6,11 +6,7 @@ import React, {
   useState,
 } from 'react';
 import { useEvent } from 'react-use';
-import {
-  ApiConfigMeta,
-  ExtensionMessage,
-  ExtensionState,
-} from '../../../src/shared/ExtensionMessage';
+
 import {
   ApiConfiguration,
   ModelInfo,
@@ -19,11 +15,14 @@ import {
   openRouterDefaultModelId,
   openRouterDefaultModelInfo,
 } from '../../../src/shared/api';
-import { vscode } from '../utils/vscode';
-import { convertTextMateToHljs } from '../utils/textMateToHljs';
 import { findLastIndex } from '../../../src/shared/array';
-import { McpServer } from '../../../src/shared/mcp';
 import { checkExistKey } from '../../../src/shared/checkExistApiConfig';
+import {
+  ApiConfigMeta,
+  ExtensionMessage,
+  ExtensionState,
+} from '../../../src/shared/ExtensionMessage';
+import { McpServer } from '../../../src/shared/mcp';
 import {
   Mode,
   CustomPrompts,
@@ -31,6 +30,8 @@ import {
   defaultPrompts,
   ModeConfig,
 } from '../../../src/shared/modes';
+import { convertTextMateToHljs } from '../utils/textMateToHljs';
+import { vscode } from '../utils/vscode';
 
 export interface ExtensionStateContextType extends ExtensionState {
   didHydrateState: boolean;

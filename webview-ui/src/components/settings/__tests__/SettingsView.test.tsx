@@ -1,8 +1,9 @@
-import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import SettingsView from '../SettingsView';
+import React from 'react';
+
 import { ExtensionStateContextProvider } from '../../../context/ExtensionStateContext';
 import { vscode } from '../../../utils/vscode';
+import SettingsView from '../SettingsView';
 
 // Mock vscode API
 jest.mock('../../../utils/vscode', () => ({
