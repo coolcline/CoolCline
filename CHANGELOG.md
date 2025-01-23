@@ -5,6 +5,9 @@
 >
 > CONTRIBUTING: [English](CONTRIBUTING.md) | [简体中文](CONTRIBUTING_zh.md)
 
+## [4.1.1]
+- Merged updates from [roo code 3.2.7](https://github.com/RooVetGit/Roo-Code)
+
 ## [4.1.0]
 - Merged updates from [roo code 3.2.4](https://github.com/RooVetGit/Roo-Code)
 
