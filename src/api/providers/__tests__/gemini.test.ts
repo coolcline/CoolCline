@@ -22,7 +22,7 @@ describe('GeminiHandler', () => {
   beforeEach(() => {
     handler = new GeminiHandler({
       apiKey: 'test-key',
-      apiModelId: 'gemini-2.0-flash-thinking-exp-1219',
+      apiModelId: 'gemini-2.0-flash-thinking-exp-01-21',
       geminiApiKey: 'test-key',
     });
   });
@@ -31,14 +31,14 @@ describe('GeminiHandler', () => {
     it('should initialize with provided config', () => {
       expect(handler['options'].geminiApiKey).toBe('test-key');
       expect(handler['options'].apiModelId).toBe(
-        'gemini-2.0-flash-thinking-exp-1219'
+        'gemini-2.0-flash-thinking-exp-01-21'
       );
     });
 
     it('should throw if API key is missing', () => {
       expect(() => {
         new GeminiHandler({
-          apiModelId: 'gemini-2.0-flash-thinking-exp-1219',
+          apiModelId: 'gemini-2.0-flash-thinking-exp-01-21',
           geminiApiKey: '',
         });
       }).toThrow('API key is required for Google Gemini');
@@ -104,7 +104,7 @@ describe('GeminiHandler', () => {
 
       // Verify the model configuration
       expect(mockGetGenerativeModel).toHaveBeenCalledWith({
-        model: 'gemini-2.0-flash-thinking-exp-1219',
+        model: 'gemini-2.0-flash-thinking-exp-01-21',
         systemInstruction: systemPrompt,
       });
 
@@ -152,7 +152,7 @@ describe('GeminiHandler', () => {
       const result = await handler.completePrompt('Test prompt');
       expect(result).toBe('Test response');
       expect(mockGetGenerativeModel).toHaveBeenCalledWith({
-        model: 'gemini-2.0-flash-thinking-exp-1219',
+        model: 'gemini-2.0-flash-thinking-exp-01-21',
       });
       expect(mockGenerateContent).toHaveBeenCalledWith({
         contents: [{ role: 'user', parts: [{ text: 'Test prompt' }] }],
