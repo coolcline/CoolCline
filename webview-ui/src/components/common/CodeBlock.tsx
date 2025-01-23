@@ -13,7 +13,7 @@ export const CODE_BLOCK_BG_COLOR =
 overflowX: auto + inner div with padding results in an issue where the top/left/bottom padding renders but the right padding inside does not count as overflow as the width of the element is not exceeded. Once the inner div is outside the boundaries of the parent it counts as overflow.
 https://stackoverflow.com/questions/60778406/why-is-padding-right-clipped-with-overflowscroll/77292459#77292459
 this fixes the issue of right padding clipped off 
-“ideal” size in a given axis when given infinite available space--allows the syntax highlighter to grow to largest possible width including its padding
+"ideal" size in a given axis when given infinite available space--allows the syntax highlighter to grow to largest possible width including its padding
 minWidth: "max-content",
 */
 
@@ -102,10 +102,10 @@ const StyledPre = styled.pre<{ theme: any }>`
 
   ${(props) =>
     Object.keys(props.theme)
-      .map((key, index) => {
+      .map((_key, _index) => {
         return `
-      & ${key} {
-        color: ${props.theme[key]};
+      & ${_key} {
+        color: ${props.theme[_key]};
       }
     `;
       })
@@ -118,12 +118,12 @@ const CodeBlock = memo(({ source, forceWrap = false }: CodeBlockProps) => {
     remarkPlugins: [
       () => {
         return (tree) => {
-          visit(tree, 'code', (node: any) => {
-            if (!node.lang) {
-              node.lang = 'javascript';
-            } else if (node.lang.includes('.')) {
+          visit(tree, 'code', (_node: any) => {
+            if (!_node.lang) {
+              _node.lang = 'javascript';
+            } else if (_node.lang.includes('.')) {
               // if the langauge is a file, get the extension
-              node.lang = node.lang.split('.').slice(-1)[0];
+              _node.lang = _node.lang.split('.').slice(-1)[0];
             }
           });
         };
@@ -137,7 +137,7 @@ const CodeBlock = memo(({ source, forceWrap = false }: CodeBlockProps) => {
     ],
     rehypeReactOptions: {
       components: {
-        pre: ({ node, ...preProps }: any) => (
+        pre: ({ _node, ...preProps }: any) => (
           <StyledPre {...preProps} theme={theme} />
         ),
       },
@@ -147,6 +147,14 @@ const CodeBlock = memo(({ source, forceWrap = false }: CodeBlockProps) => {
   useEffect(() => {
     setMarkdownSource(source || '');
   }, [source, setMarkdownSource, theme]);
+
+  const handleCopy = async (_index: number) => {
+    // Implementation of handleCopy function
+  };
+
+  const handleClick = (_node: any) => {
+    // Implementation of handleClick function
+  };
 
   return (
     <div

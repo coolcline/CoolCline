@@ -16,17 +16,21 @@ jest.mock('../../../utils/vscode', () => ({
 jest.mock('../ApiConfigManager', () => ({
   __esModule: true,
   default: ({
-    currentApiConfigName,
-    listApiConfigMeta,
-    onSelectConfig,
-    onDeleteConfig,
-    onRenameConfig,
-    onUpsertConfig,
-  }: any) => (
-    <div data-testid="api-config-management">
-      <span>Current config: {currentApiConfigName}</span>
-    </div>
-  ),
+    _currentApiConfigName,
+    _listApiConfigMeta,
+    _onSelectConfig,
+    _onDeleteConfig,
+    _onRenameConfig,
+    _onUpsertConfig,
+    ...props
+  }: any) => {
+    const _children = props.children;
+    return (
+      <div data-testid="api-config-management">
+        <span>Current config: {_currentApiConfigName}</span>
+      </div>
+    );
+  },
 }));
 
 // Mock VSCode components

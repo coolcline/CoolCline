@@ -1,6 +1,6 @@
 import { memo, useEffect } from 'react';
 import { useRemark } from 'react-remark';
-import rehypeHighlight, { Options } from 'rehype-highlight';
+import rehypeHighlight, { Options as _Options } from 'rehype-highlight';
 import styled from 'styled-components';
 import { Node, Parent } from 'unist';
 import { visit } from 'unist-util-visit';
@@ -210,7 +210,7 @@ const MarkdownBlock = memo(({ markdown }: MarkdownBlockProps) => {
     ],
     rehypeReactOptions: {
       components: {
-        pre: ({ node, ...preProps }: PreProps) => (
+        pre: ({ _node, ...preProps }: PreProps) => (
           <StyledPre {...preProps} theme={theme} />
         ),
       },
@@ -220,6 +220,10 @@ const MarkdownBlock = memo(({ markdown }: MarkdownBlockProps) => {
   useEffect(() => {
     setMarkdown(markdown || '');
   }, [markdown, setMarkdown, theme]);
+
+  const handleClick = (_node: any) => {
+    // Implementation of handleClick function
+  };
 
   return (
     <div style={{}}>
