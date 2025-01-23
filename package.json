@@ -3,7 +3,7 @@
   "displayName": "CoolCline",
   "description": "Cool Cline is a proactive programming assistant that combines the best features of Cline, Roo Code, and Bao Cline(thanks to all contributors of the `Clines` projects!). It seamlessly collaborates with your command line interface and editor, providing the most powerful AI development experience.",
   "publisher": "CoolCline",
-  "version": "4.1.1",
+  "version": "4.1.2",
   "icon": "assets/icons/icon.png",
   "galleryBanner": {
     "color": "#617A91",
