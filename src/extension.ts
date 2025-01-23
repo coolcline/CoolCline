@@ -194,22 +194,19 @@ export function activate(context: vscode.ExtensionContext) {
     if (!visibleProvider) {
       return;
     }
+    const code = query.get('code');
     switch (path) {
-      case '/glama': {
-        const code = query.get('code');
+      case '/glama':
         if (code) {
           await visibleProvider.handleGlamaCallback(code);
         }
         break;
-      }
 
-      case '/openrouter': {
-        const code = query.get('code');
+      case '/openrouter':
         if (code) {
           await visibleProvider.handleOpenRouterCallback(code);
         }
         break;
-      }
       default:
         break;
     }

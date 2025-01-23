@@ -743,15 +743,15 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
                 vscode.ConfigurationTarget.Global
               );
             break;
-          case 'openMcpSettings': {
+          case 'openMcpSettings':
             const mcpSettingsFilePath =
               await this.mcpHub?.getMcpSettingsFilePath();
             if (mcpSettingsFilePath) {
               openFile(mcpSettingsFilePath);
             }
             break;
-          }
-          case 'restartMcpServer': {
+
+          case 'restartMcpServer':
             try {
               await this.mcpHub?.restartConnection(message.text!);
             } catch (error) {
@@ -761,8 +761,8 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
               );
             }
             break;
-          }
-          case 'toggleToolAlwaysAllow': {
+
+          case 'toggleToolAlwaysAllow':
             try {
               await this.mcpHub?.toggleToolAlwaysAllow(
                 message.serverName!,
@@ -776,8 +776,8 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
               );
             }
             break;
-          }
-          case 'toggleMcpServer': {
+
+          case 'toggleMcpServer':
             try {
               await this.mcpHub?.toggleServerDisabled(
                 message.serverName!,
@@ -790,7 +790,7 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
               );
             }
             break;
-          }
+
           case 'mcpEnabled':
             const mcpEnabled = message.bool ?? true;
             await this.updateGlobalState('mcpEnabled', mcpEnabled);

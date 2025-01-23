@@ -174,9 +174,14 @@ export const ExtensionStateContextProvider: React.FC<{
   const handleMessage = useCallback(
     (event: MessageEvent) => {
       const message: ExtensionMessage = event.data;
+      const newState = message.state;
+      const updatedModels = message.glamaModels ?? {};
+      const openRouterUpdatedModels = message.openRouterModels ?? {};
+      const openAiUpdatedModels = message.openAiModels ?? [];
+
       switch (message.type) {
-        case 'state': {
-          const newState = message.state!;
+        case 'state':
+          if (!newState) break;
           setState((prevState) => ({
             ...prevState,
             ...newState,
@@ -186,18 +191,18 @@ export const ExtensionStateContextProvider: React.FC<{
           setShowWelcome(!hasKey);
           setDidHydrateState(true);
           break;
-        }
-        case 'theme': {
+
+        case 'theme':
           if (message.text) {
             setTheme(convertTextMateToHljs(JSON.parse(message.text)));
           }
           break;
-        }
-        case 'workspaceUpdated': {
+
+        case 'workspaceUpdated':
           setFilePaths(message.filePaths ?? []);
           break;
-        }
-        case 'partialMessage': {
+
+        case 'partialMessage':
           const partialMessage = message.partialMessage!;
           setState((prevState) => {
             // worth noting it will never be possible for a more up-to-date message to be sent here or in normal messages post since the presentAssistantContent function uses lock
@@ -213,36 +218,32 @@ export const ExtensionStateContextProvider: React.FC<{
             return prevState;
           });
           break;
-        }
-        case 'glamaModels': {
-          const updatedModels = message.glamaModels ?? {};
+
+        case 'glamaModels':
           setGlamaModels({
             [glamaDefaultModelId]: glamaDefaultModelInfo, // in case the extension sent a model list without the default model
             ...updatedModels,
           });
           break;
-        }
-        case 'openRouterModels': {
-          const updatedModels = message.openRouterModels ?? {};
+
+        case 'openRouterModels':
           setOpenRouterModels({
             [openRouterDefaultModelId]: openRouterDefaultModelInfo, // in case the extension sent a model list without the default model
-            ...updatedModels,
+            ...openRouterUpdatedModels,
           });
           break;
-        }
-        case 'openAiModels': {
-          const updatedModels = message.openAiModels ?? [];
-          setOpenAiModels(updatedModels);
+
+        case 'openAiModels':
+          setOpenAiModels(openAiUpdatedModels);
           break;
-        }
-        case 'mcpServers': {
+
+        case 'mcpServers':
           setMcpServers(message.mcpServers ?? []);
           break;
-        }
-        case 'listApiConfig': {
+
+        case 'listApiConfig':
           setListApiConfigMeta(message.listApiConfig ?? []);
           break;
-        }
       }
     },
     [setListApiConfigMeta]
