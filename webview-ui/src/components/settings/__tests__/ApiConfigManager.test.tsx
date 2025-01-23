@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 
 import '@testing-library/jest-dom';
-import ApiConfigManager from '../ApiConfigManager';
+import { ApiConfigManager } from '../ApiConfigManager';
 
 // Mock VSCode components
 jest.mock('@vscode/webview-ui-toolkit/react', () => ({
@@ -15,8 +15,13 @@ jest.mock('@vscode/webview-ui-toolkit/react', () => ({
       value={value}
       onChange={(e) => onInput(e)}
       placeholder={placeholder}
-      ref={undefined} // Explicitly set ref to undefined to avoid warning
+      ref={undefined}
     />
+  ),
+  VSCodeLink: ({ children, href, style }: any) => (
+    <a href={href} style={style}>
+      {children}
+    </a>
   ),
 }));
 
