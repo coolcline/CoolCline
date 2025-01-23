@@ -6,7 +6,7 @@
 >
 > CONTRIBUTING: [English](CONTRIBUTING.md) | [简体中文](CONTRIBUTING_zh.md)
 
-## [4.1.1]
+## [4.1.3]
 
 Cool Cline 版本更新，包括：
 
