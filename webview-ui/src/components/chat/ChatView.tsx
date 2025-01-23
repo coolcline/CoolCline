@@ -698,7 +698,7 @@ const ChatView = ({
   const isBrowserSessionMessage = (message: CoolClineMessage): boolean => {
     // which of visible messages are browser session messages, see above
     if (message.type === 'ask') {
-      return ['browser_action_launch'].includes(message.ask!);
+      return ['browser_action_launch'].includes(message.ask ?? '');
     }
     if (message.type === 'say') {
       return [
@@ -706,7 +706,7 @@ const ChatView = ({
         'text',
         'browser_action',
         'browser_action_result',
-      ].includes(message.say!);
+      ].includes(message.say ?? '');
     }
     return false;
   };

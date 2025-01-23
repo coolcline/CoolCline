@@ -35,7 +35,7 @@ describe('ExtensionStateContext', () => {
     );
 
     expect(
-      JSON.parse(screen.getByTestId('allowed-commands').textContent!)
+      JSON.parse(screen.getByTestId('allowed-commands').textContent ?? '[]')
     ).toEqual([]);
   });
 
@@ -46,9 +46,9 @@ describe('ExtensionStateContext', () => {
       </ExtensionStateContextProvider>
     );
 
-    expect(JSON.parse(screen.getByTestId('sound-enabled').textContent!)).toBe(
-      false
-    );
+    expect(
+      JSON.parse(screen.getByTestId('sound-enabled').textContent ?? 'false')
+    ).toBe(false);
   });
 
   it('updates allowedCommands through setAllowedCommands', () => {
@@ -63,14 +63,17 @@ describe('ExtensionStateContext', () => {
     });
 
     expect(
-      JSON.parse(screen.getByTestId('allowed-commands').textContent!)
+      JSON.parse(screen.getByTestId('allowed-commands').textContent ?? '[]')
     ).toEqual(['npm install', 'git status']);
   });
 
   it('throws error when used outside provider', () => {
     // Suppress console.error for this test since we expect an error
     const consoleSpy = jest.spyOn(console, 'error');
-    consoleSpy.mockImplementation(() => {});
+    // 在测试期间禁止错误输出
+    consoleSpy.mockImplementation(() => {
+      /* 禁止错误输出 */
+    });
 
     expect(() => {
       render(<TestComponent />);

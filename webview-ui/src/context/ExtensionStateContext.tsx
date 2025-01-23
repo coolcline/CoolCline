@@ -203,7 +203,12 @@ export const ExtensionStateContextProvider: React.FC<{
           break;
         }
         case 'partialMessage': {
-          const partialMessage = message.partialMessage!;
+          const partialMessage = message.partialMessage ?? {
+            ts: 0,
+            type: 'say',
+            say: 'text',
+            text: '',
+          };
           setState((prevState) => {
             const lastIndex = findLastIndex(
               prevState.coolclineMessages,

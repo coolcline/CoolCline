@@ -105,8 +105,8 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 
     // Handle enhanced prompt response
     useEffect(() => {
-      const messageHandler = (event: MessageEvent<ExtendedWebviewMessage>) => {
-        const message = event.data;
+      const messageHandler = (_event: MessageEvent<ExtendedWebviewMessage>) => {
+        const message = _event.data;
         if (message.type === 'enhancedPrompt') {
           if ('text' in message && message.text) {
             setInputValue(message.text);

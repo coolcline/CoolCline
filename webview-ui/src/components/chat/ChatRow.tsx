@@ -154,9 +154,11 @@ export const ChatRowContent = ({
 
   const [icon, title] = useMemo(() => {
     let _useMcpServer: CoolClineAskUseMcpServer;
-    let tool: CoolClineSayTool;
-    let useMcpServer: CoolClineAskUseMcpServer;
-    let { command, output } = splitMessage(message.text || '');
+    let _tool: CoolClineSayTool;
+    let _useMcpServer2: CoolClineAskUseMcpServer;
+    const { command: _command, output: _output } = splitMessage(
+      message.text || ''
+    );
     let mcpServerUse: CoolClineAskUseMcpServer;
 
     switch (type) {
@@ -214,7 +216,7 @@ export const ChatRowContent = ({
           </span>,
         ];
       case 'user_feedback_diff':
-        tool = JSON.parse(message.text || '{}') as CoolClineSayTool;
+        _tool = JSON.parse(message.text || '{}') as CoolClineSayTool;
         return [
           <div
             style={{
@@ -223,7 +225,7 @@ export const ChatRowContent = ({
             }}
           >
             <CodeAccordian
-              diff={tool.diff || ''}
+              diff={_tool.diff || ''}
               isFeedback={true}
               isExpanded={isExpanded}
               onToggleExpand={onToggleExpand}
@@ -454,8 +456,8 @@ export const ChatRowContent = ({
             <CodeAccordian
               code={tool.content || ''}
               path={
-                tool.path ||
-                tool.path! + (tool.filePattern ? `/(${tool.filePattern})` : '')
+                tool.path ??
+                tool.path + (tool.filePattern ? `/(${tool.filePattern})` : '')
               }
               language="plaintext"
               isExpanded={isExpanded}
