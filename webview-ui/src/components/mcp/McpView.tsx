@@ -129,8 +129,8 @@ const McpView = ({ onDone }: McpViewProps) => {
             Model Context Protocol
           </VSCodeLink>{' '}
           enables communication with locally running MCP servers that provide
-          additional tools and resources to extend CoolCline's capabilities. You
-          can use{' '}
+          additional tools and resources to extend CoolCline&apos;s
+          capabilities. You can use{' '}
           <VSCodeLink
             href="https://github.com/modelcontextprotocol/servers"
             style={{ display: 'inline' }}
@@ -138,7 +138,7 @@ const McpView = ({ onDone }: McpViewProps) => {
             community-made servers
           </VSCodeLink>{' '}
           or ask CoolCline to create new tools specific to your workflow (e.g.,
-          "add a tool that gets the latest npm docs").
+          &quot;add a tool that gets the latest npm docs&quot;).
         </div>
 
         <McpEnabledToggle />

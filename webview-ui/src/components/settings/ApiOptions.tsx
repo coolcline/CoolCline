@@ -1233,7 +1233,7 @@ const ApiOptions = ({
             >
               quickstart guide.
             </VSCodeLink>
-            You will also need to start LM Studio's{' '}
+            You will also need to start LM Studio&apos;s{' '}
             <VSCodeLink
               href="https://lmstudio.ai/docs/basics/server"
               style={{ display: 'inline', fontSize: 'inherit' }}

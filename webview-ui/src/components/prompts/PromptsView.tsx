@@ -636,9 +636,9 @@ const PromptsView = ({ onDone }: PromptsViewProps) => {
                 marginBottom: '8px',
               }}
             >
-              Define CoolCline's expertise and personality for this mode. This
-              description shapes how CoolCline presents itself and approaches
-              tasks.
+              Define CoolCline&apos;s expertise and personality for this mode.
+              This description shapes how CoolCline presents itself and
+              approaches tasks.
             </div>
             <VSCodeTextArea
               value={(() => {
@@ -1103,7 +1103,8 @@ const PromptsView = ({ onDone }: PromptsViewProps) => {
                     marginBottom: '8px',
                   }}
                 >
-                  Define CoolCline's expertise and personality for this mode.
+                  Define CoolCline&apos;s expertise and personality for this
+                  mode.
                 </div>
                 <VSCodeTextArea
                   value={newModeRoleDefinition}
