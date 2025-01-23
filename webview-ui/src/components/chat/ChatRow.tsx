@@ -14,6 +14,7 @@ import {
   CoolClineMessage,
   CoolClineSayTool,
 } from '../../../../src/shared/ExtensionMessage';
+import { McpServer } from '../../../../src/shared/mcp';
 import { useExtensionState } from '../../context/ExtensionStateContext';
 import { findMatchingResourceOrTemplate } from '../../utils/mcp';
 import { vscode } from '../../utils/vscode';
@@ -115,13 +116,49 @@ export const ChatRowContent = ({
     isLast && lastModifiedMessage?.say === 'mcp_server_request_started';
 
   const type = message.type === 'ask' ? message.ask : message.say;
+  const messageType = message.type;
 
   const normalColor = 'var(--vscode-foreground)';
   const errorColor = 'var(--vscode-errorForeground)';
   const successColor = 'var(--vscode-charts-green)';
   const cancelledColor = 'var(--vscode-descriptionForeground)';
 
+  const splitMessage = (text: string) => {
+    const outputIndex = text.indexOf(COMMAND_OUTPUT_STRING);
+    if (outputIndex === -1) {
+      return { command: text, output: '' };
+    }
+    return {
+      command: text.slice(0, outputIndex).trim(),
+      output: text
+        .slice(outputIndex + COMMAND_OUTPUT_STRING.length)
+        .trim()
+        .split('')
+        .map((char) => {
+          switch (char) {
+            case '\t':
+              return '→   ';
+            case '\b':
+              return '⌫';
+            case '\f':
+              return '⏏';
+            case '\v':
+              return '⇳';
+            default:
+              return char;
+          }
+        })
+        .join(''),
+    };
+  };
+
   const [icon, title] = useMemo(() => {
+    let mcpServerUse: CoolClineAskUseMcpServer;
+    let tool: CoolClineSayTool;
+    let useMcpServer: CoolClineAskUseMcpServer;
+    let server: McpServer | undefined;
+    let { command, output } = splitMessage(message.text || '');
+
     switch (type) {
       case 'error':
         return [
@@ -156,7 +193,7 @@ export const ChatRowContent = ({
           </span>,
         ];
       case 'use_mcp_server':
-        const mcpServerUse = JSON.parse(
+        mcpServerUse = JSON.parse(
           message.text || '{}'
         ) as CoolClineAskUseMcpServer;
         return [
@@ -176,98 +213,34 @@ export const ChatRowContent = ({
             on the <code>{mcpServerUse.serverName}</code> MCP server:
           </span>,
         ];
-      case 'completion_result':
+      case 'user_feedback_diff':
+        tool = JSON.parse(message.text || '{}') as CoolClineSayTool;
         return [
-          <span
-            className="codicon codicon-check"
-            style={{ color: successColor, marginBottom: '-1.5px' }}
-          ></span>,
-          <span style={{ color: successColor, fontWeight: 'bold' }}>
-            Task Completed
-          </span>,
-        ];
-      case 'api_req_retry_delayed':
-        return [];
-      case 'api_req_started':
-        const getIconSpan = (iconName: string, color: string) => (
           <div
             style={{
-              width: 16,
-              height: 16,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              marginTop: -10,
+              width: '100%',
             }}
           >
-            <span
-              className={`codicon codicon-${iconName}`}
-              style={{
-                color,
-                fontSize: 16,
-                marginBottom: '-1.5px',
-              }}
-            ></span>
-          </div>
-        );
-        return [
-          apiReqCancelReason != null ? (
-            apiReqCancelReason === 'user_cancelled' ? (
-              getIconSpan('error', cancelledColor)
-            ) : (
-              getIconSpan('error', errorColor)
-            )
-          ) : cost != null ? (
-            getIconSpan('check', successColor)
-          ) : apiRequestFailedMessage ? (
-            getIconSpan('error', errorColor)
-          ) : (
-            <ProgressIndicator />
-          ),
-          apiReqCancelReason != null ? (
-            apiReqCancelReason === 'user_cancelled' ? (
-              <span style={{ color: normalColor, fontWeight: 'bold' }}>
-                API Request Cancelled
-              </span>
-            ) : (
-              <span style={{ color: errorColor, fontWeight: 'bold' }}>
-                API Streaming Failed
-              </span>
-            )
-          ) : cost != null ? (
-            <span style={{ color: normalColor, fontWeight: 'bold' }}>
-              API Request
-            </span>
-          ) : apiRequestFailedMessage ? (
-            <span style={{ color: errorColor, fontWeight: 'bold' }}>
-              API Request Failed
-            </span>
-          ) : (
-            <span style={{ color: normalColor, fontWeight: 'bold' }}>
-              API Request...
-            </span>
-          ),
-        ];
-      case 'followup':
-        return [
-          <span
-            className="codicon codicon-question"
-            style={{ color: normalColor, marginBottom: '-1.5px' }}
-          ></span>,
-          <span style={{ color: normalColor, fontWeight: 'bold' }}>
-            CoolCline has a question:
-          </span>,
+            <CodeAccordian
+              diff={tool.diff!}
+              isFeedback={true}
+              isExpanded={isExpanded}
+              onToggleExpand={onToggleExpand}
+            />
+          </div>,
         ];
       default:
         return [null, null];
     }
   }, [
-    type,
+    message.text,
+    message.type,
     isCommandExecuting,
-    message,
     isMcpServerResponding,
-    apiReqCancelReason,
-    cost,
-    apiRequestFailedMessage,
+    mcpServers,
+    isExpanded,
+    onToggleExpand,
   ]);
 
   const headerStyle: React.CSSProperties = {

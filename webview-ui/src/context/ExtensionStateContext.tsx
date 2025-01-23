@@ -180,7 +180,7 @@ export const ExtensionStateContextProvider: React.FC<{
       const openAiUpdatedModels = message.openAiModels ?? [];
 
       switch (message.type) {
-        case 'state':
+        case 'state': {
           if (!newState) break;
           setState((prevState) => ({
             ...prevState,
@@ -191,21 +191,20 @@ export const ExtensionStateContextProvider: React.FC<{
           setShowWelcome(!hasKey);
           setDidHydrateState(true);
           break;
-
-        case 'theme':
+        }
+        case 'theme': {
           if (message.text) {
             setTheme(convertTextMateToHljs(JSON.parse(message.text)));
           }
           break;
-
-        case 'workspaceUpdated':
+        }
+        case 'workspaceUpdated': {
           setFilePaths(message.filePaths ?? []);
           break;
-
-        case 'partialMessage':
+        }
+        case 'partialMessage': {
           const partialMessage = message.partialMessage!;
           setState((prevState) => {
-            // worth noting it will never be possible for a more up-to-date message to be sent here or in normal messages post since the presentAssistantContent function uses lock
             const lastIndex = findLastIndex(
               prevState.coolclineMessages,
               (msg) => msg.ts === partialMessage.ts
@@ -218,32 +217,33 @@ export const ExtensionStateContextProvider: React.FC<{
             return prevState;
           });
           break;
-
-        case 'glamaModels':
+        }
+        case 'glamaModels': {
           setGlamaModels({
-            [glamaDefaultModelId]: glamaDefaultModelInfo, // in case the extension sent a model list without the default model
+            [glamaDefaultModelId]: glamaDefaultModelInfo,
             ...updatedModels,
           });
           break;
-
-        case 'openRouterModels':
+        }
+        case 'openRouterModels': {
           setOpenRouterModels({
-            [openRouterDefaultModelId]: openRouterDefaultModelInfo, // in case the extension sent a model list without the default model
+            [openRouterDefaultModelId]: openRouterDefaultModelInfo,
             ...openRouterUpdatedModels,
           });
           break;
-
-        case 'openAiModels':
+        }
+        case 'openAiModels': {
           setOpenAiModels(openAiUpdatedModels);
           break;
-
-        case 'mcpServers':
+        }
+        case 'mcpServers': {
           setMcpServers(message.mcpServers ?? []);
           break;
-
-        case 'listApiConfig':
+        }
+        case 'listApiConfig': {
           setListApiConfigMeta(message.listApiConfig ?? []);
           break;
+        }
       }
     },
     [setListApiConfigMeta]

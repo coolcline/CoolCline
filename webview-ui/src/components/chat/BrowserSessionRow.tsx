@@ -515,8 +515,8 @@ const BrowserSessionRowContent = ({
             </div>
           );
 
-        case 'browser_action':
-          const browserAction = JSON.parse(
+        case 'browser_action': {
+          let browserAction: CoolClineSayBrowserAction = JSON.parse(
             message.text || '{}'
           ) as CoolClineSayBrowserAction;
           return (
@@ -526,6 +526,7 @@ const BrowserSessionRowContent = ({
               text={browserAction.text}
             />
           );
+        }
 
         default:
           return null;

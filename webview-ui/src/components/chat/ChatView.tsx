@@ -116,9 +116,12 @@ const ChatView = ({
     // if user finished a task, then start a new task with a new conversation history since in this moment that the extension is waiting for user response, the user could close the extension and the conversation history would be lost.
     // basically as long as a task is active, the conversation history will be persisted
     if (lastMessage) {
+      let tool: CoolClineSayTool;
+      let isPartial: boolean;
+
       switch (lastMessage.type) {
         case 'ask':
-          const isPartial = lastMessage.partial === true;
+          isPartial = lastMessage.partial === true;
           switch (lastMessage.ask) {
             case 'api_req_failed':
               playSound('progress_loop');
@@ -150,9 +153,7 @@ const ChatView = ({
               setTextAreaDisabled(isPartial);
               setCoolClineAsk('tool');
               setEnableButtons(!isPartial);
-              const tool = JSON.parse(
-                lastMessage.text || '{}'
-              ) as CoolClineSayTool;
+              tool = JSON.parse(lastMessage.text || '{}') as CoolClineSayTool;
               switch (tool.tool) {
                 case 'editedExistingFile':
                 case 'appliedDiff':
@@ -444,36 +445,36 @@ const ChatView = ({
   const handleMessage = useCallback(
     (e: MessageEvent) => {
       const message: ExtensionMessage = e.data;
+      let newImages: string[];
+
       switch (message.type) {
-        case 'action':
-          switch (message.action!) {
-            case 'didBecomeVisible':
-              if (!isHidden && !textAreaDisabled && !enableButtons) {
-                textAreaRef.current?.focus();
-              }
-              break;
+        case 'action': {
+          if (message.action === 'didBecomeVisible') {
+            if (!isHidden && !textAreaDisabled && !enableButtons) {
+              textAreaRef.current?.focus();
+            }
           }
           break;
-        case 'selectedImages':
-          const newImages = message.images ?? [];
+        }
+        case 'selectedImages': {
+          newImages = message.images ?? [];
           if (newImages.length > 0) {
             setSelectedImages((prevImages) =>
               [...prevImages, ...newImages].slice(0, MAX_IMAGES_PER_MESSAGE)
             );
           }
           break;
-        case 'invoke':
-          switch (message.invoke!) {
-            case 'sendMessage':
-              handleSendMessage(message.text ?? '', message.images ?? []);
-              break;
-            case 'primaryButtonClick':
-              handlePrimaryButtonClick();
-              break;
-            case 'secondaryButtonClick':
-              handleSecondaryButtonClick();
-              break;
+        }
+        case 'invoke': {
+          if (message.invoke === 'sendMessage') {
+            handleSendMessage(message.text ?? '', message.images ?? []);
+          } else if (message.invoke === 'primaryButtonClick') {
+            handlePrimaryButtonClick();
+          } else if (message.invoke === 'secondaryButtonClick') {
+            handleSecondaryButtonClick();
           }
+          break;
+        }
       }
       // textAreaRef.current is not explicitly required here since react gaurantees that ref will be stable across re-renders, and we're not using its value but its reference.
     },
@@ -508,26 +509,33 @@ const ChatView = ({
   const visibleMessages = useMemo(() => {
     return modifiedMessages.filter((message) => {
       switch (message.ask) {
-        case 'completion_result':
-          // don't show a chat row for a completion_result ask without text. This specific type of message only occurs if coolcline wants to execute a command as part of its completion result, in which case we interject the completion_result tool with the execute_command tool.
+        case 'completion_result': {
           if (message.text === '') {
             return false;
           }
           break;
-        case 'api_req_failed': // this message is used to update the latest api_req_started that the request failed
-        case 'resume_task':
-        case 'resume_completed_task':
+        }
+        case 'api_req_failed': {
           return false;
+        }
+        case 'resume_task': {
+          return false;
+        }
+        case 'resume_completed_task': {
+          return false;
+        }
       }
       switch (message.say) {
-        case 'api_req_finished': // combineApiRequests removes this from modifiedMessages anyways
-        case 'api_req_retried': // this message is used to update the latest api_req_started that the request was retried
+        case 'api_req_finished': {
           return false;
-        case 'api_req_retry_delayed':
-          // Only show the retry message if it's the last message
+        }
+        case 'api_req_retried': {
+          return false;
+        }
+        case 'api_req_retry_delayed': {
           return message === modifiedMessages.at(-1);
-        case 'text':
-          // Sometimes coolcline returns an empty text message, we don't want to render these. (We also use a say text for user messages, so in case they just sent images we still render that)
+        }
+        case 'text': {
           if (
             (message.text ?? '') === '' &&
             (message.images?.length ?? 0) === 0
@@ -535,8 +543,10 @@ const ChatView = ({
             return false;
           }
           break;
-        case 'mcp_server_request_started':
+        }
+        case 'mcp_server_request_started': {
           return false;
+        }
       }
       return true;
     });
