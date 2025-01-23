@@ -45,6 +45,29 @@ interface ChatTextAreaProps {
   setMode: (value: Mode) => void;
 }
 
+interface GitCommit {
+  hash: string;
+  shortHash: string;
+  subject: string;
+  author: string;
+  date: string;
+}
+
+interface GitCommitOption {
+  type: ContextMenuOptionType.Git;
+  value: string;
+  label: string;
+  description: string;
+  icon: string;
+}
+
+interface CommitSearchResultsMessage {
+  type: 'commitSearchResults';
+  commits: GitCommit[];
+}
+
+type ExtendedWebviewMessage = WebviewMessage | CommitSearchResultsMessage;
+
 const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
   (
     {
@@ -65,7 +88,7 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
   ) => {
     const { filePaths, currentApiConfigName, listApiConfigMeta, customModes } =
       useExtensionState();
-    const [gitCommits, setGitCommits] = useState<any[]>([]);
+    const [gitCommits, setGitCommits] = useState<GitCommitOption[]>([]);
     const [showDropdown, setShowDropdown] = useState(false);
 
     // Close dropdown when clicking outside
@@ -82,21 +105,24 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 
     // Handle enhanced prompt response
     useEffect(() => {
-      const messageHandler = (event: MessageEvent) => {
+      const messageHandler = (event: MessageEvent<ExtendedWebviewMessage>) => {
         const message = event.data;
         if (message.type === 'enhancedPrompt') {
-          if (message.text) {
+          if ('text' in message && message.text) {
             setInputValue(message.text);
           }
           setIsEnhancingPrompt(false);
         } else if (message.type === 'commitSearchResults') {
-          const commits = message.commits.map((commit: any) => ({
-            type: ContextMenuOptionType.Git,
-            value: commit.hash,
-            label: commit.subject,
-            description: `${commit.shortHash} by ${commit.author} on ${commit.date}`,
-            icon: '$(git-commit)',
-          }));
+          const commits = message.commits.map(
+            (commit: GitCommit) =>
+              ({
+                type: ContextMenuOptionType.Git,
+                value: commit.hash,
+                label: commit.subject,
+                description: `${commit.shortHash} by ${commit.author} on ${commit.date}`,
+                icon: '$(git-commit)',
+              }) as GitCommitOption
+          );
           setGitCommits(commits);
         }
       };

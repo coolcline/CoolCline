@@ -2,6 +2,7 @@ import { memo, useEffect } from 'react';
 import { useRemark } from 'react-remark';
 import rehypeHighlight, { Options } from 'rehype-highlight';
 import styled from 'styled-components';
+import { Node, Parent } from 'unist';
 import { visit } from 'unist-util-visit';
 
 import { useExtensionState } from '../../context/ExtensionStateContext';
@@ -10,6 +11,37 @@ import { CODE_BLOCK_BG_COLOR } from './CodeBlock';
 
 interface MarkdownBlockProps {
   markdown?: string;
+}
+
+interface TextNode extends Node {
+  type: 'text';
+  value: string;
+}
+
+interface LinkNode extends Node {
+  type: 'link';
+  url: string;
+  children: TextNode[];
+}
+
+interface CodeNode extends Node {
+  type: 'code';
+  lang?: string;
+  value: string;
+}
+
+interface ParentNode extends Parent {
+  children: (TextNode | LinkNode | CodeNode)[];
+}
+
+interface ThemeProps {
+  theme: Record<string, string>;
+}
+
+interface PreProps {
+  node: Node;
+  children?: React.ReactNode;
+  [key: string]: unknown;
 }
 
 /**
@@ -21,31 +53,27 @@ interface MarkdownBlockProps {
  * This caused the entire content to disappear because the structure became invalid.
  */
 const remarkUrlToLink = () => {
-  return (tree: any) => {
-    // Visit all "text" nodes in the markdown AST (Abstract Syntax Tree)
-    visit(tree, 'text', (node: any, index, parent) => {
+  return (tree: Node) => {
+    visit(tree, 'text', (node: TextNode, index, parent: ParentNode) => {
       const urlRegex = /https?:\/\/[^\s<>)"]+/g;
       const matches = node.value.match(urlRegex);
       if (!matches) return;
 
       const parts = node.value.split(urlRegex);
-      const children: any[] = [];
+      const children: (TextNode | LinkNode)[] = [];
 
       parts.forEach((part: string, i: number) => {
-        if (part) children.push({ type: 'text', value: part });
+        if (part) children.push({ type: 'text', value: part } as TextNode);
         if (matches[i]) {
           children.push({
             type: 'link',
             url: matches[i],
             children: [{ type: 'text', value: matches[i] }],
-          });
+          } as LinkNode);
         }
       });
 
-      // Fix: Instead of converting the node to a paragraph (which broke things),
-      // we replace the original text node with our new nodes in the parent's children array.
-      // This preserves the document structure while adding our links.
-      if (parent) {
+      if (parent && Array.isArray(parent.children)) {
         parent.children.splice(index, 1, ...children);
       }
     });
@@ -142,14 +170,14 @@ const StyledMarkdown = styled.div`
   }
 `;
 
-const StyledPre = styled.pre<{ theme: any }>`
+const StyledPre = styled.pre<ThemeProps>`
   & .hljs {
     color: var(--vscode-editor-foreground, #fff);
   }
 
   ${(props) =>
     Object.keys(props.theme)
-      .map((key, index) => {
+      .map((key) => {
         return `
       & ${key} {
         color: ${props.theme[key]};
@@ -165,8 +193,8 @@ const MarkdownBlock = memo(({ markdown }: MarkdownBlockProps) => {
     remarkPlugins: [
       remarkUrlToLink,
       () => {
-        return (tree) => {
-          visit(tree, 'code', (node: any) => {
+        return (tree: Node) => {
+          visit(tree, 'code', (node: CodeNode) => {
             if (!node.lang) {
               node.lang = 'javascript';
             } else if (node.lang.includes('.')) {
@@ -177,14 +205,12 @@ const MarkdownBlock = memo(({ markdown }: MarkdownBlockProps) => {
       },
     ],
     rehypePlugins: [
-      rehypeHighlight as any,
-      {
-        // languages: {},
-      } as Options,
+      // @ts-ignore Type incompatibility between rehype-highlight and remark types
+      [rehypeHighlight, {}],
     ],
     rehypeReactOptions: {
       components: {
-        pre: ({ node, ...preProps }: any) => (
+        pre: ({ node, ...preProps }: PreProps) => (
           <StyledPre {...preProps} theme={theme} />
         ),
       },

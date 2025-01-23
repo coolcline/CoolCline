@@ -94,7 +94,7 @@ export const ChatRowContent = ({
   isStreaming,
 }: ChatRowContentProps) => {
   const { mcpServers } = useExtensionState();
-  const [cost, apiReqCancelReason, apiReqStreamingFailedMessage] =
+  const [cost, _apiReqCancelReason, apiReqStreamingFailedMessage] =
     useMemo(() => {
       if (message.text != null && message.say === 'api_req_started') {
         const info: CoolClineApiReqInfo = JSON.parse(message.text);
@@ -116,12 +116,12 @@ export const ChatRowContent = ({
     isLast && lastModifiedMessage?.say === 'mcp_server_request_started';
 
   const type = message.type === 'ask' ? message.ask : message.say;
-  const messageType = message.type;
+  const _messageType = message.type;
 
   const normalColor = 'var(--vscode-foreground)';
   const errorColor = 'var(--vscode-errorForeground)';
-  const successColor = 'var(--vscode-charts-green)';
-  const cancelledColor = 'var(--vscode-descriptionForeground)';
+  const _successColor = 'var(--vscode-charts-green)';
+  const _cancelledColor = 'var(--vscode-descriptionForeground)';
 
   const splitMessage = (text: string) => {
     const outputIndex = text.indexOf(COMMAND_OUTPUT_STRING);
@@ -153,11 +153,11 @@ export const ChatRowContent = ({
   };
 
   const [icon, title] = useMemo(() => {
-    let mcpServerUse: CoolClineAskUseMcpServer;
+    let _useMcpServer: CoolClineAskUseMcpServer;
     let tool: CoolClineSayTool;
     let useMcpServer: CoolClineAskUseMcpServer;
-    let server: McpServer | undefined;
     let { command, output } = splitMessage(message.text || '');
+    let mcpServerUse: CoolClineAskUseMcpServer;
 
     switch (type) {
       case 'error':
@@ -223,7 +223,7 @@ export const ChatRowContent = ({
             }}
           >
             <CodeAccordian
-              diff={tool.diff!}
+              diff={tool.diff || ''}
               isFeedback={true}
               isExpanded={isExpanded}
               onToggleExpand={onToggleExpand}
@@ -285,8 +285,8 @@ export const ChatRowContent = ({
             </div>
             <CodeAccordian
               isLoading={message.partial}
-              diff={tool.diff!}
-              path={tool.path!}
+              diff={tool.diff || ''}
+              path={tool.path || ''}
               isExpanded={isExpanded}
               onToggleExpand={onToggleExpand}
             />
@@ -303,8 +303,8 @@ export const ChatRowContent = ({
             </div>
             <CodeAccordian
               isLoading={message.partial}
-              code={tool.content!}
-              path={tool.path!}
+              code={tool.content || ''}
+              path={tool.path || ''}
               isExpanded={isExpanded}
               onToggleExpand={onToggleExpand}
             />
@@ -385,8 +385,8 @@ export const ChatRowContent = ({
               </span>
             </div>
             <CodeAccordian
-              code={tool.content!}
-              path={tool.path!}
+              code={tool.content || ''}
+              path={tool.path || ''}
               language="shell-session"
               isExpanded={isExpanded}
               onToggleExpand={onToggleExpand}
@@ -405,8 +405,8 @@ export const ChatRowContent = ({
               </span>
             </div>
             <CodeAccordian
-              code={tool.content!}
-              path={tool.path!}
+              code={tool.content || ''}
+              path={tool.path || ''}
               language="shell-session"
               isExpanded={isExpanded}
               onToggleExpand={onToggleExpand}
@@ -425,8 +425,8 @@ export const ChatRowContent = ({
               </span>
             </div>
             <CodeAccordian
-              code={tool.content!}
-              path={tool.path!}
+              code={tool.content || ''}
+              path={tool.path || ''}
               isExpanded={isExpanded}
               onToggleExpand={onToggleExpand}
             />
@@ -452,8 +452,9 @@ export const ChatRowContent = ({
               </span>
             </div>
             <CodeAccordian
-              code={tool.content!}
+              code={tool.content || ''}
               path={
+                tool.path ||
                 tool.path! + (tool.filePattern ? `/(${tool.filePattern})` : '')
               }
               language="plaintext"
@@ -686,7 +687,7 @@ export const ChatRowContent = ({
               }}
             >
               <CodeAccordian
-                diff={tool.diff!}
+                diff={tool.diff || ''}
                 isFeedback={true}
                 isExpanded={isExpanded}
                 onToggleExpand={onToggleExpand}

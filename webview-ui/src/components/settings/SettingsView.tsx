@@ -20,6 +20,11 @@ type SettingsViewProps = {
   onDone: () => void;
 };
 
+interface RenameConfigValues {
+  oldName: string;
+  newName: string;
+}
+
 const SettingsView = ({ onDone }: SettingsViewProps) => {
   const {
     apiConfiguration,
@@ -185,6 +190,13 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
     }
   };
 
+  const handleRenameConfig = (oldName: string, newName: string) => {
+    vscode.postMessage({
+      type: 'renameApiConfiguration',
+      values: { oldName, newName } as RenameConfigValues,
+    });
+  };
+
   return (
     <div
       style={{
@@ -244,13 +256,7 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
                   text: configName,
                 });
               }}
-              onRenameConfig={(oldName: string, newName: string) => {
-                vscode.postMessage({
-                  type: 'renameApiConfiguration',
-                  values: { oldName, newName },
-                  apiConfiguration,
-                });
-              }}
+              onRenameConfig={handleRenameConfig}
               onUpsertConfig={(configName: string) => {
                 vscode.postMessage({
                   type: 'upsertApiConfiguration',
