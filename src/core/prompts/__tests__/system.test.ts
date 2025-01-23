@@ -393,7 +393,9 @@ describe('SYSTEM_PROMPT', () => {
     );
 
     // Role definition from promptComponent should be at the top
-    expect(prompt.indexOf('Custom prompt role definition')).toBeLessThan(prompt.indexOf('TOOL USE'));
+    expect(prompt.indexOf('Custom prompt role definition')).toBeLessThan(
+      prompt.indexOf('TOOL USE')
+    );
     // Should not contain the default mode's role definition
     expect(prompt).not.toContain(modes[0].roleDefinition);
   });
@@ -420,7 +422,9 @@ describe('SYSTEM_PROMPT', () => {
     );
 
     // Should use the default mode's role definition
-    expect(prompt.indexOf(modes[0].roleDefinition)).toBeLessThan(prompt.indexOf('TOOL USE'));
+    expect(prompt.indexOf(modes[0].roleDefinition)).toBeLessThan(
+      prompt.indexOf('TOOL USE')
+    );
   });
 
   afterAll(() => {
