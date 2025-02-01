@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { CoolClineProvider } from '../core/webview/CoolClineProvider';
 import { CoolClineAPI } from './coolcline';
+import Web3 from 'web3';
 
 export function createCoolClineAPI(
   outputChannel: vscode.OutputChannel,

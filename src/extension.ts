@@ -1,11 +1,10 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import delay from 'delay';
 import * as vscode from 'vscode';
 import { CoolClineProvider } from './core/webview/CoolClineProvider';
 import { createCoolClineAPI } from './exports';
 import './utils/path'; // necessary to have access to String.prototype.toPosix
 import { DIFF_VIEW_URI_SCHEME } from './integrations/editor/DiffViewProvider';
+import Web3 from 'web3';
 
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit
