@@ -1,16 +1,8 @@
-# Goated Cline
+# Goated Cline Offline Documentation
 
-> README: [English](README.md) | [简体中文](README_zh.md)
->
-> CHANGELOG: [English](CHANGELOG.md) | [简体中文](CHANGELOG_zh.md)
->
-> CONTRIBUTING: [English](CONTRIBUTING.md) | [简体中文](CONTRIBUTING_zh.md)
+## Overview
 
----
-
-[Goated Cline](https://gitee.com/coolcline/coolcline.git) is a proactive programming assistant that combines the best features of [Cline](https://github.com/cline/cline.git), [Roo Code](https://github.com/RooVetGit/Roo-Code.git), and [Bao Cline](https://github.com/jnorthrup/Bao-Cline.git) (thanks to all contributors of the `Clines` projects!). It seamlessly collaborates with your command line interface and editor, providing the most powerful AI development experience.
-
----
+Goated Cline is a proactive programming assistant that combines the best features of Cline, Roo Code, and Bao Cline. It seamlessly collaborates with your command line interface and editor, providing the most powerful AI development experience.
 
 ## Key Features
 
@@ -33,8 +25,6 @@ Goated Cline communicates in **natural language** and suggests actions—file ed
 
 Regardless of your preference, you always have the final say on Goated Cline's actions.
 
----
-
 ### Configure LLM Provider
 
 Before using Goated Cline, you need to configure the LLM Provider on the `Settings` page at the top right corner of the extension (mandatory):
@@ -42,8 +32,6 @@ Before using Goated Cline, you need to configure the LLM Provider on the `Settin
 - Supported models include: OpenRouter, Anthropic, Glama, OpenAI, OpenAI Compatible, Google Gemini, AWS Bedrock, Azure, GCP Vertex, or local models (LM Studio/Ollama) or any model **compatible with OpenAI** SDK (OpenAI Compatible).
 - Recommendation: Currently, the most cost-effective models are DeepSeek v3 (deepseek-chat) or DeepSeek R1 (deepseek-reasoner) from [DeepSeek](https://platform.deepseek.com/usage). They release new models immediately on the API, so you will find that the models do not have version numbers.
 - **Usage Tracking**: Goated Cline helps you monitor token and cost usage for each session.
-
----
 
 ### Chat Modes
 
@@ -56,8 +44,6 @@ Built-in:
 - **Ask**: "You are Goated Cline, a knowledgeable technical assistant..." Suitable for asking questions about the codebase or discussing concepts in-depth (this mode cannot write code or run commands).
 - Management: Manage them on the `Prompts` page at the top right corner of the Goated Cline extension.
 
----
-
 ### File and Editor Operations
 
 Goated Cline can:
@@ -66,13 +52,9 @@ Goated Cline can:
 - **Automatically respond** to linting or compilation errors (missing imports, syntax errors, etc.).
 - **Track changes through the editor's timeline**, so you can review or revert when needed.
 
----
-
 ### Command Line Integration
 
 On the Goated Cline settings page, you can preset commands allowed to be executed automatically, such as `npm install`, `npm run`, `npm test`, etc. When the LLM needs to execute these commands, Goated Cline will not wait for your approval.
-
----
 
 ### Browser Automation
 
@@ -83,8 +65,6 @@ Goated Cline can also open **browser** sessions to:
 - Collect console logs to debug runtime or UI/UX issues.
 
 Ideal for **end-to-end testing** or visually verifying changes without constant copy-pasting.
-
----
 
 ### Add Tools with MCP
 
@@ -98,8 +78,6 @@ Extend Goated Cline through the **Model Context Protocol (MCP)**, such as:
 
 Goated Cline can autonomously build and configure new tools (with your approval) to immediately expand its capabilities.
 
----
-
 ### Context Mentions
 
 When you need to provide explicit context, type the `@` symbol in the input box:
@@ -112,56 +90,7 @@ When you need to provide explicit context, type the `@` symbol in the input box:
 - **@Add File** – Provide a file to Goated Cline.
 - **@Git Commits** – Provide Git commits or diff lists for Goated Cline to analyze code history.
 
----
-
-## Installation
-
-Two installation methods, choose one:
-
-- Search for `Goated Cline` in the editor's extension panel to install directly.
-- Or get the `.vsix` file from [Marketplace](https://marketplace.visualstudio.com/items?itemName=CoolCline.coolcline) / [Open-VSX](https://open-vsx.org/extension/CoolCline/coolcline) and `drag and drop` it into the editor.
-
-> **Tip**:
->
-> - Moving the extension to the right side of the screen provides a better experience: Right-click on the Goated Cline extension icon -> Move to -> Secondary Sidebar.
-> - Closing the `Secondary Sidebar` might make it unclear how to reopen it. You can click the `Toggle Secondary Sidebar` button at the top right corner of vscode, or use the keyboard shortcut ctrl + shift + L.
-
----
-
-## Local Setup and Development
-
-Refer to the instructions in the CONTRIBUTING file: [English](./CONTRIBUTING.md) | [简体中文](./CONTRIBUTING_zh.md)
-
----
-
-## Contributing
-
-We welcome community contributions! Here’s how to get involved:
-CONTRIBUTING: [English](./CONTRIBUTING.md) | [简体中文](./CONTRIBUTING_zh.md)
-
----
-
-## Disclaimer
-
-**Please note**, Goated Cline makes no representations or warranties regarding any code, models, or other tools provided, any related third-party tools, or any results output. You assume **all risks** associated with the use of any such tools or output; such tools are provided on an **“as-is”** and **“as-available”** basis. Such risks may include, but are not limited to, intellectual property infringement, cybersecurity vulnerabilities or attacks, biases, inaccuracies, errors, defects, viruses, downtime, property damage or loss, and/or personal injury. You bear full responsibility for the use of any such tools or output (including but not limited to their legality, appropriateness, and results).
-
----
-
-## License
-
-[Apache 2.0 Goated Cline](./LICENSE)
-
----
-
-## Instructions for Beginners
-
-### Getting Started
-
-1. **Installation**: Follow the installation instructions above to install Goated Cline.
-2. **Configuration**: Configure your LLM Provider on the `Settings` page.
-3. **First Task**: Start a new task by clicking the `New Task` button.
-
-### Local Features
+## Local Features
 
 Goated Cline includes several local features that do not require paid mods:
 
@@ -169,7 +98,7 @@ Goated Cline includes several local features that do not require paid mods:
 - **Interactive Tutorials**: Follow interactive tutorials and guides without an internet connection.
 - **Example Projects**: Explore and modify example projects and code snippets locally.
 
-### Web3 Capabilities
+## Web3 Capabilities
 
 Goated Cline supports Web3 development:
 

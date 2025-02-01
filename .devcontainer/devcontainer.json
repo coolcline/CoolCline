@@ -1,7 +1,2 @@
 {
-  "tasks": {
-    "test": "test me",
-    "build": "go speed go ",
-    "launch": "run it up"
-  }
 }
