@@ -212,6 +212,63 @@ export function activate(context: vscode.ExtensionContext) {
   };
   context.subscriptions.push(vscode.window.registerUriHandler({ handleUri }));
 
+  // Web3 Integration
+  const web3 = new Web3(Web3.givenProvider || 'http://localhost:8545');
+  outputChannel.appendLine('Web3 initialized');
+
+  // Crypto Wallet Access and Creation
+  const createWallet = () => {
+    const account = web3.eth.accounts.create();
+    outputChannel.appendLine(`Wallet created: ${account.address}`);
+    return account;
+  };
+
+  const getWallet = (privateKey: string) => {
+    const account = web3.eth.accounts.privateKeyToAccount(privateKey);
+    outputChannel.appendLine(`Wallet accessed: ${account.address}`);
+    return account;
+  };
+
+  const storeWallet = (account: any) => {
+    context.globalState.update('wallet', account);
+    outputChannel.appendLine(`Wallet stored: ${account.address}`);
+  };
+
+  const retrieveWallet = () => {
+    const account = context.globalState.get('wallet');
+    if (account) {
+      outputChannel.appendLine(`Wallet retrieved: ${account.address}`);
+    } else {
+      outputChannel.appendLine('No wallet found');
+    }
+    return account;
+  };
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('coolcline.createWallet', () => {
+      const account = createWallet();
+      storeWallet(account);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('coolcline.getWallet', async () => {
+      const privateKey = await vscode.window.showInputBox({
+        placeHolder: 'Enter your private key',
+      });
+      if (privateKey) {
+        const account = getWallet(privateKey);
+        storeWallet(account);
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('coolcline.retrieveWallet', () => {
+      retrieveWallet();
+    })
+  );
+
   return createCoolClineAPI(outputChannel, sidebarProvider);
 }
 

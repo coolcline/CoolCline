@@ -1,2 +1,7 @@
 {
+  "tasks": {
+    "test": "go run test ",
+    "build": "go run build",
+    "launch": "go run start"
+  }
 }
