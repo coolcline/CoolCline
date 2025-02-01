@@ -5,6 +5,7 @@ import { createCoolClineAPI } from './exports';
 import './utils/path'; // necessary to have access to String.prototype.toPosix
 import { DIFF_VIEW_URI_SCHEME } from './integrations/editor/DiffViewProvider';
 import Web3 from 'web3';
+import nodemailer from 'nodemailer';
 
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -266,6 +267,92 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('coolcline.retrieveWallet', () => {
       retrieveWallet();
+    })
+  );
+
+  // Register commands for goat run, goat build, goat debug, goat test, goat autonomous, and Goat CLI
+  context.subscriptions.push(
+    vscode.commands.registerCommand('goat.run', async () => {
+      outputChannel.appendLine('Running goat run command');
+      // Implement the logic for goat run command
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('goat.build', async () => {
+      outputChannel.appendLine('Running goat build command');
+      // Implement the logic for goat build command
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('goat.debug', async () => {
+      outputChannel.appendLine('Running goat debug command');
+      // Implement the logic for goat debug command
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('goat.test', async () => {
+      outputChannel.appendLine('Running goat test command');
+      // Implement the logic for goat test command
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('goat.autonomous', async () => {
+      outputChannel.appendLine('Running goat autonomous command');
+      // Implement the logic for goat autonomous command
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('goat.cli', async () => {
+      outputChannel.appendLine('Running Goat CLI command');
+      // Implement the logic for Goat CLI command
+    })
+  );
+
+  // Email sending capability using nodemailer
+  const sendEmail = async (to: string, subject: string, text: string) => {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: 'your-email@gmail.com',
+        pass: 'your-email-password',
+      },
+    });
+
+    const mailOptions = {
+      from: 'your-email@gmail.com',
+      to,
+      subject,
+      text,
+    };
+
+    try {
+      await transporter.sendMail(mailOptions);
+      outputChannel.appendLine(`Email sent to ${to}`);
+    } catch (error) {
+      outputChannel.appendLine(`Failed to send email: ${error}`);
+    }
+  };
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('coolcline.sendEmail', async () => {
+      const to = await vscode.window.showInputBox({
+        placeHolder: 'Enter recipient email address',
+      });
+      const subject = await vscode.window.showInputBox({
+        placeHolder: 'Enter email subject',
+      });
+      const text = await vscode.window.showInputBox({
+        placeHolder: 'Enter email text',
+      });
+
+      if (to && subject && text) {
+        await sendEmail(to, subject, text);
+      }
     })
   );
 
