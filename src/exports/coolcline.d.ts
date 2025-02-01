@@ -39,4 +39,28 @@ export interface CoolClineAPI {
    * The sidebar provider instance.
    */
   sidebarProvider: CoolClineSidebarProvider;
+
+  /**
+   * Integrates Web3 capabilities.
+   * @param provider The Web3 provider to be used.
+   */
+  integrateWeb3(provider: any): Promise<void>;
+
+  /**
+   * Adds support for smart contracts.
+   * @param contract The smart contract to be added.
+   */
+  addSmartContract(contract: any): Promise<void>;
+
+  /**
+   * Adds support for decentralized applications (dApps).
+   * @param dApp The dApp to be added.
+   */
+  addDApp(dApp: any): Promise<void>;
+
+  /**
+   * Adds support for decentralized finance (DeFi).
+   * @param defi The DeFi application to be added.
+   */
+  addDeFi(defi: any): Promise<void>;
 }
