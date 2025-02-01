@@ -65,7 +65,9 @@ Goated Cline can:
 - **Create and edit** files in the project (showing differences).
 - **Automatically respond** to linting or compilation errors (missing imports, syntax errors, etc.).
 - **Track changes through the editor's timeline**, so you can review or revert when needed.
-
+- **Help build web3 dapps.
+- **Code off line on your local server.
+_ **Help navigate and build in thh web 3 world.
 ---
 
 ### Command Line Integration

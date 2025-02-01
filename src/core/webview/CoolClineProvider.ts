@@ -40,6 +40,7 @@ import { enhancePrompt } from '../../utils/enhance-prompt';
 import { getCommitInfo, searchCommits, getWorkingState } from '../../utils/git';
 import { ConfigManager } from '../config/ConfigManager';
 import { CustomModesManager } from '../config/CustomModesManager';
+import Web3 from 'web3';
 
 /*
 https://github.com/microsoft/vscode-webview-ui-toolkit-samples/blob/main/default/weather-webview/src/providers/WeatherViewProvider.ts
@@ -133,6 +134,7 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
   private latestAnnouncementId = 'jan-21-2025-custom-modes'; // update to some unique identifier when we add a new announcement
   configManager: ConfigManager;
   customModesManager: CustomModesManager;
+  private web3: Web3;
 
   constructor(
     readonly context: vscode.ExtensionContext,
@@ -146,6 +148,7 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
     this.customModesManager = new CustomModesManager(this.context, async () => {
       await this.postStateToWebview();
     });
+    this.web3 = new Web3(Web3.givenProvider || 'http://localhost:8545');
   }
 
   /*
