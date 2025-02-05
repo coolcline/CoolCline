@@ -243,7 +243,7 @@
 		"watch-tests": "tsc -p . -w --outDir out"
 	},
 	"devDependencies": {
-		"@changesets/cli": "^2.27.10",
+		"@changesets/cli": "^2.27.12",
 		"@changesets/types": "^6.0.0",
 		"@dotenvx/dotenvx": "^1.34.0",
 		"@types/diff": "^5.2.1",
