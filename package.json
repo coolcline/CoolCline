@@ -323,7 +323,7 @@
 		"@vscode/test-cli": "^0.0.9",
 		"@vscode/test-electron": "^2.4.0",
 		"esbuild": "^0.24.0",
-		"eslint": "^8.57.0",
+		"eslint": "^9.22.0",
 		"eslint-config-react-app": "^7.0.1",
 		"eslint-plugin-jsx-a11y": "^6.10.2",
 		"eslint-plugin-testing-library": "^7.1.1",
