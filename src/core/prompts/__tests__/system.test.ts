@@ -358,7 +358,7 @@ describe("SYSTEM_PROMPT", () => {
 		const prompt = await generatePromptWithLanguage("Spanish")
 
 		expect(prompt).toContain("Language Preference:")
-		expect(prompt).toContain("You should always speak and think in the Spanish language")
+		expect(prompt).toContain("You MUST ALWAYS respond ONLY in the Spanish language")
 	})
 
 	it("should include custom mode role definition at top and instructions at bottom", async () => {
