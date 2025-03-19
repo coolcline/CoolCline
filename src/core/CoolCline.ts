@@ -3324,16 +3324,20 @@ export class CoolCline {
 		])
 	}
 
+	// 专门负责收集当前环境的各种信息
 	async getEnvironmentDetails(includeFileDetails: boolean = false) {
 		let details = ""
 
 		// It could be useful for coolcline to know if the user went from one or no file to another between messages, so we always include this context
 		details += "\n\n# VSCode Visible Files"
-		const visibleFiles = vscode.window.visibleTextEditors
-			?.map((editor) => editor.document?.uri?.fsPath)
-			.filter(Boolean)
-			.map((absolutePath) => PathUtils.relativePath(cwd, absolutePath).toPosix())
-			.join("\n")
+		// 使用Set对可见文件路径进行去重
+		const visibleFilePaths = new Set(
+			vscode.window.visibleTextEditors
+				?.map((editor) => editor.document?.uri?.fsPath)
+				.filter(Boolean)
+				.map((absolutePath) => PathUtils.relativePath(cwd, absolutePath).toPosix()),
+		)
+		const visibleFiles = Array.from(visibleFilePaths).join("\n")
 		if (visibleFiles) {
 			details += `\n${visibleFiles}`
 		} else {
@@ -3341,12 +3345,15 @@ export class CoolCline {
 		}
 
 		details += "\n\n# VSCode Open Tabs"
-		const openTabs = vscode.window.tabGroups.all
-			.flatMap((group) => group.tabs)
-			.map((tab) => (tab.input as vscode.TabInputText)?.uri?.fsPath)
-			.filter(Boolean)
-			.map((absolutePath) => PathUtils.relativePath(cwd, absolutePath).toPosix())
-			.join("\n")
+		// 使用Set对打开的标签页路径进行去重
+		const openTabPaths = new Set(
+			vscode.window.tabGroups.all
+				.flatMap((group) => group.tabs)
+				.map((tab) => (tab.input as vscode.TabInputText)?.uri?.fsPath)
+				.filter(Boolean)
+				.map((absolutePath) => PathUtils.relativePath(cwd, absolutePath).toPosix()),
+		)
+		const openTabs = Array.from(openTabPaths).join("\n")
 		if (openTabs) {
 			details += `\n${openTabs}`
 		} else {
