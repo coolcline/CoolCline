@@ -3,9 +3,13 @@ import { listFiles } from "../glob/list-files"
 import { LanguageParser, loadRequiredLanguageParsers } from "./languageParser"
 import { fileExistsAtPath } from "../../utils/fs"
 import { PathUtils } from "../checkpoints/CheckpointUtils"
+import { CoolIgnoreController } from "../../core/ignore/CoolIgnoreController"
 
 // TODO: implement caching behavior to avoid having to keep analyzing project for new tasks.
-export async function parseSourceCodeForDefinitionsTopLevel(dirPath: string): Promise<string> {
+export async function parseSourceCodeForDefinitionsTopLevel(
+	dirPath: string,
+	coolIgnoreController?: CoolIgnoreController,
+): Promise<string> {
 	// check if the path exists
 	const dirExists = await fileExistsAtPath(PathUtils.normalizePath(dirPath))
 	if (!dirExists) {
@@ -22,30 +26,16 @@ export async function parseSourceCodeForDefinitionsTopLevel(dirPath: string): Pr
 
 	const languageParsers = await loadRequiredLanguageParsers(filesToParse)
 
+	// Filter filepaths for access if controller is provided
+	const allowedFilesToParse = coolIgnoreController ? coolIgnoreController.filterPaths(filesToParse) : filesToParse
+
 	// Parse specific files we have language parsers for
-	// const filesWithoutDefinitions: string[] = []
-	for (const file of filesToParse) {
-		const definitions = await parseFile(file, languageParsers)
+	for (const file of allowedFilesToParse) {
+		const definitions = await parseFile(file, languageParsers, coolIgnoreController)
 		if (definitions) {
 			result += `${PathUtils.relativePath(dirPath, file)}\n${definitions}\n`
 		}
-		// else {
-		// 	filesWithoutDefinitions.push(file)
-		// }
 	}
-
-	// List remaining files' paths
-	// let didFindUnparsedFiles = false
-	// filesWithoutDefinitions
-	// 	.concat(remainingFiles)
-	// 	.sort()
-	// 	.forEach((file) => {
-	// 		if (!didFindUnparsedFiles) {
-	// 			result += "# Unparsed Files\n\n"
-	// 			didFindUnparsedFiles = true
-	// 		}
-	// 		result += `${path.relative(dirPath, file)}\n`
-	// 	})
 
 	return result ? result : "No source code definitions found."
 }
@@ -73,6 +63,9 @@ function separateFiles(allFiles: string[]): { filesToParse: string[]; remainingF
 		"java",
 		"php",
 		"swift",
+		// Kotlin
+		"kt",
+		"kts",
 	].map((e) => `.${e}`)
 	const filesToParse = allFiles.filter((file) => extensions.includes(PathUtils.extname(file))).slice(0, 50) // 50 files max
 	const remainingFiles = allFiles.filter((file) => !filesToParse.includes(file))
@@ -95,7 +88,14 @@ This approach allows us to focus on the most relevant parts of the code (defined
 - https://github.com/tree-sitter/tree-sitter/blob/master/lib/binding_web/test/helper.js
 - https://tree-sitter.github.io/tree-sitter/code-navigation-systems
 */
-async function parseFile(filePath: string, languageParsers: LanguageParser): Promise<string | undefined> {
+async function parseFile(
+	filePath: string,
+	languageParsers: LanguageParser,
+	coolIgnoreController?: CoolIgnoreController,
+): Promise<string | null> {
+	if (coolIgnoreController && !coolIgnoreController.validateAccess(filePath)) {
+		return null
+	}
 	const fileContent = await fs.readFile(filePath, "utf8")
 	const ext = PathUtils.extname(filePath).toLowerCase().slice(1)
 
@@ -141,11 +141,6 @@ async function parseFile(filePath: string, languageParsers: LanguageParser): Pro
 			if (name.includes("name") && lines[startLine]) {
 				formattedOutput += `│${lines[startLine]}\n`
 			}
-			// Adds all the captured lines
-			// for (let i = startLine; i <= endLine; i++) {
-			// 	formattedOutput += `│${lines[i]}\n`
-			// }
-			//}
 
 			lastLine = endLine
 		})
@@ -156,7 +151,7 @@ async function parseFile(filePath: string, languageParsers: LanguageParser): Pro
 	if (formattedOutput.length > 0) {
 		return `|----\n${formattedOutput}|----\n`
 	}
-	return undefined
+	return null
 }
 
 async function getDefinitions(dirPath: string): Promise<string> {
