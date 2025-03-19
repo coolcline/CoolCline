@@ -1032,6 +1032,7 @@ export class CoolCline {
 					return SYSTEM_PROMPT(
 						{
 							preferredLanguage,
+							cwd,
 						},
 						"ask",
 					)
