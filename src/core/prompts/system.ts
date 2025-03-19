@@ -61,9 +61,7 @@ async function generatePrompt(config: PromptConfig, mode: Mode): Promise<string>
 
 	// 语言
 	if (config.preferredLanguage) {
-		sections.push(
-			`Language Preference:\nYou should always speak and think in the ${config.preferredLanguage} language.`,
-		)
+		sections.push(`Language Preference:\nYou MUST ALWAYS respond ONLY in the ${config.preferredLanguage} language.`)
 	}
 
 	// 定义了 AI 助手的工作目标和行为准则 `src/core/prompts/sections/objective.ts`
