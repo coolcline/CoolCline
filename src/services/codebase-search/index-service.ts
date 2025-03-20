@@ -98,8 +98,94 @@ export class CodebaseIndexService {
 			this.isIndexing = false
 		}
 
-		// 重新开始索引
-		await this.startIndexing(options)
+		try {
+			// 确保数据库已初始化
+			await this.initDatabase()
+
+			// 扫描工作区文件
+			const files = await this.scanWorkspace(options?.includePaths, options?.excludePaths)
+
+			// 获取需要更新的文件列表
+			const filesToUpdate: string[] = []
+			const filesToRemove: string[] = []
+
+			// 获取当前已索引的文件列表
+			const indexedFiles = await this.db!.all("SELECT path, content_hash, last_modified FROM files")
+			const indexedFileMap = new Map(indexedFiles.map((f) => [f.path, f]))
+
+			// 检查每个文件是否需要更新
+			for (const file of files) {
+				const normalizedPath = toPosixPath(file)
+				const indexedFile = indexedFileMap.get(normalizedPath)
+
+				if (!indexedFile) {
+					// 新文件，需要添加
+					filesToUpdate.push(file)
+				} else {
+					// 检查文件是否被修改
+					try {
+						const stats = fs.statSync(file)
+						const currentHash = this.calculateContentHash(await fs.promises.readFile(file, "utf-8"))
+
+						if (stats.mtimeMs > indexedFile.last_modified || currentHash !== indexedFile.content_hash) {
+							// 文件被修改，需要更新
+							filesToUpdate.push(file)
+						}
+					} catch (error) {
+						console.warn(`无法检查文件状态: ${file}`, error)
+						filesToUpdate.push(file)
+					}
+				}
+			}
+
+			// 检查需要删除的文件
+			for (const indexedFile of indexedFiles) {
+				if (!files.some((f) => toPosixPath(f) === indexedFile.path)) {
+					filesToRemove.push(indexedFile.path)
+				}
+			}
+
+			// 删除不再存在的文件
+			if (filesToRemove.length > 0) {
+				await this.db!.beginTransaction()
+				try {
+					for (const filePath of filesToRemove) {
+						await this.removeFileFromIndex(filePath)
+					}
+					await this.db!.commit()
+				} catch (error) {
+					await this.db!.rollback()
+					throw error
+				}
+			}
+
+			// 更新或添加修改过的文件
+			if (filesToUpdate.length > 0) {
+				this._progress.total = filesToUpdate.length
+				this._progress.completed = 0
+				this._progress.status = "indexing"
+
+				// 将文件添加到索引队列
+				this.indexQueue = filesToUpdate.map((file) => ({
+					filePath: file,
+					priority: this.calculatePriority(file),
+				}))
+
+				// 按优先级排序
+				this.indexQueue.sort((a, b) => b.priority - a.priority)
+
+				// 启动处理队列
+				this.processQueue()
+			} else {
+				this._progress.status = "completed"
+			}
+
+			console.log(`索引刷新完成: ${filesToUpdate.length} 个文件更新, ${filesToRemove.length} 个文件删除`)
+		} catch (error) {
+			this._progress.status = "error"
+			console.error("索引刷新失败:", error)
+			throw error
+		}
 	}
 
 	/**
@@ -180,21 +266,26 @@ export class CodebaseIndexService {
 				// 先将文件信息保存到数据库
 				const normalizedPath = toPosixPath(filePath)
 				try {
-					await this.db!.run(
-						`INSERT OR REPLACE INTO files (path, language, last_modified, indexed_at, content_hash) 
-						VALUES (?, ?, ?, ?, ?)`,
-						[normalizedPath, language, lastModified, Date.now(), contentHash],
-					)
+					// 获取文件ID（如果已存在）
+					const existingFile = await this.db!.get("SELECT id FROM files WHERE path = ?", [normalizedPath])
+					let fileId: number
 
-					// 获取文件ID
-					const fileRecord = await this.db!.get("SELECT id FROM files WHERE path = ?", [normalizedPath])
-
-					if (!fileRecord || !fileRecord.id) {
-						console.warn(`无法获取文件记录: ${normalizedPath}`)
-						return
+					if (existingFile) {
+						fileId = existingFile.id
+						// 更新文件信息
+						await this.db!.run(
+							`UPDATE files SET language = ?, last_modified = ?, indexed_at = ?, content_hash = ? WHERE id = ?`,
+							[language, lastModified, Date.now(), contentHash, fileId],
+						)
+					} else {
+						// 插入新文件
+						const result = await this.db!.run(
+							`INSERT INTO files (path, language, last_modified, indexed_at, content_hash) 
+							VALUES (?, ?, ?, ?, ?)`,
+							[normalizedPath, language, lastModified, Date.now(), contentHash],
+						)
+						fileId = result.lastID
 					}
-
-					const fileId = fileRecord.id
 
 					// 使用语义分析服务提取符号和关系
 					const { symbols, relations } = await this.semanticAnalyzer.analyzeFile(filePath)
