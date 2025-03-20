@@ -195,3 +195,60 @@ export function toRelativePath(filePath: string, cwd: string): string {
 
 	return relativePath
 }
+
+/**
+ * 获取文件扩展名
+ * @param filePath 文件路径
+ * @returns 文件扩展名（包含点号）
+ */
+export function extname(filePath: string): string {
+	return path.extname(toPosixPath(filePath))
+}
+
+/**
+ * 获取路径的目录名
+ * @param filePath 文件路径
+ * @returns 目录路径
+ */
+export function dirname(filePath: string): string {
+	const dir = path.dirname(toPosixPath(filePath))
+
+	// 处理Windows根目录特殊情况
+	if (/^[a-zA-Z]:$/.test(dir)) {
+		return `${dir}/`
+	}
+
+	return dir
+}
+
+/**
+ * 连接路径片段
+ * @param paths 路径片段数组
+ * @returns 连接后的路径
+ */
+export function join(...paths: string[]): string {
+	return toPosixPath(path.join(...paths))
+}
+
+/**
+ * 计算相对路径
+ * @param from 起始路径
+ * @param to 目标路径
+ * @returns 相对路径
+ */
+export function relative(from: string, to: string): string {
+	return path.relative(toPosixPath(from), toPosixPath(to))
+}
+
+/**
+ * 判断路径是否为绝对路径
+ * @param filePath 文件路径
+ * @returns 是否为绝对路径
+ */
+export function isAbsolute(filePath: string): boolean {
+	// 针对Windows路径的特殊处理
+	if (/^[a-zA-Z]:[\\\/]/.test(filePath)) {
+		return true
+	}
+	return path.isAbsolute(toPosixPath(filePath))
+}
