@@ -308,20 +308,24 @@ const CodebaseIndexSettings = () => {
 
 						{/* 操作按钮 */}
 						<div style={{ display: "flex", gap: 8, marginTop: 15 }}>
-							<VSCodeButton
+							{/* <VSCodeButton
 								appearance="primary"
 								onClick={handleStartIndex}
 								disabled={indexStats.status === "indexing" || indexStats.status === "scanning"}>
 								{t("settings.codebaseIndex.actions.start").toString() || "开始索引"}
-							</VSCodeButton>
+							</VSCodeButton> */}
 
 							<VSCodeButton
+								className={`codicon codicon-inspect`}
+								style={{ display: "flex", alignItems: "center", padding: "0 8px" }}
 								onClick={handleRefreshIndex}
 								disabled={indexStats.status === "indexing" || indexStats.status === "scanning"}>
 								{t("settings.codebaseIndex.actions.refresh").toString() || "刷新索引"}
 							</VSCodeButton>
 
 							<VSCodeButton
+								className={`codicon codicon-trash`} // 使用正确的垃圾桶图标类名
+								style={{ display: "flex", alignItems: "center", padding: "0 8px" }}
 								appearance="secondary"
 								onClick={handleClearIndex}
 								disabled={indexStats.status === "indexing" || indexStats.status === "scanning"}>
