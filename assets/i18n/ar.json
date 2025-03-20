@@ -99,6 +99,7 @@
 			"edit": "تحرير...",
 			"separator": "────",
 			"newChat": "محادثة جديدة",
+			"cancel": "إلغاء",
 			"retry": "إعادة المحاولة",
 			"startNewTask": "بدء مهمة جديدة",
 			"proceedAnyways": "المتابعة على أي حال",
@@ -564,6 +565,14 @@
 					"getKey": "الحصول على Unbound API Key",
 					"useCustomBaseUrl": "استخدام Base URL مخصص"
 				},
+				"requesty": {
+					"name": "Requesty",
+					"title": "Requesty API Key",
+					"description": "Use Requesty's AI model service",
+					"getKey": "Get Requesty API Key",
+					"useCustomBaseUrl": "Use custom base URL",
+					"placeholder": "Enter API Key..."
+				},
 				"deepseek": {
 					"name": "DeepSeek",
 					"title": "DeepSeek API Key",
@@ -719,6 +728,44 @@
 			"description": "إذا كان لديك أي أسئلة أو تعليقات، لا تتردد في فتح مشكلة هنا",
 			"resetState": "إعادة تعيين الحالة",
 			"resetStateDescription": "سيؤدي هذا إلى إعادة تعيين جميع الحالة العالمية والتخزين السري في الامتداد."
+		},
+		"codebaseIndex": {
+			"title": "Codebase Index",
+			"deleteConfirm": "Are you sure you want to delete the index? This will remove all indexed data.",
+			"enable": {
+				"title": "Enable Code Index",
+				"description": "When enabled, builds an index for your workspace code to provide smarter code search capabilities"
+			},
+			"status": {
+				"title": "Index Status",
+				"filesCount": "Indexed Files",
+				"symbolsCount": "Indexed Symbols",
+				"lastIndexed": "Last Indexed",
+				"current": "Current Status",
+				"progress": "Progress",
+				"idle": "Idle",
+				"scanning": "Scanning",
+				"indexing": "Indexing",
+				"completed": "Completed",
+				"error": "Error"
+			},
+			"actions": {
+				"start": "Start Indexing",
+				"refresh": "Refresh Index",
+				"clear": "Clear Index"
+			},
+			"autoStart": {
+				"title": "Auto-index on Startup",
+				"description": "Automatically start indexing when the editor launches"
+			},
+			"includeTests": {
+				"title": "Include Test Files",
+				"description": "Whether to include test files in the index"
+			},
+			"excludePaths": {
+				"title": "Exclude Paths",
+				"description": "Paths to exclude from indexing, separated by commas"
+			}
 		}
 	}
 }

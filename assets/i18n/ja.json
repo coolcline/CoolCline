@@ -565,6 +565,14 @@
 					"getKey": "Unbound API Key を取得",
 					"useCustomBaseUrl": "カスタム Base URL を使用"
 				},
+				"requesty": {
+					"name": "Requesty",
+					"title": "Requesty API キー",
+					"description": "Requesty の AI モデルサービスを使用",
+					"getKey": "Requesty API キーを取得",
+					"useCustomBaseUrl": "カスタムベース URL を使用",
+					"placeholder": "API キーを入力..."
+				},
 				"deepseek": {
 					"name": "DeepSeek",
 					"title": "DeepSeek API Key",
@@ -720,6 +728,44 @@
 			"description": "質問やフィードバックがある場合は、こちらでissueを開いてください",
 			"resetState": "状態をリセット",
 			"resetStateDescription": "これにより、拡張機能のすべてのグローバル状態とシークレットストレージがリセットされます。"
+		},
+		"codebaseIndex": {
+			"title": "コードベースインデックス",
+			"deleteConfirm": "インデックスを削除してもよろしいですか？これにより、すべてのインデックスデータが削除されます。",
+			"enable": {
+				"title": "コードインデックスを有効化",
+				"description": "有効化すると、ワークスペースのコードのインデックスを構築し、よりスマートなコード検索機能を提供します"
+			},
+			"status": {
+				"title": "インデックスステータス",
+				"filesCount": "インデックス済みファイル",
+				"symbolsCount": "インデックス済みシンボル",
+				"lastIndexed": "最終インデックス日時",
+				"current": "現在のステータス",
+				"progress": "進捗",
+				"idle": "待機中",
+				"scanning": "スキャン中",
+				"indexing": "インデックス作成中",
+				"completed": "完了",
+				"error": "エラー"
+			},
+			"actions": {
+				"start": "インデックス作成開始",
+				"refresh": "インデックスを更新",
+				"clear": "インデックスをクリア"
+			},
+			"autoStart": {
+				"title": "起動時に自動インデックス",
+				"description": "エディタ起動時に自動的にインデックス作成を開始"
+			},
+			"includeTests": {
+				"title": "テストファイルを含める",
+				"description": "インデックスにテストファイルを含めるかどうか"
+			},
+			"excludePaths": {
+				"title": "除外パス",
+				"description": "インデックス作成から除外するパス（カンマ区切り）"
+			}
 		}
 	}
 }

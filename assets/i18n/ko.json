@@ -99,6 +99,7 @@
 			"edit": "편집...",
 			"separator": "────",
 			"newChat": "새 채팅",
+			"cancel": "취소",
 			"retry": "재시도",
 			"startNewTask": "새 작업 시작",
 			"proceedAnyways": "계속 진행",
@@ -437,7 +438,8 @@
 							"title": "모델 기능",
 							"imageSupport": {
 								"title": "이미지 지원",
-								"description": "모델이 입력의 이미지를 처리하고 이해할 수 있는 경우 활성화. 이미지 기반 지원 및 시각적 코드 이해에 필수적"
+								"description": "모델이 입력의 이미지를 처리하고 이해할 수 있는 경우 활성화. 이미지 기반 지원 및 시각적 코드 이해에 필수적",
+								"note": "모델이 이미지를 분석하고 이해할 수 있게 하여 시각적 코드 지원에 필수적"
 							},
 							"computerUse": {
 								"title": "컴퓨터 사용",
@@ -562,6 +564,14 @@
 					"title": "Unbound API Key",
 					"getKey": "Unbound API Key 얻기",
 					"useCustomBaseUrl": "사용자 정의 Base URL 사용"
+				},
+				"requesty": {
+					"name": "Requesty",
+					"title": "Requesty API 키",
+					"description": "Requesty의 AI 모델 서비스 사용",
+					"getKey": "Requesty API 키 가져오기",
+					"useCustomBaseUrl": "사용자 지정 기본 URL 사용",
+					"placeholder": "API 키 입력..."
 				},
 				"deepseek": {
 					"name": "DeepSeek",
@@ -718,6 +728,44 @@
 			"description": "질문이나 피드백이 있으시면 여기에서 이슈를 열어주세요",
 			"resetState": "상태 재설정",
 			"resetStateDescription": "이는 확장 프로그램의 모든 전역 상태와 비밀 저장소를 재설정합니다."
+		},
+		"codebaseIndex": {
+			"title": "코드베이스 인덱스",
+			"deleteConfirm": "인덱스를 삭제하시겠습니까? 이렇게 하면 모든 인덱스 데이터가 제거됩니다.",
+			"enable": {
+				"title": "코드 인덱스 활성화",
+				"description": "활성화하면 작업 공간 코드의 인덱스를 구축하여 더 스마트한 코드 검색 기능을 제공합니다"
+			},
+			"status": {
+				"title": "인덱스 상태",
+				"filesCount": "인덱스된 파일",
+				"symbolsCount": "인덱스된 심볼",
+				"lastIndexed": "마지막 인덱스 시간",
+				"current": "현재 상태",
+				"progress": "진행률",
+				"idle": "대기 중",
+				"scanning": "스캔 중",
+				"indexing": "인덱싱 중",
+				"completed": "완료",
+				"error": "오류"
+			},
+			"actions": {
+				"start": "인덱싱 시작",
+				"refresh": "인덱스 새로고침",
+				"clear": "인덱스 지우기"
+			},
+			"autoStart": {
+				"title": "시작 시 자동 인덱스",
+				"description": "편집기 시작 시 자동으로 인덱싱 시작"
+			},
+			"includeTests": {
+				"title": "테스트 파일 포함",
+				"description": "인덱스에 테스트 파일을 포함할지 여부"
+			},
+			"excludePaths": {
+				"title": "제외 경로",
+				"description": "인덱싱에서 제외할 경로 (쉼표로 구분)"
+			}
 		}
 	}
 }

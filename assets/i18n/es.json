@@ -565,6 +565,14 @@
 					"getKey": "Obtener Unbound API Key",
 					"useCustomBaseUrl": "Usar Base URL personalizado"
 				},
+				"requesty": {
+					"name": "Requesty",
+					"title": "Clave API de Requesty",
+					"description": "Usar el servicio de modelo de IA de Requesty",
+					"getKey": "Obtener clave API de Requesty",
+					"useCustomBaseUrl": "Usar URL base personalizada",
+					"placeholder": "Ingresar clave API..."
+				},
 				"deepseek": {
 					"name": "DeepSeek",
 					"title": "DeepSeek API Key",
@@ -720,6 +728,44 @@
 			"description": "Si tiene preguntas o comentarios, abra un issue aquí",
 			"resetState": "Restablecer estado",
 			"resetStateDescription": "Esto restablecerá todo el estado global de la extensión y el almacenamiento secreto."
+		},
+		"codebaseIndex": {
+			"title": "Índice de Base de Código",
+			"deleteConfirm": "¿Está seguro de que desea eliminar el índice? Esto eliminará todos los datos indexados.",
+			"enable": {
+				"title": "Habilitar Índice de Código",
+				"description": "Cuando está habilitado, construye un índice para el código de su espacio de trabajo para proporcionar capacidades de búsqueda de código más inteligentes"
+			},
+			"status": {
+				"title": "Estado del Índice",
+				"filesCount": "Archivos Indexados",
+				"symbolsCount": "Símbolos Indexados",
+				"lastIndexed": "Última Indexación",
+				"current": "Estado Actual",
+				"progress": "Progreso",
+				"idle": "Inactivo",
+				"scanning": "Escaneando",
+				"indexing": "Indexando",
+				"completed": "Completado",
+				"error": "Error"
+			},
+			"actions": {
+				"start": "Iniciar Indexación",
+				"refresh": "Actualizar Índice",
+				"clear": "Limpiar Índice"
+			},
+			"autoStart": {
+				"title": "Auto-indexación al Iniciar",
+				"description": "Iniciar automáticamente la indexación cuando se lanza el editor"
+			},
+			"includeTests": {
+				"title": "Incluir Archivos de Prueba",
+				"description": "Si se deben incluir archivos de prueba en el índice"
+			},
+			"excludePaths": {
+				"title": "Excluir Rutas",
+				"description": "Rutas a excluir de la indexación, separadas por comas"
+			}
 		}
 	}
 }

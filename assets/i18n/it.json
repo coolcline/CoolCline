@@ -565,6 +565,14 @@
 					"getKey": "Ottieni Unbound API Key",
 					"useCustomBaseUrl": "Usa Base URL personalizzato"
 				},
+				"requesty": {
+					"name": "Requesty",
+					"title": "Chiave API Requesty",
+					"description": "Utilizza il servizio di modello IA di Requesty",
+					"getKey": "Ottieni chiave API Requesty",
+					"useCustomBaseUrl": "Usa URL base personalizzato",
+					"placeholder": "Inserisci chiave API..."
+				},
 				"deepseek": {
 					"name": "DeepSeek",
 					"title": "DeepSeek API Key",
@@ -720,6 +728,44 @@
 			"description": "Se hai domande o feedback, apri un issue qui",
 			"resetState": "Reimposta stato",
 			"resetStateDescription": "Questo reimposterà tutto lo stato globale dell'estensione e l'archivio segreto."
+		},
+		"codebaseIndex": {
+			"title": "Indice Base di Codice",
+			"deleteConfirm": "Sei sicuro di voler eliminare l'indice? Questo rimuoverà tutti i dati indicizzati.",
+			"enable": {
+				"title": "Abilita Indice Codice",
+				"description": "Quando abilitato, costruisce un indice per il codice del tuo workspace per fornire capacità di ricerca del codice più intelligenti"
+			},
+			"status": {
+				"title": "Stato Indice",
+				"filesCount": "File Indicizzati",
+				"symbolsCount": "Simboli Indicizzati",
+				"lastIndexed": "Ultima Indicizzazione",
+				"current": "Stato Attuale",
+				"progress": "Avanzamento",
+				"idle": "Inattivo",
+				"scanning": "Scansione in corso",
+				"indexing": "Indicizzazione in corso",
+				"completed": "Completato",
+				"error": "Errore"
+			},
+			"actions": {
+				"start": "Avvia Indicizzazione",
+				"refresh": "Aggiorna Indice",
+				"clear": "Cancella Indice"
+			},
+			"autoStart": {
+				"title": "Auto-indicizzazione all'Avvio",
+				"description": "Avvia automaticamente l'indicizzazione quando si avvia l'editor"
+			},
+			"includeTests": {
+				"title": "Includi File di Test",
+				"description": "Se includere i file di test nell'indice"
+			},
+			"excludePaths": {
+				"title": "Escludi Percorsi",
+				"description": "Percorsi da escludere dall'indicizzazione, separati da virgole"
+			}
 		}
 	}
 }

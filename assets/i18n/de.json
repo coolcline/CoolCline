@@ -565,6 +565,14 @@
 					"getKey": "Hier können Sie sich registrieren, um einen Unbound API Key zu erhalten",
 					"useCustomBaseUrl": "Benutzerdefinierte Base URL verwenden"
 				},
+				"requesty": {
+					"name": "Requesty",
+					"title": "Requesty API-Schlüssel",
+					"description": "Requesty's KI-Modell-Service verwenden",
+					"getKey": "Requesty API-Schlüssel abrufen",
+					"useCustomBaseUrl": "Benutzerdefinierte Basis-URL verwenden",
+					"placeholder": "API-Schlüssel eingeben..."
+				},
 				"deepseek": {
 					"name": "DeepSeek",
 					"title": "DeepSeek API Key",
@@ -720,6 +728,44 @@
 			"description": "Wenn Sie Fragen oder Feedback haben, öffnen Sie hier ein Issue",
 			"resetState": "Status zurücksetzen",
 			"resetStateDescription": "Dies setzt den gesamten globalen Zustand der Erweiterung und den geheimen Speicher zurück."
+		},
+		"codebaseIndex": {
+			"title": "Codebase Index",
+			"deleteConfirm": "Are you sure you want to delete the index? This will remove all indexed data.",
+			"enable": {
+				"title": "Enable Code Index",
+				"description": "When enabled, builds an index for your workspace code to provide smarter code search capabilities"
+			},
+			"status": {
+				"title": "Index Status",
+				"filesCount": "Indexed Files",
+				"symbolsCount": "Indexed Symbols",
+				"lastIndexed": "Last Indexed",
+				"current": "Current Status",
+				"progress": "Progress",
+				"idle": "Idle",
+				"scanning": "Scanning",
+				"indexing": "Indexing",
+				"completed": "Completed",
+				"error": "Error"
+			},
+			"actions": {
+				"start": "Start Indexing",
+				"refresh": "Refresh Index",
+				"clear": "Clear Index"
+			},
+			"autoStart": {
+				"title": "Auto-index on Startup",
+				"description": "Automatically start indexing when the editor launches"
+			},
+			"includeTests": {
+				"title": "Include Test Files",
+				"description": "Whether to include test files in the index"
+			},
+			"excludePaths": {
+				"title": "Exclude Paths",
+				"description": "Paths to exclude from indexing, separated by commas"
+			}
 		}
 	}
 }

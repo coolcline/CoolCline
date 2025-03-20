@@ -565,6 +565,14 @@
 					"getKey": "Obtenir une Unbound API Key",
 					"useCustomBaseUrl": "Utiliser un Base URL personnalisé"
 				},
+				"requesty": {
+					"name": "Requesty",
+					"title": "Clé API Requesty",
+					"description": "Utiliser le service de modèle IA de Requesty",
+					"getKey": "Obtenir la clé API Requesty",
+					"useCustomBaseUrl": "Utiliser une URL de base personnalisée",
+					"placeholder": "Entrer la clé API..."
+				},
 				"deepseek": {
 					"name": "DeepSeek",
 					"title": "DeepSeek API Key",
@@ -720,6 +728,44 @@
 			"description": "Si vous avez des questions ou des commentaires, ouvrez une issue ici",
 			"resetState": "Réinitialiser l'état",
 			"resetStateDescription": "Cela réinitialisera tout l'état global de l'extension et le stockage secret."
+		},
+		"codebaseIndex": {
+			"title": "Index de la base de code",
+			"deleteConfirm": "Êtes-vous sûr de vouloir supprimer l'index ? Cela supprimera toutes les données indexées.",
+			"enable": {
+				"title": "Activer l'index de code",
+				"description": "Lorsqu'activé, construit un index pour votre code d'espace de travail pour fournir des capacités de recherche de code plus intelligentes"
+			},
+			"status": {
+				"title": "État de l'index",
+				"filesCount": "Fichiers indexés",
+				"symbolsCount": "Symboles indexés",
+				"lastIndexed": "Dernière indexation",
+				"current": "État actuel",
+				"progress": "Progression",
+				"idle": "Inactif",
+				"scanning": "Analyse en cours",
+				"indexing": "Indexation en cours",
+				"completed": "Terminé",
+				"error": "Erreur"
+			},
+			"actions": {
+				"start": "Démarrer l'indexation",
+				"refresh": "Actualiser l'index",
+				"clear": "Effacer l'index"
+			},
+			"autoStart": {
+				"title": "Auto-indexation au démarrage",
+				"description": "Démarrer automatiquement l'indexation au lancement de l'éditeur"
+			},
+			"includeTests": {
+				"title": "Inclure les fichiers de test",
+				"description": "S'il faut inclure les fichiers de test dans l'index"
+			},
+			"excludePaths": {
+				"title": "Chemins exclus",
+				"description": "Chemins à exclure de l'indexation, séparés par des virgules"
+			}
 		}
 	}
 }

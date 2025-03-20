@@ -565,6 +565,14 @@
 					"getKey": "獲取 Unbound API Key",
 					"useCustomBaseUrl": "使用自定義 Base URL"
 				},
+				"requesty": {
+					"name": "Requesty",
+					"title": "Requesty API 金鑰",
+					"description": "使用 Requesty 的 AI 模型服務",
+					"getKey": "取得 Requesty API 金鑰",
+					"useCustomBaseUrl": "使用自訂基礎 URL",
+					"placeholder": "輸入 API 金鑰..."
+				},
 				"deepseek": {
 					"name": "DeepSeek",
 					"title": "DeepSeek API Key",
@@ -720,6 +728,44 @@
 			"description": "如果您有任何問題或回饋，歡迎在此開啟議題",
 			"resetState": "重設狀態",
 			"resetStateDescription": "這將重設擴充功能中的所有全域狀態和機密儲存。"
+		},
+		"codebaseIndex": {
+			"title": "程式碼庫索引",
+			"deleteConfirm": "確定要刪除索引嗎？這將移除所有索引資料。",
+			"enable": {
+				"title": "啟用程式碼索引",
+				"description": "啟用後將為工作區程式碼建立索引，提供更智慧的程式碼搜尋功能"
+			},
+			"status": {
+				"title": "索引狀態",
+				"filesCount": "已索引檔案數",
+				"symbolsCount": "已索引符號數",
+				"lastIndexed": "最後索引時間",
+				"current": "目前狀態",
+				"progress": "進度",
+				"idle": "閒置",
+				"scanning": "掃描中",
+				"indexing": "索引中",
+				"completed": "已完成",
+				"error": "錯誤"
+			},
+			"actions": {
+				"start": "開始索引",
+				"refresh": "重新整理索引",
+				"clear": "清除索引"
+			},
+			"autoStart": {
+				"title": "啟動時自動索引",
+				"description": "編輯器啟動時自動開始索引"
+			},
+			"includeTests": {
+				"title": "包含測試檔案",
+				"description": "是否將測試檔案包含在索引中"
+			},
+			"excludePaths": {
+				"title": "排除路徑",
+				"description": "不進行索引的路徑，使用逗號分隔"
+			}
 		}
 	}
 }

@@ -565,6 +565,14 @@
 					"getKey": "Unbound API Key beszerzése",
 					"useCustomBaseUrl": "Egyéni Base URL használata"
 				},
+				"requesty": {
+					"name": "Requesty",
+					"title": "Requesty API kulcs",
+					"description": "Requesty AI modell szolgáltatás használata",
+					"getKey": "Requesty API kulcs beszerzése",
+					"useCustomBaseUrl": "Egyéni alap URL használata",
+					"placeholder": "API kulcs megadása..."
+				},
 				"deepseek": {
 					"name": "DeepSeek",
 					"title": "DeepSeek API Key",
@@ -720,6 +728,44 @@
 			"description": "Ha kérdése vagy visszajelzése van, nyisson egy problémát itt",
 			"resetState": "Állapot visszaállítása",
 			"resetStateDescription": "Ez visszaállítja a bővítmény összes globális állapotát és titkos tárolóját."
+		},
+		"codebaseIndex": {
+			"title": "Kódbázis index",
+			"deleteConfirm": "Biztosan törölni szeretné az indexet? Ez eltávolítja az összes indexelt adatot.",
+			"enable": {
+				"title": "Kód index engedélyezése",
+				"description": "Ha engedélyezve van, indexet készít a munkaterület kódjához, hogy intelligensebb kódkeresési lehetőségeket biztosítson"
+			},
+			"status": {
+				"title": "Index állapota",
+				"filesCount": "Indexelt fájlok",
+				"symbolsCount": "Indexelt szimbólumok",
+				"lastIndexed": "Utolsó indexelés",
+				"current": "Jelenlegi állapot",
+				"progress": "Folyamat",
+				"idle": "Tétlen",
+				"scanning": "Vizsgálat",
+				"indexing": "Indexelés",
+				"completed": "Befejezve",
+				"error": "Hiba"
+			},
+			"actions": {
+				"start": "Indexelés indítása",
+				"refresh": "Index frissítése",
+				"clear": "Index törlése"
+			},
+			"autoStart": {
+				"title": "Automatikus indexelés indításkor",
+				"description": "Automatikusan elindítja az indexelést a szerkesztő indításakor"
+			},
+			"includeTests": {
+				"title": "Teszt fájlok bevonása",
+				"description": "Belevegye-e a teszt fájlokat az indexbe"
+			},
+			"excludePaths": {
+				"title": "Kizárt útvonalak",
+				"description": "Az indexelésből kizárandó útvonalak, vesszővel elválasztva"
+			}
 		}
 	}
 }

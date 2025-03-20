@@ -565,6 +565,14 @@
 					"getKey": "Uzyskaj klucz API Unbound",
 					"useCustomBaseUrl": "Użyj niestandardowego Base URL"
 				},
+				"requesty": {
+					"name": "Requesty",
+					"title": "Klucz API Requesty",
+					"description": "Użyj usługi modelu AI Requesty",
+					"getKey": "Pobierz klucz API Requesty",
+					"useCustomBaseUrl": "Użyj niestandardowego bazowego URL",
+					"placeholder": "Wprowadź klucz API..."
+				},
 				"deepseek": {
 					"name": "DeepSeek",
 					"title": "Klucz API DeepSeek",
@@ -720,6 +728,44 @@
 			"description": "Jeśli masz jakieś pytania lub opinie, otwórz zgłoszenie tutaj",
 			"resetState": "Zresetuj stan",
 			"resetStateDescription": "Spowoduje to zresetowanie całego globalnego stanu i magazynu sekretów rozszerzenia."
+		},
+		"codebaseIndex": {
+			"title": "Indeks Bazy Kodu",
+			"deleteConfirm": "Czy na pewno chcesz usunąć indeks? Spowoduje to usunięcie wszystkich zaindeksowanych danych.",
+			"enable": {
+				"title": "Włącz Indeks Kodu",
+				"description": "Po włączeniu, tworzy indeks dla kodu w przestrzeni roboczej, aby zapewnić inteligentniejsze możliwości wyszukiwania kodu"
+			},
+			"status": {
+				"title": "Status Indeksu",
+				"filesCount": "Zaindeksowane Pliki",
+				"symbolsCount": "Zaindeksowane Symbole",
+				"lastIndexed": "Ostatnia Indeksacja",
+				"current": "Status Aktualny",
+				"progress": "Postęp",
+				"idle": "Bezczynny",
+				"scanning": "Skanowanie",
+				"indexing": "Indeksowanie",
+				"completed": "Zakończono",
+				"error": "Błąd"
+			},
+			"actions": {
+				"start": "Rozpocznij Indeksowanie",
+				"refresh": "Odśwież Indeks",
+				"clear": "Wyczyść Indeks"
+			},
+			"autoStart": {
+				"title": "Auto-indeksowanie przy Uruchamianiu",
+				"description": "Automatycznie rozpocznij indeksowanie przy uruchamianiu edytora"
+			},
+			"includeTests": {
+				"title": "Uwzględnij Pliki Testowe",
+				"description": "Czy uwzględniać pliki testowe w indeksie"
+			},
+			"excludePaths": {
+				"title": "Wykluczone Ścieżki",
+				"description": "Ścieżki do wykluczenia z indeksowania, oddzielone przecinkami"
+			}
 		}
 	}
 }

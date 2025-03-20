@@ -565,6 +565,14 @@
 					"getKey": "Získat Unbound API Key",
 					"useCustomBaseUrl": "Použít vlastní Base URL"
 				},
+				"requesty": {
+					"name": "Requesty",
+					"title": "Klíč API Requesty",
+					"description": "Použít službu AI modelu Requesty",
+					"getKey": "Získat klíč API Requesty",
+					"useCustomBaseUrl": "Použít vlastní základní URL",
+					"placeholder": "Zadat klíč API..."
+				},
 				"deepseek": {
 					"name": "DeepSeek",
 					"title": "DeepSeek API Key",
@@ -720,6 +728,44 @@
 			"description": "Pokud máte jakékoli otázky nebo zpětnou vazbu, neváhejte otevřít issue na",
 			"resetState": "Resetovat stav",
 			"resetStateDescription": "Toto resetuje veškerý globální stav a tajné úložiště v rozšíření."
+		},
+		"codebaseIndex": {
+			"title": "Index Kódové Základny",
+			"deleteConfirm": "Opravdu chcete smazat index? Tím se odstraní všechna indexovaná data.",
+			"enable": {
+				"title": "Povolit Index Kódu",
+				"description": "Po povolení vytvoří index pro kód ve vašem pracovním prostoru, aby poskytl chytřejší možnosti vyhledávání kódu"
+			},
+			"status": {
+				"title": "Stav Indexu",
+				"filesCount": "Indexované Soubory",
+				"symbolsCount": "Indexované Symboly",
+				"lastIndexed": "Poslední Indexování",
+				"current": "Aktuální Stav",
+				"progress": "Průběh",
+				"idle": "Nečinný",
+				"scanning": "Skenování",
+				"indexing": "Indexování",
+				"completed": "Dokončeno",
+				"error": "Chyba"
+			},
+			"actions": {
+				"start": "Spustit Indexování",
+				"refresh": "Obnovit Index",
+				"clear": "Vymazat Index"
+			},
+			"autoStart": {
+				"title": "Automatické Indexování při Spuštění",
+				"description": "Automaticky spustit indexování při spuštění editoru"
+			},
+			"includeTests": {
+				"title": "Zahrnout Testovací Soubory",
+				"description": "Zda zahrnout testovací soubory do indexu"
+			},
+			"excludePaths": {
+				"title": "Vyloučené Cesty",
+				"description": "Cesty k vyloučení z indexování, oddělené čárkami"
+			}
 		}
 	}
 }

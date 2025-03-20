@@ -99,6 +99,7 @@
 			"edit": "Editar...",
 			"separator": "────",
 			"newChat": "Novo chat",
+			"cancel": "Cancelar",
 			"retry": "Tentar novamente",
 			"startNewTask": "Iniciar nova tarefa",
 			"proceedAnyways": "Continuar mesmo assim",
@@ -564,6 +565,14 @@
 					"getKey": "Obter API Key do Unbound",
 					"useCustomBaseUrl": "Usar Base URL personalizada"
 				},
+				"requesty": {
+					"name": "Requesty",
+					"title": "Chave API Requesty",
+					"description": "Usar o serviço de modelo de IA do Requesty",
+					"getKey": "Obter chave API Requesty",
+					"useCustomBaseUrl": "Usar URL base personalizada",
+					"placeholder": "Inserir chave API..."
+				},
 				"deepseek": {
 					"name": "DeepSeek",
 					"title": "API Key DeepSeek",
@@ -719,6 +728,44 @@
 			"description": "Se você tiver alguma dúvida ou feedback, sinta-se à vontade para abrir uma issue aqui",
 			"resetState": "Redefinir estado",
 			"resetStateDescription": "Isso redefinirá todo o estado global e armazenamento secreto na extensão."
+		},
+		"codebaseIndex": {
+			"title": "Índice da Base de Código",
+			"deleteConfirm": "Tem certeza que deseja excluir o índice? Isso removerá todos os dados indexados.",
+			"enable": {
+				"title": "Ativar Índice de Código",
+				"description": "Quando ativado, constrói um índice para o código do seu workspace para fornecer capacidades de busca de código mais inteligentes"
+			},
+			"status": {
+				"title": "Status do Índice",
+				"filesCount": "Arquivos Indexados",
+				"symbolsCount": "Símbolos Indexados",
+				"lastIndexed": "Última Indexação",
+				"current": "Status Atual",
+				"progress": "Progresso",
+				"idle": "Inativo",
+				"scanning": "Escaneando",
+				"indexing": "Indexando",
+				"completed": "Concluído",
+				"error": "Erro"
+			},
+			"actions": {
+				"start": "Iniciar Indexação",
+				"refresh": "Atualizar Índice",
+				"clear": "Limpar Índice"
+			},
+			"autoStart": {
+				"title": "Auto-indexação na Inicialização",
+				"description": "Iniciar automaticamente a indexação quando o editor for iniciado"
+			},
+			"includeTests": {
+				"title": "Incluir Arquivos de Teste",
+				"description": "Se devem ser incluídos arquivos de teste no índice"
+			},
+			"excludePaths": {
+				"title": "Excluir Caminhos",
+				"description": "Caminhos a serem excluídos da indexação, separados por vírgulas"
+			}
 		}
 	}
 }

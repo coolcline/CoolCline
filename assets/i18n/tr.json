@@ -565,6 +565,14 @@
 					"getKey": "Unbound API Key al",
 					"useCustomBaseUrl": "Özel Base URL kullan"
 				},
+				"requesty": {
+					"name": "Requesty",
+					"title": "Requesty API Anahtarı",
+					"description": "Requesty'nin AI model hizmetini kullanın",
+					"getKey": "Requesty API Anahtarı Alın",
+					"useCustomBaseUrl": "Özel taban URL kullanın",
+					"placeholder": "API Anahtarı girin..."
+				},
 				"deepseek": {
 					"name": "DeepSeek",
 					"title": "DeepSeek API Key",
@@ -720,6 +728,39 @@
 			"description": "Herhangi bir sorunuz veya geri bildiriminiz varsa, burada bir sorun açın",
 			"resetState": "Durumu sıfırla",
 			"resetStateDescription": "Bu, uzantının tüm global durumunu ve gizli deposunu sıfırlayacaktır."
+		},
+		"codebaseIndex": {
+			"title": "Kod tabanı indeksi",
+			"deleteConfirm": "İndeksi silmek istediğinizden emin misiniz? Bu, tüm indekslenmiş verileri kaldıracaktır.",
+			"enable": {
+				"title": "Kod indekslemeyi etkinleştir",
+				"description": "Etkinleştirildiğinde, daha akıllı kod arama özellikleri sağlamak için çalışma alanı kodunuzun indeksini oluşturur."
+			},
+			"status": {
+				"title": "İndeks durumu",
+				"indexedFiles": "İndekslenmiş dosyalar",
+				"indexedSymbols": "İndekslenmiş semboller",
+				"lastIndexed": "Son indeksleme",
+				"currentStatus": "Mevcut durum",
+				"process": "İşlem",
+				"idle": "Boşta",
+				"scanning": "Taranıyor",
+				"indexing": "İndeksleniyor",
+				"complete": "Tamamlandı",
+				"error": "Hata"
+			},
+			"actions": {
+				"title": "İşlemler",
+				"start": "İndekslemeyi başlat",
+				"refresh": "İndeksi yenile",
+				"clear": "İndeksi temizle"
+			},
+			"options": {
+				"title": "Seçenekler",
+				"autoStart": "Başlangıçta otomatik indeksleme",
+				"includeTests": "Test dosyalarını dahil et",
+				"excludePaths": "Dışlanacak yollar"
+			}
 		}
 	}
 }
