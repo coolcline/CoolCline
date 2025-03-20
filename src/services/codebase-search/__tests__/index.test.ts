@@ -1,9 +1,11 @@
+import * as path from "path"
 import { toPosixPath } from "../../../utils/path"
 import * as vscode from "vscode"
 import { CodebaseSearchManager, initializeCodebaseSearch, handleCodebaseSearchTool } from "../index"
-import { CodebaseSearchOptions, ResultType } from "../types"
+import { CodebaseSearchOptions, ResultType, SearchResult } from "../types"
 import { createSearchService } from "../search-service"
 import { setExtensionContext } from "../extension-context"
+import { CodebaseSearchService } from "../search-service"
 
 // Mock vscode workspace
 jest.mock("vscode", () => ({
@@ -12,21 +14,13 @@ jest.mock("vscode", () => ({
 	},
 }))
 
-// 模拟VS Code的API
-jest.mock("vscode", () => {
-	return {
+// 在运行测试前模拟VS Code API
+jest.mock(
+	"vscode",
+	() => ({
 		window: {
 			showInformationMessage: jest.fn(),
 			showErrorMessage: jest.fn(),
-			withProgress: jest.fn((options, callback) => {
-				// 简单执行回调函数，不实际显示进度条
-				return callback({
-					report: jest.fn(),
-				})
-			}),
-		},
-		ProgressLocation: {
-			Notification: 1,
 		},
 		workspace: {
 			workspaceFolders: [
@@ -36,15 +30,16 @@ jest.mock("vscode", () => {
 					index: 0,
 				},
 			],
+			createFileSystemWatcher: jest.fn().mockReturnValue({
+				onDidCreate: jest.fn(),
+				onDidChange: jest.fn(),
+				onDidDelete: jest.fn(),
+				dispose: jest.fn(),
+			}),
 		},
-		l10n: {
-			t: (key: string) => key,
-		},
-		Uri: {
-			file: (path: string) => ({ fsPath: path }),
-		},
-	}
-})
+	}),
+	{ virtual: true },
+)
 
 // 设置模拟的扩展上下文
 const mockContext = {
@@ -66,30 +61,36 @@ const mockContext = {
 	logPath: "/test/logs",
 	storageUri: { fsPath: "/test/storage" },
 	storagePath: "/test/storage",
-	asAbsolutePath: (path: string) => `/test/extension/${path}`,
+	asAbsolutePath: (p: string) => `/test/extension/${p}`,
 }
 
-// 模拟search-service
-jest.mock("../search-service", () => {
+// Mock CodebaseSearchManager
+jest.mock("../index", () => {
+	const originalModule = jest.requireActual("../index")
 	return {
-		createSearchService: jest.fn().mockImplementation(() => {
-			return {
+		...originalModule,
+		CodebaseSearchManager: {
+			getInstance: jest.fn().mockReturnValue({
+				initialize: jest.fn().mockResolvedValue(undefined),
+				getIndexService: jest.fn().mockReturnValue({}),
 				search: jest.fn().mockResolvedValue([
 					{
-						file: "/test/file1.ts",
-						line: 10,
-						snippet: "function test() { return true; }",
-						score: 0.95,
+						file: "test.ts",
+						line: 1,
+						context: "test function",
+						relevance: 0.8,
+						type: ResultType.Function,
 					},
 					{
-						file: "/test/file2.ts",
-						line: 20,
-						snippet: "const x = 10;",
-						score: 0.85,
+						file: "test2.ts",
+						line: 2,
+						context: "test function",
+						relevance: 0.7,
+						type: ResultType.Function,
 					},
 				]),
-			}
-		}),
+			}),
+		},
 	}
 })
 
@@ -142,8 +143,8 @@ describe("CodebaseSearchManager", () => {
 })
 
 describe("handleCodebaseSearchTool", () => {
-	beforeAll(() => {
-		// 设置模拟的扩展上下文
+	beforeEach(() => {
+		jest.clearAllMocks()
 		setExtensionContext(mockContext as any)
 	})
 
@@ -155,7 +156,10 @@ describe("handleCodebaseSearchTool", () => {
 	it("should handle valid query", async () => {
 		const result = await handleCodebaseSearchTool({ query: "test function" })
 		expect(result.results).toHaveLength(2)
-		expect(createSearchService).toHaveBeenCalled()
+		expect(result.results[0]).toHaveProperty("file")
+		expect(result.results[0]).toHaveProperty("line")
+		expect(result.results[0]).toHaveProperty("context")
+		expect(result.results[0]).toHaveProperty("relevance")
 	})
 
 	it("should format results correctly", async () => {

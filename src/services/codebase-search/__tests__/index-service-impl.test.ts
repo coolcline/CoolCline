@@ -18,6 +18,12 @@ jest.mock(
 					index: 0,
 				},
 			],
+			createFileSystemWatcher: jest.fn().mockReturnValue({
+				onDidCreate: jest.fn(),
+				onDidChange: jest.fn(),
+				onDidDelete: jest.fn(),
+				dispose: jest.fn(),
+			}),
 		},
 	}),
 	{ virtual: true },

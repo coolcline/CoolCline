@@ -1346,6 +1346,12 @@ export class CoolCline {
 							return `[${block.name} for '${block.params.regex}'${
 								block.params.file_pattern ? ` in '${block.params.file_pattern}'` : ""
 							}]`
+						case "codebase_search":
+							return `[${block.name} for '${block.params.query}'${
+								block.params.target_directories && Array.isArray(block.params.target_directories)
+									? ` in '${block.params.target_directories.join(", ")}'`
+									: ""
+							}]`
 						case "insert_content":
 							return `[${block.name} for '${block.params.path}']`
 						case "search_and_replace":
@@ -1374,6 +1380,8 @@ export class CoolCline {
 							const modeName = getModeBySlug(mode, customModes)?.name ?? mode
 							return `[${block.name} in ${modeName} mode: '${message}']`
 						}
+						default:
+							return `[${block.name}]`
 					}
 				}
 
