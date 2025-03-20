@@ -20,6 +20,7 @@ export const TOOL_DISPLAY_NAMES = {
 	attempt_completion: "complete tasks",
 	switch_mode: "switch modes",
 	new_task: "create new task",
+	codebase_search: "semantic code search",
 } as const
 
 // Define available tool groups

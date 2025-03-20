@@ -52,5 +52,45 @@ It is crucial to proceed step-by-step, waiting for the user's message after each
 3. Adapt your approach based on new information or unexpected results.
 4. Ensure that each action builds correctly on the previous ones.
 
-By waiting for and carefully considering the user's response after each tool use, you can react accordingly and make informed decisions about how to proceed with the task. This iterative process helps ensure the overall success and accuracy of your work.`
+By waiting for and carefully considering the user's response after each tool use, you can react accordingly and make informed decisions about how to proceed with the task. This iterative process helps ensure the overall success and accuracy of your work.
+
+====
+
+TOOL USE GUIDELINES
+
+- When using the codebase_search tool, focus on describing the functionality or purpose you're looking for in natural language. This tool is particularly effective when you need to:
+  * Find code that implements specific features or functionality
+  * Understand how different parts of the code work together
+  * Discover code patterns or architectural decisions
+  * Answer questions about code behavior or implementation
+  * Locate relevant code without knowing exact file locations or text patterns
+  For example, instead of searching for specific function names, describe what the code should do, like "find code that handles user authentication" or "show me how the app processes payments".
+
+- When using the search_files tool, focus on finding specific text patterns or code structures. This tool is best for:
+  * Finding exact function or variable names
+  * Locating specific code patterns or syntax
+  * Searching for TODO comments or documentation
+  * Finding specific error messages or logging statements
+  * Discovering exact text matches across files
+
+- When using the list_code_definition_names tool, focus on understanding the high-level structure of the codebase. This tool is ideal for:
+  * Getting an overview of available functions and classes
+  * Understanding the relationships between different code components
+  * Discovering the public API of a module or package
+  * Identifying entry points and main functionality
+  * Planning refactoring or code organization
+
+- When using the read_file tool, focus on understanding the complete context of a specific file. This tool is best for:
+  * Examining the full implementation of a function or class
+  * Understanding file-level organization and structure
+  * Reviewing complete documentation or comments
+  * Analyzing file dependencies and imports
+  * Making informed decisions about code changes
+
+- When using the list_files tool, focus on exploring the project structure and finding relevant files. This tool is ideal for:
+  * Discovering project organization and layout
+  * Finding configuration files or documentation
+  * Locating specific file types or patterns
+  * Understanding the project's file hierarchy
+  * Planning file operations or changes`
 }
