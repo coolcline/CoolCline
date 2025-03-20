@@ -5,6 +5,7 @@ import * as fs from "fs"
 import * as vscode from "vscode"
 import { IndexOptions, IndexProgress, IndexStats, IndexTask } from "./types"
 import { toPosixPath, arePathsEqual, extname, join, relative } from "../../utils/path"
+import { createDatabase, Database } from "./database"
 
 /**
  * 代码库索引服务类
@@ -17,6 +18,7 @@ export class CodebaseIndexService {
 	private batchSize: number = 10
 	private processingDelay: number = 0
 	private priorityFolders: string[] = ["src", "lib", "app", "core"]
+	private db: Database | null = null
 
 	/**
 	 * 构造函数
@@ -34,6 +36,16 @@ export class CodebaseIndexService {
 	}
 
 	/**
+	 * 初始化数据库
+	 * @private
+	 */
+	private async initDatabase(): Promise<void> {
+		if (!this.db) {
+			this.db = await createDatabase(this.workspacePath)
+		}
+	}
+
+	/**
 	 * 开始索引工作区
 	 * @param options 索引选项
 	 */
@@ -46,6 +58,9 @@ export class CodebaseIndexService {
 		this._progress = { total: 0, completed: 0, status: "scanning" }
 
 		try {
+			// 初始化数据库
+			await this.initDatabase()
+
 			// 扫描工作区文件
 			const files = await this.scanWorkspace(options?.includePaths, options?.excludePaths)
 			this._progress.total = files.length
@@ -91,10 +106,38 @@ export class CodebaseIndexService {
 		// 停止当前索引任务
 		this.indexQueue = []
 		this.isIndexing = false
-
 		this._progress = { total: 0, completed: 0, status: "idle" }
 
-		// TODO: 清除数据库内容
+		// 清除数据库内容
+		try {
+			if (this.db) {
+				// 使用事务保证原子性
+				await this.db.beginTransaction()
+				try {
+					// 清除所有关联表数据，顺序很重要（先清除依赖表）
+					await this.db.exec("DELETE FROM symbol_relations")
+					await this.db.exec("DELETE FROM keywords")
+					await this.db.exec("DELETE FROM symbol_contents")
+					await this.db.exec("DELETE FROM symbols")
+					await this.db.exec("DELETE FROM files")
+
+					// 保留工作区元数据表，但更新最后重置时间
+					await this.db.run(
+						"INSERT OR REPLACE INTO workspace_meta (key, value, updated_at) VALUES (?, ?, ?)",
+						["last_reset", Date.now().toString(), Date.now()],
+					)
+
+					await this.db.commit()
+					console.log("索引数据已清除")
+				} catch (error) {
+					// 如果出错，回滚事务
+					await this.db.rollback()
+					throw error
+				}
+			}
+		} catch (error) {
+			console.error("清除索引数据失败:", error)
+		}
 	}
 
 	/**
@@ -103,25 +146,82 @@ export class CodebaseIndexService {
 	 */
 	public async indexFile(filePath: string): Promise<void> {
 		try {
+			// 确保数据库已初始化
+			await this.initDatabase()
+
 			// 检查文件是否存在
 			if (!fs.existsSync(filePath)) {
 				console.warn(`File does not exist: ${filePath}`)
 				return
 			}
 
-			// 获取文件内容
-			const content = await fs.promises.readFile(filePath, "utf-8")
+			try {
+				// 获取文件内容
+				const content = await fs.promises.readFile(filePath, "utf-8")
 
-			// 获取文件语言
-			const language = this.detectLanguage(filePath)
+				// 计算内容哈希，用于后续增量更新
+				const contentHash = this.calculateContentHash(content)
 
-			// TODO: 解析文件内容，提取符号
-			// TODO: 将符号写入数据库
+				// 获取文件语言
+				const language = this.detectLanguage(filePath)
 
-			console.log(`Indexed file: ${toPosixPath(filePath)} (${language})`)
+				// 获取文件最后修改时间
+				let lastModified = Date.now()
+				try {
+					const stats = fs.statSync(filePath)
+					lastModified = stats.mtimeMs
+				} catch (error) {
+					console.warn(`无法获取文件状态信息，使用当前时间: ${filePath}`)
+				}
+
+				// 先将文件信息保存到数据库
+				const normalizedPath = toPosixPath(filePath)
+				try {
+					await this.db!.run(
+						`INSERT OR REPLACE INTO files (path, language, last_modified, indexed_at, content_hash) 
+						VALUES (?, ?, ?, ?, ?)`,
+						[normalizedPath, language, lastModified, Date.now(), contentHash],
+					)
+
+					// 获取文件ID
+					const fileRecord = await this.db!.get("SELECT id FROM files WHERE path = ?", [normalizedPath])
+
+					if (!fileRecord || !fileRecord.id) {
+						console.warn(`无法获取文件记录: ${normalizedPath}`)
+						return
+					}
+
+					const fileId = fileRecord.id
+
+					// TODO: 解析文件内容，提取符号
+					// TODO: 将符号写入数据库
+
+					console.log(`Indexed file: ${normalizedPath} (${language})`)
+				} catch (dbError) {
+					console.error(`数据库操作失败: ${normalizedPath}`, dbError)
+				}
+			} catch (fileError) {
+				console.error(`文件处理失败: ${filePath}`, fileError)
+			}
 		} catch (error) {
 			console.error(`Failed to index file: ${toPosixPath(filePath)}`, error)
 		}
+	}
+
+	/**
+	 * 计算内容哈希值
+	 * @param content 文件内容
+	 * @returns 哈希值
+	 */
+	private calculateContentHash(content: string): string {
+		// 简单的哈希计算
+		let hash = 0
+		for (let i = 0; i < content.length; i++) {
+			const char = content.charCodeAt(i)
+			hash = (hash << 5) - hash + char
+			hash = hash & hash // 转换为32位整数
+		}
+		return Math.abs(hash).toString(16)
 	}
 
 	/**
@@ -129,21 +229,66 @@ export class CodebaseIndexService {
 	 * @param filePath 文件路径
 	 */
 	public async removeFileFromIndex(filePath: string): Promise<void> {
-		// TODO: 从数据库中移除文件相关数据
-		console.log(`Removed file from index: ${filePath}`)
+		try {
+			// 确保数据库已初始化
+			await this.initDatabase()
+
+			const normalizedPath = toPosixPath(filePath)
+
+			// 查询文件ID
+			const fileRecord = await this.db!.get("SELECT id FROM files WHERE path = ?", [normalizedPath])
+
+			if (fileRecord && fileRecord.id) {
+				// 删除相关的符号和关键词
+				await this.db!.run("DELETE FROM symbols WHERE file_id = ?", [fileRecord.id])
+				await this.db!.run("DELETE FROM keywords WHERE file_id = ?", [fileRecord.id])
+
+				// 删除与该文件相关的符号
+				await this.db!.run("DELETE FROM symbol_contents WHERE file_path = ?", [normalizedPath])
+
+				// 删除与该文件相关的符号关系
+				await this.db!.run("DELETE FROM symbol_relations WHERE file_path = ?", [normalizedPath])
+
+				// 删除文件记录
+				await this.db!.run("DELETE FROM files WHERE id = ?", [fileRecord.id])
+
+				console.log(`Removed file from index: ${normalizedPath}`)
+			}
+		} catch (error) {
+			console.error(`Failed to remove file from index: ${filePath}`, error)
+		}
 	}
 
 	/**
 	 * 获取索引统计信息
 	 */
 	public async getIndexStats(): Promise<IndexStats> {
-		// TODO: 从数据库获取真实统计信息
-		return {
-			filesCount: 0,
-			symbolsCount: 0,
-			keywordsCount: 0,
-			lastIndexed: null,
-			status: this._progress.status,
+		try {
+			// 确保数据库已初始化
+			await this.initDatabase()
+
+			// 从数据库获取统计信息
+			const filesCount = await this.db!.get("SELECT COUNT(*) as count FROM files")
+			const symbolsCount = await this.db!.get("SELECT COUNT(*) as count FROM symbols")
+			const keywordsCount = await this.db!.get("SELECT COUNT(*) as count FROM keywords")
+			const lastIndexed = await this.db!.get("SELECT MAX(indexed_at) as last_indexed FROM files")
+
+			return {
+				filesCount: filesCount ? filesCount.count : 0,
+				symbolsCount: symbolsCount ? symbolsCount.count : 0,
+				keywordsCount: keywordsCount ? keywordsCount.count : 0,
+				lastIndexed: lastIndexed && lastIndexed.last_indexed ? new Date(lastIndexed.last_indexed) : null,
+				status: this._progress.status,
+			}
+		} catch (error) {
+			console.error("获取索引统计信息失败:", error)
+			return {
+				filesCount: 0,
+				symbolsCount: 0,
+				keywordsCount: 0,
+				lastIndexed: null,
+				status: this._progress.status,
+			}
 		}
 	}
 
@@ -177,14 +322,113 @@ export class CodebaseIndexService {
 	 * @private
 	 */
 	private async scanWorkspace(includePaths?: string[], excludePaths?: string[]): Promise<string[]> {
-		// 这里简化实现，实际应使用glob或其他方式高效扫描文件
-		// TODO: 实现真正的文件扫描逻辑
+		// 添加日志记录工作区路径
+		console.log(`正在扫描工作区: ${this.workspacePath}`)
 
-		// 临时返回一些测试文件
-		return [
-			toPosixPath(join(this.workspacePath, "src/index.ts")),
-			toPosixPath(join(this.workspacePath, "src/services/codebase-search/index-service.ts")),
-		]
+		// 检查工作区路径是否存在
+		if (!fs.existsSync(this.workspacePath)) {
+			console.log(`工作区路径不存在: ${this.workspacePath}`)
+			return []
+		}
+
+		// 使用简单的文件系统扫描来获取文件
+		const results: string[] = []
+
+		// 如果没有指定包含路径，使用默认值
+		const includes = includePaths && includePaths.length > 0 ? includePaths : ["src", "lib", "app"]
+
+		// 默认排除的目录
+		const excludes =
+			excludePaths && excludePaths.length > 0 ? excludePaths : ["node_modules", ".git", "dist", "build", "out"]
+
+		console.log(`包含路径: ${includes.join(", ")}`)
+		console.log(`排除路径: ${excludes.join(", ")}`)
+
+		// 实现一个简单的扫描逻辑
+		// 首先检查指定的包含目录
+		let foundFiles = false
+		for (const dir of includes) {
+			const dirPath = join(this.workspacePath, dir)
+
+			// 检查目录是否存在
+			if (!fs.existsSync(dirPath)) {
+				console.log(`包含的目录不存在，跳过: ${dirPath}`)
+				continue
+			}
+
+			console.log(`扫描目录: ${dirPath}`)
+			await this.scanDirectory(dirPath, results, excludes)
+			foundFiles = foundFiles || results.length > 0
+		}
+
+		// 如果在指定目录中没有找到文件，则扫描根目录
+		if (!foundFiles) {
+			console.log(`在指定目录中未找到文件，扫描根目录: ${this.workspacePath}`)
+			await this.scanDirectory(this.workspacePath, results, excludes)
+		}
+
+		console.log(`文件扫描完成，找到 ${results.length} 个文件`)
+		return results
+	}
+
+	/**
+	 * 递归扫描目录
+	 * @param directory 要扫描的目录
+	 * @param results 结果数组
+	 * @param excludes 排除的路径
+	 */
+	private async scanDirectory(directory: string, results: string[], excludes: string[]): Promise<void> {
+		// 读取目录内容
+		const entries = fs.readdirSync(directory, { withFileTypes: true })
+
+		for (const entry of entries) {
+			const fullPath = join(directory, entry.name)
+
+			// 检查是否应该排除
+			const relativePath = toPosixPath(relative(this.workspacePath, fullPath))
+			const shouldExclude = excludes.some(
+				(exclude) =>
+					relativePath === exclude ||
+					relativePath.startsWith(`${exclude}/`) ||
+					relativePath.includes(`/${exclude}/`),
+			)
+
+			if (shouldExclude) {
+				continue
+			}
+
+			if (entry.isDirectory()) {
+				// 递归扫描子目录
+				await this.scanDirectory(fullPath, results, excludes)
+			} else if (entry.isFile()) {
+				// 只索引一些常见的代码文件
+				const ext = extname(entry.name).toLowerCase()
+				const validExtensions = [
+					".ts",
+					".tsx",
+					".js",
+					".jsx",
+					".py",
+					".rb",
+					".go",
+					".java",
+					".c",
+					".cpp",
+					".cs",
+					".php",
+					".rs",
+					".swift",
+					".kt",
+					".html",
+					".css",
+					".json",
+				]
+
+				if (validExtensions.includes(ext)) {
+					results.push(toPosixPath(fullPath))
+				}
+			}
+		}
 	}
 
 	/**
@@ -251,6 +495,21 @@ export class CodebaseIndexService {
 		}
 
 		return languageMap[ext] || "plaintext"
+	}
+
+	/**
+	 * 关闭索引服务
+	 */
+	public async close(): Promise<void> {
+		// 停止索引任务
+		this.indexQueue = []
+		this.isIndexing = false
+
+		// 关闭数据库连接
+		if (this.db) {
+			await this.db.close()
+			this.db = null
+		}
 	}
 }
 

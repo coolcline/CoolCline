@@ -2,6 +2,8 @@ import { toPosixPath } from "../../../utils/path"
 import * as vscode from "vscode"
 import { CodebaseSearchManager, initializeCodebaseSearch, handleCodebaseSearchTool } from "../index"
 import { CodebaseSearchOptions, ResultType } from "../types"
+import { createSearchService } from "../search-service"
+import { setExtensionContext } from "../extension-context"
 
 // Mock vscode workspace
 jest.mock("vscode", () => ({
@@ -9,6 +11,87 @@ jest.mock("vscode", () => ({
 		workspaceFolders: [{ uri: { fsPath: toPosixPath("/test/workspace") }, name: "test" }],
 	},
 }))
+
+// 模拟VS Code的API
+jest.mock("vscode", () => {
+	return {
+		window: {
+			showInformationMessage: jest.fn(),
+			showErrorMessage: jest.fn(),
+			withProgress: jest.fn((options, callback) => {
+				// 简单执行回调函数，不实际显示进度条
+				return callback({
+					report: jest.fn(),
+				})
+			}),
+		},
+		ProgressLocation: {
+			Notification: 1,
+		},
+		workspace: {
+			workspaceFolders: [
+				{
+					uri: { fsPath: "/test/workspace" },
+					name: "test",
+					index: 0,
+				},
+			],
+		},
+		l10n: {
+			t: (key: string) => key,
+		},
+		Uri: {
+			file: (path: string) => ({ fsPath: path }),
+		},
+	}
+})
+
+// 设置模拟的扩展上下文
+const mockContext = {
+	globalStorageUri: { fsPath: "/test/storage" },
+	workspaceState: {
+		get: jest.fn(),
+		update: jest.fn(),
+	},
+	globalState: {
+		get: jest.fn(),
+		update: jest.fn(),
+	},
+	subscriptions: [],
+	extensionPath: "/test/extension",
+	extensionUri: { fsPath: "/test/extension" },
+	environmentVariableCollection: {},
+	extensionMode: 1,
+	logUri: { fsPath: "/test/logs" },
+	logPath: "/test/logs",
+	storageUri: { fsPath: "/test/storage" },
+	storagePath: "/test/storage",
+	asAbsolutePath: (path: string) => `/test/extension/${path}`,
+}
+
+// 模拟search-service
+jest.mock("../search-service", () => {
+	return {
+		createSearchService: jest.fn().mockImplementation(() => {
+			return {
+				search: jest.fn().mockResolvedValue([
+					{
+						file: "/test/file1.ts",
+						line: 10,
+						snippet: "function test() { return true; }",
+						score: 0.95,
+					},
+					{
+						file: "/test/file2.ts",
+						line: 20,
+						snippet: "const x = 10;",
+						score: 0.85,
+					},
+				]),
+			}
+		}),
+	}
+})
 
 describe("CodebaseSearchManager", () => {
 	let manager: CodebaseSearchManager
@@ -59,32 +142,27 @@ describe("CodebaseSearchManager", () => {
 })
 
 describe("handleCodebaseSearchTool", () => {
-	beforeEach(async () => {
-		await initializeCodebaseSearch()
+	beforeAll(() => {
+		// 设置模拟的扩展上下文
+		setExtensionContext(mockContext as any)
 	})
 
 	it("should handle empty query", async () => {
-		const result = await handleCodebaseSearchTool({})
-		expect(result.error).toBeDefined()
+		const result = await handleCodebaseSearchTool({ query: "" })
+		expect(result).toHaveProperty("error")
 	})
 
 	it("should handle valid query", async () => {
-		const result = await handleCodebaseSearchTool({
-			query: "test query",
-			target_directories: ["src"],
-		})
-		expect(result.found).toBeDefined()
-		expect(Array.isArray(result.results)).toBe(true)
+		const result = await handleCodebaseSearchTool({ query: "test function" })
+		expect(result.results).toHaveLength(2)
+		expect(createSearchService).toHaveBeenCalled()
 	})
 
 	it("should format results correctly", async () => {
-		const result = await handleCodebaseSearchTool({
-			query: "test query",
-		})
-		if (result.found) {
-			expect(result.results[0]).toHaveProperty("file")
-			expect(result.results[0]).toHaveProperty("line")
-			expect(result.results[0]).toHaveProperty("context")
-		}
+		const result = await handleCodebaseSearchTool({ query: "const" })
+		expect(result.results[0]).toHaveProperty("file")
+		expect(result.results[0]).toHaveProperty("line")
+		expect(result.results[0]).toHaveProperty("context")
+		expect(result.results[0]).toHaveProperty("relevance")
 	})
 })

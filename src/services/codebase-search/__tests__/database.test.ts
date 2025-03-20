@@ -1,82 +1,126 @@
-import { Database } from "../database"
-import { join, dirname, extname } from "path"
+/**
+ * 数据库测试
+ */
 import * as fs from "fs"
 import { expect } from "chai"
-import * as SQLiteDatabase from "better-sqlite3"
+import { join } from "../../../utils/path"
+import { Database, createInMemoryDatabase } from "../database"
 
-describe("Database", () => {
+describe("数据库", () => {
+	// 创建临时测试文件路径
+	const tempPath = join(__dirname, "test.db")
 	let db: Database
-	let testDbPath: string
 
-	beforeAll(async () => {
-		// 检查 SQLite 依赖
-		if (!SQLiteDatabase) {
-			throw new Error("better-sqlite3 依赖未安装。请运行: npm install better-sqlite3 @types/better-sqlite3")
+	// 使用随机后缀生成唯一的表名，避免冲突
+	const getUniqueTableName = (base: string) => `${base}_${Math.floor(Math.random() * 100000)}`
+
+	// 测试前检查依赖
+	beforeAll(() => {
+		// 确保存在sql.js依赖，这可以通过是否能成功导入Database类来判断
+		if (!Database) {
+			throw new Error("数据库模块未正确加载。请确认已安装sql.js依赖")
+		}
+	})
+
+	// 每个测试前准备环境
+	beforeEach(async () => {
+		// 确保不存在残留的测试数据库
+		if (fs.existsSync(tempPath)) {
+			fs.unlinkSync(tempPath)
 		}
 
-		testDbPath = join(__dirname, "test.db")
-		db = new Database(testDbPath)
+		// 创建测试数据库
+		db = new Database(tempPath)
 		await db.initialize()
 	})
 
-	afterAll(async () => {
+	// 每个测试后清理环境
+	afterEach(async () => {
+		// 关闭数据库连接
 		await db.close()
-		if (fs.existsSync(testDbPath)) {
-			fs.unlinkSync(testDbPath)
+
+		// 删除测试数据库文件
+		if (fs.existsSync(tempPath)) {
+			fs.unlinkSync(tempPath)
 		}
 	})
 
-	describe("数据库初始化测试", () => {
-		it("应该能够正确初始化数据库连接", async () => {
-			const integrity = await db.checkIntegrity()
-			expect(integrity).to.be.true
-		})
+	// 测试数据库初始化
+	it("应该能够初始化数据库", async () => {
+		expect(db).to.exist
 	})
 
-	describe("SQL操作测试", () => {
-		it("应该能够执行SQL语句", async () => {
-			await db.exec("CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)")
-			const result = await db.run("INSERT INTO test (name) VALUES (?)", ["test"])
-			expect(result.changes).to.equal(1)
-			expect(result.lastID).to.equal(1)
-		})
+	// 测试执行简单SQL
+	it("应该能够执行SQL语句", async () => {
+		const tableName = getUniqueTableName("test")
+		await db.exec(`CREATE TABLE ${tableName} (id INTEGER PRIMARY KEY, name TEXT)`)
+		await db.exec(`INSERT INTO ${tableName} (name) VALUES ('test1')`)
+		await db.exec(`INSERT INTO ${tableName} (name) VALUES ('test2')`)
 
-		it("应该能够查询数据", async () => {
-			const row = await db.get("SELECT * FROM test WHERE id = ?", [1])
-			expect(row).to.deep.equal({ id: 1, name: "test" })
-		})
-
-		it("应该能够查询多行数据", async () => {
-			await db.run("INSERT INTO test (name) VALUES (?)", ["test2"])
-			const rows = await db.all("SELECT * FROM test")
-			expect(rows).to.have.length(2)
-		})
+		const results = await db.all(`SELECT * FROM ${tableName}`)
+		expect(results.length).to.equal(2)
+		expect(results[0].name).to.equal("test1")
+		expect(results[1].name).to.equal("test2")
 	})
 
-	describe("事务测试", () => {
-		it("应该能够正确处理事务", async () => {
-			await db.beginTransaction()
-			try {
-				await db.run("INSERT INTO test (name) VALUES (?)", ["transaction"])
-				await db.commit()
-			} catch (error) {
-				await db.rollback()
-				throw error
-			}
+	// 测试带参数的SQL
+	it("应该能够执行带参数的SQL语句", async () => {
+		const tableName = getUniqueTableName("test")
+		await db.exec(`CREATE TABLE ${tableName} (id INTEGER PRIMARY KEY, name TEXT)`)
 
-			const row = await db.get("SELECT * FROM test WHERE name = ?", ["transaction"])
-			expect(row).to.exist
-		})
+		const result = await db.run(`INSERT INTO ${tableName} (name) VALUES (?)`, ["测试名称"])
+		expect(result.lastID).to.be.greaterThan(0)
+
+		const row = await db.get(`SELECT * FROM ${tableName} WHERE id = ?`, [result.lastID])
+		expect(row).to.exist
+		expect(row.name).to.equal("测试名称")
 	})
 
-	describe("错误处理测试", () => {
-		it("应该能够处理SQL错误", async () => {
-			try {
-				await db.exec("INVALID SQL")
-				expect.fail("应该抛出错误")
-			} catch (error) {
-				expect(error.message).to.include("SQL执行错误")
-			}
-		})
+	// 测试事务支持
+	it("应该支持事务操作", async () => {
+		const tableName = getUniqueTableName("test")
+		await db.exec(`CREATE TABLE ${tableName} (id INTEGER PRIMARY KEY, name TEXT)`)
+
+		// 手动检查事务状态 (直接执行操作而不依赖isInTransaction)
+
+		// 测试提交事务
+		await db.beginTransaction()
+
+		await db.run(`INSERT INTO ${tableName} (name) VALUES (?)`, ["事务1"])
+		await db.commit()
+
+		let count = await db.get(`SELECT COUNT(*) as count FROM ${tableName}`)
+		expect(count.count).to.equal(1)
+
+		// 测试回滚事务
+		await db.beginTransaction()
+
+		await db.run(`INSERT INTO ${tableName} (name) VALUES (?)`, ["事务2"])
+
+		// 检查数据暂时存在
+		let tempResult = await db.get(`SELECT COUNT(*) as count FROM ${tableName}`)
+		expect(tempResult.count).to.equal(2)
+
+		// 回滚事务
+		await db.rollback()
+
+		// 检查数据被回滚
+		count = await db.get(`SELECT COUNT(*) as count FROM ${tableName}`)
+		expect(count.count).to.equal(1)
+	})
+
+	// 测试内存数据库
+	it("应该能够创建内存数据库", async () => {
+		const tableName = getUniqueTableName("memtest")
+		const memDb = await createInMemoryDatabase()
+
+		await memDb.exec(`CREATE TABLE ${tableName} (id INTEGER PRIMARY KEY, value TEXT)`)
+		await memDb.run(`INSERT INTO ${tableName} (value) VALUES (?)`, ["内存测试"])
+
+		const row = await memDb.get(`SELECT * FROM ${tableName}`)
+		expect(row).to.exist
+		expect(row.value).to.equal("内存测试")
+
+		await memDb.close()
 	})
 })

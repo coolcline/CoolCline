@@ -42,3 +42,7 @@ webview-ui/node_modules/**
 
 # Include icons
 !assets/icons/**
+
+# 确保包含sql.js的WASM文件
+!node_modules/sql.js/dist/sql-wasm.wasm
+!node_modules/sql.js/dist/sql-wasm.js

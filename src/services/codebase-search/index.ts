@@ -214,6 +214,7 @@ export async function initializeCodebaseSearch(): Promise<void> {
 		return
 	}
 
+	console.log(`发现 ${workspaceFolders.length} 个工作区，开始初始化代码库搜索服务`)
 	const manager = CodebaseSearchManager.getInstance()
 
 	// 显示进度通知
@@ -226,14 +227,24 @@ export async function initializeCodebaseSearch(): Promise<void> {
 		async (progress) => {
 			// 为每个工作区初始化服务
 			for (const folder of workspaceFolders) {
-				progress.report({ message: vscode.l10n.t("codebaseIndex.status.scanning") })
-				await manager.initialize(folder.uri.fsPath)
+				try {
+					const workspacePath = folder.uri.fsPath
+					console.log(`初始化工作区: ${workspacePath}`)
 
-				progress.report({ message: vscode.l10n.t("codebaseIndex.status.indexing") })
-				await manager.startIndexing({
-					includePaths: ["src", "lib", "app", "core"],
-					excludePaths: ["node_modules", ".git", "dist", "build"],
-				})
+					progress.report({ message: vscode.l10n.t("codebaseIndex.status.scanning") })
+					await manager.initialize(workspacePath)
+
+					progress.report({ message: vscode.l10n.t("codebaseIndex.status.indexing") })
+					await manager.startIndexing({
+						includePaths: ["src", "lib", "app", "core"],
+						excludePaths: ["node_modules", ".git", "dist", "build"],
+					})
+
+					console.log(`工作区初始化完成: ${workspacePath}`)
+				} catch (error) {
+					console.error(`初始化工作区失败:`, error)
+					// 继续处理下一个工作区，不中断整个过程
+				}
 			}
 
 			progress.report({ message: vscode.l10n.t("codebaseIndex.status.completed") })

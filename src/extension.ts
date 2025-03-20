@@ -9,7 +9,8 @@ import { CodeActionProvider } from "./core/CodeActionProvider"
 import { DIFF_VIEW_URI_SCHEME } from "./integrations/editor/DiffViewProvider"
 import { handleUri, registerCommands, registerCodeActions, registerTerminalActions } from "./activate"
 import { McpServerManager } from "./services/mcp/McpServerManager"
-import { setExtensionContext } from "./services/checkpoints/CheckpointUtils"
+import { setExtensionContext as setCheckpointsExtensionContext } from "./services/checkpoints/CheckpointUtils"
+import { setExtensionContext } from "./services/codebase-search/extension-context"
 import { initializeCodebaseSearch } from "./services/codebase-search"
 
 /**
@@ -33,6 +34,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<CoolCl
 
 	// 设置扩展上下文
 	setExtensionContext(context)
+	setCheckpointsExtensionContext(context)
 
 	// 初始化代码库搜索服务
 	try {
