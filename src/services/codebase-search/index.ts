@@ -7,6 +7,7 @@ import { CodebaseSearchService, createSearchService } from "./search-service"
 import { SemanticAnalysisService, createSemanticAnalysisService } from "./semantic-analysis"
 import { CodebaseSearchOptions, IndexOptions, IndexProgress, IndexStats, SearchResult } from "./types"
 import { toPosixPath, toRelativePath } from "../../utils/path"
+import delay from "delay"
 
 /**
  * 代码库搜索管理器
@@ -232,9 +233,15 @@ export async function initializeCodebaseSearch(): Promise<void> {
 					console.log(`初始化工作区: ${workspacePath}`)
 
 					progress.report({ message: vscode.l10n.t("codebaseIndex.status.scanning") })
+					// 添加短暂延迟，让用户能看到"scanning"状态
+					await delay(500)
+
 					await manager.initialize(workspacePath)
 
 					progress.report({ message: vscode.l10n.t("codebaseIndex.status.indexing") })
+					// 添加短暂延迟，让用户能看到"indexing"状态
+					await delay(500)
+
 					await manager.startIndexing({
 						includePaths: ["src", "lib", "app", "core"],
 						excludePaths: ["node_modules", ".git", "dist", "build"],
@@ -248,6 +255,9 @@ export async function initializeCodebaseSearch(): Promise<void> {
 			}
 
 			progress.report({ message: vscode.l10n.t("codebaseIndex.status.completed") })
+
+			// 添加2秒延时，确保用户能看清进度条
+			await delay(2000)
 		},
 	)
 

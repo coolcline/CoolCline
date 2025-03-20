@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, memo } from "react"
 import { useTranslation } from "react-i18next"
 import { useExtensionState } from "../../context/ExtensionStateContext"
 import { vscode } from "../../utils/vscode"
+import { ConfirmDialog } from "../ui"
 
 /**
  * 代码库索引状态接口
@@ -55,6 +56,9 @@ const CodebaseIndexSettings = () => {
 		total: 0,
 		percent: 0,
 	})
+
+	// 确认对话框状态
+	const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
 
 	// 获取索引状态
 	const fetchIndexStatus = useCallback(() => {
@@ -131,14 +135,18 @@ const CodebaseIndexSettings = () => {
 		})
 	}
 
-	// 清除索引
+	// 清除索引 - 打开确认对话框
 	const handleClearIndex = () => {
-		if (window.confirm(t("codebaseIndex.deleteConfirm").toString() || "确定要删除索引吗？这将移除所有索引数据。")) {
-			vscode.postMessage({
-				type: "codebaseSearch",
-				action: "clearIndex",
-			})
-		}
+		setConfirmDialogOpen(true)
+	}
+
+	// 确认清除索引
+	const handleConfirmClearIndex = () => {
+		vscode.postMessage({
+			type: "codebaseSearch",
+			action: "clearIndex",
+		})
+		setConfirmDialogOpen(false)
 	}
 
 	// 切换启用状态
@@ -158,6 +166,15 @@ const CodebaseIndexSettings = () => {
 			<h2 style={{ margin: "0 0 15px 0", fontWeight: "500" }}>
 				{t("settings.codebaseIndex.title").toString() || "代码库搜索索引"}
 			</h2>
+
+			{/* 确认对话框 */}
+			<ConfirmDialog
+				isOpen={confirmDialogOpen}
+				onClose={() => setConfirmDialogOpen(false)}
+				onConfirm={handleConfirmClearIndex}
+				title={t("codebaseIndex.deleteConfirmTitle").toString() || "确认清除索引"}
+				description={t("codebaseIndex.deleteConfirm").toString() || "确定要删除索引吗？这将移除所有索引数据。"}
+			/>
 
 			<div style={{ marginBottom: 15 }}>
 				<VSCodeCheckbox
