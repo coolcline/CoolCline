@@ -241,7 +241,7 @@ export async function initializeCodebaseSearch(): Promise<void> {
 
 					progress.report({ message: "indexing" })
 					// 添加短暂延迟，让用户能看到"indexing"状态
-					await delay(500)
+					await delay(1500)
 
 					await manager.startIndexing({
 						includePaths: ["src", "lib", "app", "core"],
