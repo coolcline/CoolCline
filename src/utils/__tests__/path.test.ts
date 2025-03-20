@@ -1,4 +1,14 @@
-import { arePathsEqual, getReadablePath, toRelativePath, toPosixPath } from "../path"
+import {
+	arePathsEqual,
+	getReadablePath,
+	toRelativePath,
+	toPosixPath,
+	extname,
+	dirname,
+	join,
+	relative,
+	isAbsolute,
+} from "../path"
 import * as path from "path"
 import os from "os"
 
@@ -173,6 +183,101 @@ describe("Path Utilities", () => {
 			const filePath = "C:\\Users\\test\\dir\\"
 			const cwd = "C:\\Users\\test"
 			expect(toRelativePath(filePath, cwd)).toBe("dir/")
+		})
+	})
+
+	describe("extname", () => {
+		it("should return the correct file extension with dot", () => {
+			expect(extname("file.txt")).toBe(".txt")
+			expect(extname("/path/to/file.js")).toBe(".js")
+			expect(extname("C:\\path\\to\\file.tsx")).toBe(".tsx")
+		})
+
+		it("should return empty string for files without extension", () => {
+			expect(extname("file")).toBe("")
+			expect(extname("/path/to/file")).toBe("")
+		})
+
+		it("should handle paths with multiple dots", () => {
+			expect(extname("file.test.js")).toBe(".js")
+			expect(extname("/path/to/archive.tar.gz")).toBe(".gz")
+		})
+
+		it("should handle mixed separators", () => {
+			expect(extname("C:\\path/to/file.md")).toBe(".md")
+		})
+	})
+
+	describe("dirname", () => {
+		it("should return the directory name of a path", () => {
+			expect(dirname("/path/to/file.txt")).toBe("/path/to")
+			expect(dirname("C:\\path\\to\\file.txt")).toBe("C:/path/to")
+		})
+
+		it("should handle paths with mixed separators", () => {
+			expect(dirname("C:\\path/to/file.txt")).toBe("C:/path/to")
+		})
+
+		it("should handle root paths", () => {
+			expect(dirname("/file.txt")).toBe("/")
+			expect(dirname("C:\\file.txt")).toBe("C:/")
+		})
+	})
+
+	describe("join", () => {
+		it("should join path segments correctly", () => {
+			expect(join("path", "to", "file.txt")).toBe("path/to/file.txt")
+			expect(join("/path", "to", "file.txt")).toBe("/path/to/file.txt")
+			expect(join("C:\\path", "to", "file.txt")).toBe("C:/path/to/file.txt")
+		})
+
+		it("should handle empty path segments", () => {
+			expect(join("path", "", "file.txt")).toBe("path/file.txt")
+		})
+
+		it("should normalize paths", () => {
+			expect(join("path", "..", "file.txt")).toBe("file.txt")
+			expect(join("/path", "to", "..", "file.txt")).toBe("/path/file.txt")
+		})
+
+		it("should handle mixed separators", () => {
+			expect(join("path\\to", "dir/subdir", "file.txt")).toBe("path/to/dir/subdir/file.txt")
+		})
+	})
+
+	describe("relative", () => {
+		it("should return correct relative path", () => {
+			expect(relative("/path/to", "/path/to/file.txt")).toBe("file.txt")
+			expect(relative("C:\\path\\to", "C:\\path\\to\\dir\\file.txt")).toBe("dir/file.txt")
+		})
+
+		it("should handle paths outside base directory", () => {
+			expect(relative("/path/to", "/path/other/file.txt")).toBe("../other/file.txt")
+		})
+
+		it("should handle identical paths", () => {
+			expect(relative("/path/to", "/path/to")).toBe("")
+		})
+
+		it("should handle mixed separators", () => {
+			expect(relative("C:/path\\to", "C:\\path\\other\\file.txt")).toBe("../other/file.txt")
+		})
+	})
+
+	describe("isAbsolute", () => {
+		it("should correctly identify absolute paths", () => {
+			expect(isAbsolute("/path/to/file")).toBe(true)
+			expect(isAbsolute("C:\\path\\to\\file")).toBe(true)
+		})
+
+		it("should correctly identify relative paths", () => {
+			expect(isAbsolute("path/to/file")).toBe(false)
+			expect(isAbsolute("./path/to/file")).toBe(false)
+			expect(isAbsolute("../path/to/file")).toBe(false)
+		})
+
+		it("should handle mixed separators", () => {
+			expect(isAbsolute("C:/path\\to/file")).toBe(true)
 		})
 	})
 })
