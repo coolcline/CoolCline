@@ -728,6 +728,44 @@
 			"description": "If you have any questions or feedback, feel free to open an issue at",
 			"resetState": "Reset State",
 			"resetStateDescription": "This will reset all global state and secret storage in the extension."
+		},
+		"codebaseIndex": {
+			"title": "Codebase Index",
+			"deleteConfirm": "Are you sure you want to delete the index? This will remove all indexed data.",
+			"enable": {
+				"title": "Enable Code Index",
+				"description": "When enabled, builds an index for your workspace code to provide smarter code search capabilities"
+			},
+			"status": {
+				"title": "Index Status",
+				"filesCount": "Indexed Files",
+				"symbolsCount": "Indexed Symbols",
+				"lastIndexed": "Last Indexed",
+				"current": "Current Status",
+				"progress": "Progress",
+				"idle": "Idle",
+				"scanning": "Scanning",
+				"indexing": "Indexing",
+				"completed": "Completed",
+				"error": "Error"
+			},
+			"actions": {
+				"start": "Start Indexing",
+				"refresh": "Refresh Index",
+				"clear": "Clear Index"
+			},
+			"autoStart": {
+				"title": "Auto-index on Startup",
+				"description": "Automatically start indexing when the editor launches"
+			},
+			"includeTests": {
+				"title": "Include Test Files",
+				"description": "Whether to include test files in the index"
+			},
+			"excludePaths": {
+				"title": "Exclude Paths",
+				"description": "Paths to exclude from indexing, separated by commas"
+			}
 		}
 	}
 }

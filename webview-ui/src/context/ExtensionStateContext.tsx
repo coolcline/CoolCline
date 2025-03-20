@@ -82,6 +82,15 @@ export interface ExtensionStateContextType extends ExtensionState {
 	setCheckpointsEnabled: (value: boolean) => void
 	currentCheckpoint?: string
 	requestyModels: Record<string, ModelInfo>
+	// 代码库索引相关状态
+	codebaseIndexEnabled: boolean
+	setCodebaseIndexEnabled: (value: boolean) => void
+	codebaseIndexAutoStart: boolean
+	setCodebaseIndexAutoStart: (value: boolean) => void
+	codebaseIndexExcludePaths: string
+	setCodebaseIndexExcludePaths: (value: string) => void
+	codebaseIndexIncludeTests: boolean
+	setCodebaseIndexIncludeTests: (value: boolean) => void
 }
 
 export const ExtensionStateContext = createContext<ExtensionStateContextType | undefined>(undefined)
@@ -118,6 +127,11 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		customModes: [],
 		checkpointsEnabled: true,
 		requestyModels: {},
+		// 代码库索引相关状态
+		codebaseIndexEnabled: true,
+		codebaseIndexAutoStart: true,
+		codebaseIndexExcludePaths: "node_modules,dist,build",
+		codebaseIndexIncludeTests: false,
 	})
 
 	const [didHydrateState, setDidHydrateState] = useState(false)
@@ -136,6 +150,12 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 	const [mcpServers, setMcpServers] = useState<McpServer[]>([])
 	const [currentCheckpoint, setCurrentCheckpoint] = useState<string>()
 	const [unboundModels, setUnboundModels] = useState<Record<string, ModelInfo>>({})
+
+	// 代码库索引相关状态
+	const [codebaseIndexEnabled, setCodebaseIndexEnabled] = useState<boolean>(true)
+	const [codebaseIndexAutoStart, setCodebaseIndexAutoStart] = useState<boolean>(true)
+	const [codebaseIndexExcludePaths, setCodebaseIndexExcludePaths] = useState<string>("node_modules,dist,build")
+	const [codebaseIndexIncludeTests, setCodebaseIndexIncludeTests] = useState<boolean>(false)
 
 	const setListApiConfigMeta = useCallback(
 		(value: ApiConfigMeta[]) => setState((prevState) => ({ ...prevState, listApiConfigMeta: value })),
@@ -288,6 +308,27 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 					}))
 					break
 				}
+				case "extensionState": {
+					if (message.state) {
+						if (message.state.codebaseIndexEnabled !== undefined) {
+							setCodebaseIndexEnabled(message.state.codebaseIndexEnabled)
+						} else {
+							setCodebaseIndexEnabled(true) // 默认启用
+						}
+						if (message.state.codebaseIndexAutoStart !== undefined) {
+							setCodebaseIndexAutoStart(message.state.codebaseIndexAutoStart)
+						} else {
+							setCodebaseIndexAutoStart(true)
+						}
+						if (message.state.codebaseIndexExcludePaths !== undefined) {
+							setCodebaseIndexExcludePaths(message.state.codebaseIndexExcludePaths)
+						}
+						if (message.state.codebaseIndexIncludeTests !== undefined) {
+							setCodebaseIndexIncludeTests(message.state.codebaseIndexIncludeTests)
+						}
+					}
+					break
+				}
 			}
 		},
 		[setListApiConfigMeta],
@@ -374,6 +415,14 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		setCheckpointsEnabled: (value) => setState((prevState) => ({ ...prevState, checkpointsEnabled: value })),
 		currentCheckpoint,
 		requestyModels: state.requestyModels,
+		codebaseIndexEnabled,
+		setCodebaseIndexEnabled,
+		codebaseIndexAutoStart,
+		setCodebaseIndexAutoStart,
+		codebaseIndexExcludePaths,
+		setCodebaseIndexExcludePaths,
+		codebaseIndexIncludeTests,
+		setCodebaseIndexIncludeTests,
 	}
 
 	return <ExtensionStateContext.Provider value={contextValue}>{children}</ExtensionStateContext.Provider>

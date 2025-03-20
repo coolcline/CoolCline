@@ -39,6 +39,7 @@ import { RequestyProvider } from "./RequestyProvider"
 import { CheckpointRestoreMode } from "../../services/checkpoints/types"
 import { getShadowGitPath, hashWorkingDir, PathUtils } from "../../services/checkpoints/CheckpointUtils"
 import { ManageCheckpointRepository } from "../../services/checkpoints/ManageCheckpointRepository"
+import { handleCodebaseSearchWebviewMessage } from "../../services/codebase-search"
 
 /*
 https://github.com/microsoft/vscode-webview-ui-toolkit-samples/blob/main/default/weather-webview/src/providers/WeatherViewProvider.ts
@@ -128,6 +129,10 @@ type GlobalStateKey =
 	| "requestyModels"
 	| "requestyModelId"
 	| "requestyModelInfo"
+	| "codebaseIndexEnabled"
+	| "codebaseIndexAutoStart"
+	| "codebaseIndexExcludePaths"
+	| "codebaseIndexIncludeTests"
 
 export const GlobalFileNames = {
 	apiConversationHistory: "api_conversation_history.json",
@@ -1591,6 +1596,9 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
 					case "deleteThisProjectAllHistory":
 						await this.deleteThisProjectAllHistory()
 						break
+					case "codebaseSearch":
+						await handleCodebaseSearchWebviewMessage(webview, message)
+						break
 				}
 			},
 			null,
@@ -2396,6 +2404,11 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
 			experiments,
 			checkpointsEnabled,
 			requestyModels,
+			// 添加代码库索引相关状态
+			codebaseIndexEnabled,
+			codebaseIndexAutoStart,
+			codebaseIndexExcludePaths,
+			codebaseIndexIncludeTests,
 		} = await this.getState()
 
 		const allowedCommands = vscode.workspace.getConfiguration("coolcline").get<string[]>("allowedCommands") || []
@@ -2459,6 +2472,10 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
 			mcpServers: this.mcpHub?.getAllServers() ?? [],
 			checkpointsEnabled: checkpointsEnabled ?? true,
 			requestyModels: requestyModels ?? {},
+			codebaseIndexEnabled,
+			codebaseIndexAutoStart,
+			codebaseIndexExcludePaths,
+			codebaseIndexIncludeTests,
 		}
 	}
 
@@ -2594,6 +2611,10 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
 			requestyModelId,
 			requestyModelInfo,
 			requestyApiKey,
+			codebaseIndexEnabled,
+			codebaseIndexAutoStart,
+			codebaseIndexExcludePaths,
+			codebaseIndexIncludeTests,
 		] = await Promise.all([
 			this.getGlobalState("llmProvider") as Promise<llmProvider | undefined>,
 			this.getGlobalState("apiModelId") as Promise<string | undefined>,
@@ -2674,6 +2695,10 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
 			this.getGlobalState("requestyModelId") as Promise<string | undefined>,
 			this.getGlobalState("requestyModelInfo") as Promise<ModelInfo | undefined>,
 			this.getSecret("requestyApiKey") as Promise<string | undefined>,
+			this.getGlobalState("codebaseIndexEnabled") as Promise<boolean | undefined>,
+			this.getGlobalState("codebaseIndexAutoStart") as Promise<boolean | undefined>,
+			this.getGlobalState("codebaseIndexExcludePaths") as Promise<string | undefined>,
+			this.getGlobalState("codebaseIndexIncludeTests") as Promise<boolean | undefined>,
 		])
 
 		let llmProvider: llmProvider
@@ -2796,6 +2821,10 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
 			requestyModels: requestyModels ?? {},
 			requestyModelId,
 			requestyModelInfo,
+			codebaseIndexEnabled: codebaseIndexEnabled ?? true,
+			codebaseIndexAutoStart: codebaseIndexAutoStart ?? true,
+			codebaseIndexExcludePaths: codebaseIndexExcludePaths ?? "node_modules,dist,build",
+			codebaseIndexIncludeTests: codebaseIndexIncludeTests ?? false,
 		}
 	}
 

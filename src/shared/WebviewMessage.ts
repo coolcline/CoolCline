@@ -91,6 +91,7 @@ export interface WebviewMessage {
 		| "checkpointRestore"
 		| "deleteAllProjectsAllHistory"
 		| "deleteThisProjectAllHistory"
+		| "codebaseSearch"
 	text?: string
 	disabled?: boolean
 	askResponse?: CoolClineAskResponse
@@ -113,6 +114,8 @@ export interface WebviewMessage {
 	modeConfig?: ModeConfig
 	timeout?: number
 	payload?: WebViewMessagePayload
+	action?: string
+	settings?: Record<string, any>
 }
 
 export type CoolClineAskResponse = "yesButtonClicked" | "noButtonClicked" | "messageResponse"

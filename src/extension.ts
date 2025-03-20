@@ -3,12 +3,14 @@ import { logger, initializeLogger } from "./utils/logging"
 
 import { CoolClineProvider } from "./core/webview/CoolClineProvider"
 import { createCoolClineAPI } from "./exports"
+import { CoolClineAPI } from "./exports/coolcline.d"
 import "./utils/path" // Necessary to have access to String.prototype.toPosix.
 import { CodeActionProvider } from "./core/CodeActionProvider"
 import { DIFF_VIEW_URI_SCHEME } from "./integrations/editor/DiffViewProvider"
 import { handleUri, registerCommands, registerCodeActions, registerTerminalActions } from "./activate"
 import { McpServerManager } from "./services/mcp/McpServerManager"
 import { setExtensionContext } from "./services/checkpoints/CheckpointUtils"
+import { initializeCodebaseSearch } from "./services/codebase-search"
 
 /**
  * Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -23,7 +25,7 @@ let extensionContext: vscode.ExtensionContext
 
 // This method is called when your extension is activated.
 // Your extension is activated the very first time the command is executed.
-export async function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext): Promise<CoolClineAPI> {
 	extensionContext = context
 	outputChannel = vscode.window.createOutputChannel("CoolCline")
 	context.subscriptions.push(outputChannel)
@@ -31,6 +33,16 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	// 设置扩展上下文
 	setExtensionContext(context)
+
+	// 初始化代码库搜索服务
+	try {
+		await initializeCodebaseSearch()
+		logger.info("代码库搜索服务初始化完成", { ctx: "extension" })
+	} catch (error) {
+		const errorMessage = `代码库搜索服务初始化失败: ${error instanceof Error ? error.message : String(error)}`
+		outputChannel.appendLine(errorMessage)
+		console.error(errorMessage)
+	}
 
 	// 初始化日志系统
 	try {

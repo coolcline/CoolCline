@@ -28,6 +28,11 @@ export class CodebaseSearchService {
 	 */
 	public async search(query: string, options?: CodebaseSearchOptions): Promise<SearchResult[]> {
 		try {
+			// 验证查询字符串
+			if (!query || query.trim() === "") {
+				throw new Error("搜索查询不能为空")
+			}
+
 			// 解析查询
 			const parsedQuery = this.parseQuery(query)
 

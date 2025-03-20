@@ -12,6 +12,7 @@ import { Dropdown } from "vscrui"
 import type { DropdownOption } from "vscrui"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
 import LanguageSelector from "../common/LanguageSelector"
+import CodebaseIndexSettings from "../common/CodebaseIndexSettings"
 
 type SettingsViewProps = {
 	onDone: () => void
@@ -211,6 +212,21 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
 				{/* 语言组件 */}
 				<div style={{ fontWeight: "500" }}>
 					<LanguageSelector />
+				</div>
+
+				{/* 分割线 - 使用双边框样式 */}
+				<div
+					style={{
+						margin: "40px 0",
+						height: "1px",
+						background: "linear-gradient(to bottom, var(--vscode-panel-border), transparent)",
+						borderTop: "1px solid var(--vscode-panel-border)",
+						width: "100%",
+					}}></div>
+
+				{/* 代码库索引设置 */}
+				<div style={{ fontWeight: "500" }}>
+					<CodebaseIndexSettings />
 				</div>
 
 				{/* 分割线 - 使用双边框样式 */}

@@ -720,6 +720,44 @@
 			"description": "如果您有任何问题或反馈，欢迎在",
 			"resetState": "重置",
 			"resetStateDescription": "这将重置扩展中的所有全局状态和密钥存储。"
+		},
+		"codebaseIndex": {
+			"title": "代码库索引",
+			"deleteConfirm": "确定要删除索引吗？这将移除所有索引数据。",
+			"enable": {
+				"title": "启用代码库索引",
+				"description": "启用后将为工作区代码建立索引，提供更智能的代码搜索功能"
+			},
+			"status": {
+				"title": "索引状态",
+				"filesCount": "已索引文件数",
+				"symbolsCount": "已索引符号数",
+				"lastIndexed": "最后索引时间",
+				"current": "当前状态",
+				"progress": "进度",
+				"idle": "空闲",
+				"scanning": "扫描中",
+				"indexing": "索引中",
+				"completed": "已完成",
+				"error": "错误"
+			},
+			"actions": {
+				"start": "开始索引",
+				"refresh": "刷新索引",
+				"clear": "清除索引"
+			},
+			"autoStart": {
+				"title": "启动时自动索引",
+				"description": "编辑器启动时自动开始索引"
+			},
+			"includeTests": {
+				"title": "索引测试文件",
+				"description": "是否将测试文件包含在索引中"
+			},
+			"excludePaths": {
+				"title": "排除路径",
+				"description": "不进行索引的路径，使用逗号分隔"
+			}
 		}
 	}
 }

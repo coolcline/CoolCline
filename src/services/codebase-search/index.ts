@@ -33,6 +33,11 @@ export class CodebaseSearchManager {
 	 */
 	public async initialize(workspacePath: string): Promise<void> {
 		try {
+			// 验证工作区路径
+			if (!workspacePath || workspacePath.trim() === "") {
+				throw new Error("工作区路径不能为空")
+			}
+
 			// 规范化工作区路径
 			workspacePath = toPosixPath(workspacePath)
 
@@ -211,12 +216,31 @@ export async function initializeCodebaseSearch(): Promise<void> {
 
 	const manager = CodebaseSearchManager.getInstance()
 
-	// 为每个工作区初始化服务
-	for (const folder of workspaceFolders) {
-		await manager.initialize(folder.uri.fsPath)
-	}
+	// 显示进度通知
+	await vscode.window.withProgress(
+		{
+			location: vscode.ProgressLocation.Notification,
+			title: vscode.l10n.t("codebaseIndex.title"),
+			cancellable: false,
+		},
+		async (progress) => {
+			// 为每个工作区初始化服务
+			for (const folder of workspaceFolders) {
+				progress.report({ message: vscode.l10n.t("codebaseIndex.status.scanning") })
+				await manager.initialize(folder.uri.fsPath)
 
-	console.log("代码库搜索服务初始化完成")
+				progress.report({ message: vscode.l10n.t("codebaseIndex.status.indexing") })
+				await manager.startIndexing({
+					includePaths: ["src", "lib", "app", "core"],
+					excludePaths: ["node_modules", ".git", "dist", "build"],
+				})
+			}
+
+			progress.report({ message: vscode.l10n.t("codebaseIndex.status.completed") })
+		},
+	)
+
+	console.log("代码库搜索服务初始化完成并开始索引")
 }
 
 /**
@@ -306,6 +330,155 @@ function formatSearchResults(results: SearchResult[]): any {
 		found: true,
 		count: formattedResults.length,
 		results: formattedResults,
+	}
+}
+
+/**
+ * 处理来自webview的代码库搜索相关消息
+ * @param webview webview实例
+ * @param message 消息内容
+ */
+export async function handleCodebaseSearchWebviewMessage(webview: vscode.Webview, message: any): Promise<void> {
+	try {
+		const manager = CodebaseSearchManager.getInstance()
+
+		switch (message.action) {
+			case "getStats":
+				// 获取索引状态和进度
+				const stats = await manager.getIndexStatus()
+				const progress = manager.getIndexProgress()
+
+				// 发送状态和进度回webview
+				webview.postMessage({
+					type: "codebaseIndexStats",
+					stats,
+					progress,
+				})
+				break
+
+			case "refreshIndex":
+				// 刷新索引
+				const refreshOptions: IndexOptions = {}
+
+				// 如果提供了设置，使用它们
+				if (message.settings) {
+					if (message.settings.excludePaths) {
+						refreshOptions.excludePaths = message.settings.excludePaths
+							.split(",")
+							.map((path: string) => path.trim())
+							.filter(Boolean)
+					}
+
+					if (message.settings.includeTests !== undefined) {
+						refreshOptions.includeTests = message.settings.includeTests
+					}
+				}
+
+				await manager.refreshIndex(refreshOptions)
+
+				// 发送更新的状态和进度
+				webview.postMessage({
+					type: "codebaseIndexStats",
+					stats: await manager.getIndexStatus(),
+					progress: manager.getIndexProgress(),
+				})
+				break
+
+			case "clearIndex":
+				// 清除索引
+				await manager.clearIndex()
+
+				// 发送更新的状态和进度
+				webview.postMessage({
+					type: "codebaseIndexStats",
+					stats: await manager.getIndexStatus(),
+					progress: manager.getIndexProgress(),
+				})
+				break
+
+			case "updateSettings":
+				// 获取索引选项
+				if (message.settings) {
+					// 处理索引设置更新
+					const indexOptions: IndexOptions = {}
+
+					if (message.settings.excludePaths !== undefined) {
+						const excludePaths = message.settings.excludePaths
+							.split(",")
+							.map((folder: string) => folder.trim())
+							.filter(Boolean)
+						indexOptions.excludePaths = excludePaths
+
+						// 保存到配置
+						await vscode.workspace
+							.getConfiguration("codebaseSearch")
+							.update("excludePaths", message.settings.excludePaths, vscode.ConfigurationTarget.Global)
+					}
+
+					if (message.settings.includeTests !== undefined) {
+						indexOptions.includeTests = message.settings.includeTests
+
+						// 保存到配置
+						await vscode.workspace
+							.getConfiguration("codebaseSearch")
+							.update("includeTests", message.settings.includeTests, vscode.ConfigurationTarget.Global)
+					}
+
+					if (message.settings.autoIndexOnStartup !== undefined) {
+						// 保存到全局设置
+						await vscode.workspace
+							.getConfiguration("codebaseSearch")
+							.update(
+								"autoIndexOnStartup",
+								message.settings.autoIndexOnStartup,
+								vscode.ConfigurationTarget.Global,
+							)
+					}
+
+					if (message.settings.enabled !== undefined) {
+						// 保存到全局设置
+						await vscode.workspace
+							.getConfiguration("codebaseSearch")
+							.update("enabled", message.settings.enabled, vscode.ConfigurationTarget.Global)
+					}
+
+					// 应用索引设置
+					if (Object.keys(indexOptions).length > 0) {
+						await manager.refreshIndex(indexOptions)
+					}
+
+					// 发送更新的设置到所有webview
+					webview.postMessage({
+						type: "extensionState",
+						state: {
+							codebaseIndexEnabled: message.settings.enabled,
+							codebaseIndexAutoStart: message.settings.autoIndexOnStartup,
+							codebaseIndexExcludePaths: message.settings.excludePaths,
+							codebaseIndexIncludeTests: message.settings.includeTests,
+						},
+					})
+				}
+				break
+
+			default:
+				console.log(`未知的代码库搜索操作: ${message.action}`)
+		}
+	} catch (error) {
+		console.error("处理代码库搜索消息失败:", error)
+
+		// 发送错误消息回webview
+		webview.postMessage({
+			type: "codebaseIndexStats",
+			error: error.message,
+			stats: {
+				filesCount: 0,
+				symbolsCount: 0,
+				keywordsCount: 0,
+				lastIndexed: null,
+				status: "error",
+			},
+			progress: { total: 0, completed: 0, status: "error" },
+		})
 	}
 }
 

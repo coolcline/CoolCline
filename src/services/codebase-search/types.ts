@@ -72,6 +72,7 @@ export interface IndexOptions {
 	includePaths?: string[] // 包含的路径模式
 	excludePaths?: string[] // 排除的路径模式
 	languages?: string[] // 包含的语言
+	includeTests?: boolean // 是否包含测试文件
 }
 
 /**

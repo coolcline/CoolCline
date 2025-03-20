@@ -72,7 +72,10 @@ export class SemanticAnalysisService {
 	 * @returns 相似度分数 (0-1)
 	 */
 	public calculateSemanticRelevance(query: string, code: string): number {
-		// 简单实现，后续可整合更复杂的语义相似度算法
+		// 处理空输入
+		if (!query || !code) {
+			return 0
+		}
 
 		// 将查询和代码转换为小写，便于比较
 		const normalizedQuery = query.toLowerCase()
@@ -84,6 +87,11 @@ export class SemanticAnalysisService {
 			.filter((word) => word.length > 2)
 			.filter((word) => !["the", "and", "for", "this", "that"].includes(word))
 
+		// 如果没有关键词，返回0
+		if (keywords.length === 0) {
+			return 0
+		}
+
 		// 计算关键词在代码中的匹配度
 		let matchCount = 0
 		for (const keyword of keywords) {
@@ -93,24 +101,21 @@ export class SemanticAnalysisService {
 		}
 
 		// 计算相似度分数
-		const baseScore = keywords.length > 0 ? matchCount / keywords.length : 0
+		const baseScore = matchCount / keywords.length
 
 		// 加入额外因素调整分数
 		let bonusScore = 0
 
-		// 如果代码中包含函数、类、变量等关键字，增加相关性
-		if (/function|class|interface|const|let|var|method/i.test(normalizedCode)) {
-			bonusScore += 0.1
+		// 代码结构关键词加分
+		const structureKeywords = ["class", "interface", "function", "method", "property"]
+		for (const keyword of structureKeywords) {
+			if (normalizedCode.includes(keyword)) {
+				bonusScore += 0.1
+			}
 		}
 
-		// 如果代码行数少（更精确匹配），增加相关性
-		const lineCount = code.split("\n").length
-		if (lineCount < 5) {
-			bonusScore += 0.1
-		}
-
-		// 结合基础分数和额外评分，但不超过1
-		return Math.min(baseScore + bonusScore, 1)
+		// 返回最终分数
+		return Math.min(1, baseScore + bonusScore)
 	}
 
 	/**
@@ -239,65 +244,31 @@ export class SemanticAnalysisService {
 		content: string,
 		language: string,
 	): Promise<SymbolRelation[]> {
-		// 这里是简化实现，实际应该使用语法树分析
 		const relations: SymbolRelation[] = []
 
-		// 如果符号数量少于2，无需分析关系
-		if (symbols.length < 2) {
-			return relations
+		// 分析继承关系
+		const extendsRegex = /class\s+(\w+)\s+extends\s+(\w+)/g
+		let match
+		while ((match = extendsRegex.exec(content)) !== null) {
+			const childClass = match[1]
+			const parentClass = match[2]
+			relations.push({
+				sourceId: symbols.findIndex((s) => s.name === childClass) + 1,
+				targetId: symbols.findIndex((s) => s.name === parentClass) + 1,
+				relationType: RelationType.Extends,
+			})
 		}
 
-		// 为符号分配ID
-		symbols.forEach((symbol, index) => {
-			symbol.id = index + 1
-		})
-
-		// 简单分析：检查符号在其他符号内容中的引用
-		for (let i = 0; i < symbols.length; i++) {
-			const source = symbols[i]
-			if (!source.id) continue
-
-			for (let j = 0; j < symbols.length; j++) {
-				if (i === j) continue
-
-				const target = symbols[j]
-				if (!target.id) continue
-
-				// 检查源符号是否引用了目标符号
-				if (source.content.includes(target.name)) {
-					relations.push({
-						sourceId: source.id,
-						targetId: target.id,
-						relationType: RelationType.Uses,
-					})
-				}
-
-				// 检查类继承关系（简化实现）
-				if (
-					source.type === ResultType.Class &&
-					target.type === ResultType.Class &&
-					source.content.includes(`extends ${target.name}`)
-				) {
-					relations.push({
-						sourceId: source.id,
-						targetId: target.id,
-						relationType: RelationType.Extends,
-					})
-				}
-
-				// 检查接口实现关系（简化实现）
-				if (
-					source.type === ResultType.Class &&
-					target.type === ResultType.Interface &&
-					source.content.includes(`implements ${target.name}`)
-				) {
-					relations.push({
-						sourceId: source.id,
-						targetId: target.id,
-						relationType: RelationType.Implements,
-					})
-				}
-			}
+		// 分析实现关系
+		const implementsRegex = /class\s+(\w+)\s+implements\s+(\w+)/g
+		while ((match = implementsRegex.exec(content)) !== null) {
+			const implementingClass = match[1]
+			const interfaceName = match[2]
+			relations.push({
+				sourceId: symbols.findIndex((s) => s.name === implementingClass) + 1,
+				targetId: symbols.findIndex((s) => s.name === interfaceName) + 1,
+				relationType: RelationType.Implements,
+			})
 		}
 
 		return relations

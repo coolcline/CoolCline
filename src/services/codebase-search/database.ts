@@ -4,34 +4,13 @@
 import * as fs from "fs"
 import * as vscode from "vscode"
 import { toPosixPath, dirname, join } from "../../utils/path"
-
-// 声明模块，解决类型问题
-/* 暂时注释，避免编译错误
-declare module 'better-sqlite3' {
-  export interface Database {
-    exec(sql: string): void;
-    prepare(sql: string): Statement;
-    close(): void;
-  }
-
-  export interface Statement {
-    run(...params: any[]): { lastInsertRowid: number | bigint, changes: number };
-    get(...params: any[]): any;
-    all(...params: any[]): any[];
-  }
-
-  export default function(filename: string, options?: any): Database;
-}
-*/
-
-// 由于SQLite需要原生依赖，我们将使用动态导入
-let sqlite3: any = null
+import * as SQLiteDatabase from "better-sqlite3"
 
 /**
  * SQLite数据库封装类
  */
 export class Database {
-	private db: any
+	private db: SQLiteDatabase.Database | null = null
 	private dbPath: string
 	private isInitialized: boolean = false
 
@@ -58,22 +37,8 @@ export class Database {
 				fs.mkdirSync(dir, { recursive: true })
 			}
 
-			// 动态导入better-sqlite3
-			if (!sqlite3) {
-				try {
-					// 优先尝试使用better-sqlite3
-					// 暂时注释，避免编译错误
-					// const betterSqlite3 = await import('better-sqlite3');
-					// sqlite3 = betterSqlite3.default;
-					console.log("SQLite功能暂时禁用")
-				} catch (err) {
-					console.error("Failed to load better-sqlite3:", err)
-					throw new Error("SQLite数据库初始化失败: 无法加载better-sqlite3")
-				}
-			}
-
 			// 打开数据库连接
-			this.db = new sqlite3(this.dbPath, { fileMustExist: false })
+			this.db = new SQLiteDatabase.default(this.dbPath)
 			this.isInitialized = true
 		} catch (err) {
 			console.error("Database initialization failed:", err)
@@ -88,7 +53,7 @@ export class Database {
 	public async exec(sql: string): Promise<void> {
 		await this.ensureInitialized()
 		try {
-			this.db.exec(sql)
+			this.db!.exec(sql)
 		} catch (err) {
 			console.error("SQL执行错误:", err)
 			throw new Error(`SQL执行错误: ${err.message}`)
@@ -104,7 +69,7 @@ export class Database {
 	public async run(sql: string, params: any[] = []): Promise<{ lastID: number; changes: number }> {
 		await this.ensureInitialized()
 		try {
-			const stmt = this.db.prepare(sql)
+			const stmt = this.db!.prepare(sql)
 			const result = stmt.run(...params)
 			return {
 				lastID: result.lastInsertRowid ? Number(result.lastInsertRowid) : 0,
@@ -125,7 +90,7 @@ export class Database {
 	public async get(sql: string, params: any[] = []): Promise<any> {
 		await this.ensureInitialized()
 		try {
-			const stmt = this.db.prepare(sql)
+			const stmt = this.db!.prepare(sql)
 			return stmt.get(...params)
 		} catch (err) {
 			console.error("SQL查询错误:", err)
@@ -142,7 +107,7 @@ export class Database {
 	public async all(sql: string, params: any[] = []): Promise<any[]> {
 		await this.ensureInitialized()
 		try {
-			const stmt = this.db.prepare(sql)
+			const stmt = this.db!.prepare(sql)
 			return stmt.all(...params)
 		} catch (err) {
 			console.error("SQL查询错误:", err)
