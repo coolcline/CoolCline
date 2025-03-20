@@ -8,6 +8,7 @@ import { SemanticAnalysisService, createSemanticAnalysisService } from "./semant
 import { CodebaseSearchOptions, IndexOptions, IndexProgress, IndexStats, SearchResult } from "./types"
 import { toPosixPath, toRelativePath } from "../../utils/path"
 import delay from "delay"
+import i18next from "i18next"
 
 /**
  * 代码库搜索管理器
@@ -222,7 +223,7 @@ export async function initializeCodebaseSearch(): Promise<void> {
 	await vscode.window.withProgress(
 		{
 			location: vscode.ProgressLocation.Notification,
-			title: vscode.l10n.t("codebaseIndex.title"),
+			title: i18next.t("settings.codebaseIndex.title"),
 			cancellable: false,
 		},
 		async (progress) => {
@@ -232,13 +233,13 @@ export async function initializeCodebaseSearch(): Promise<void> {
 					const workspacePath = folder.uri.fsPath
 					console.log(`初始化工作区: ${workspacePath}`)
 
-					progress.report({ message: vscode.l10n.t("codebaseIndex.status.scanning") })
+					progress.report({ message: i18next.t("settings.codebaseIndex.status.scanning") })
 					// 添加短暂延迟，让用户能看到"scanning"状态
 					await delay(500)
 
 					await manager.initialize(workspacePath)
 
-					progress.report({ message: vscode.l10n.t("codebaseIndex.status.indexing") })
+					progress.report({ message: i18next.t("settings.codebaseIndex.status.indexing") })
 					// 添加短暂延迟，让用户能看到"indexing"状态
 					await delay(500)
 
@@ -254,7 +255,7 @@ export async function initializeCodebaseSearch(): Promise<void> {
 				}
 			}
 
-			progress.report({ message: vscode.l10n.t("codebaseIndex.status.completed") })
+			progress.report({ message: i18next.t("settings.codebaseIndex.status.completed") })
 
 			// 添加2秒延时，确保用户能看清进度条
 			await delay(2000)
