@@ -22,6 +22,8 @@ export class CodebaseIndexService {
 	private priorityFolders: string[] = ["src", "lib", "app", "core"]
 	private db: Database | null = null
 	private semanticAnalyzer: SemanticAnalysisService
+	private fileSystemWatcher: vscode.FileSystemWatcher | null = null
+	private debounceTimer: NodeJS.Timeout | null = null
 
 	/**
 	 * 构造函数
@@ -30,6 +32,7 @@ export class CodebaseIndexService {
 	constructor(workspacePath: string) {
 		this.workspacePath = toPosixPath(workspacePath)
 		this.semanticAnalyzer = createSemanticAnalysisService(this.workspacePath)
+		this.setupFileSystemWatcher()
 	}
 
 	/**
@@ -559,11 +562,48 @@ export class CodebaseIndexService {
 		const includes = includePaths && includePaths.length > 0 ? includePaths : ["src", "lib", "app"]
 
 		// 默认排除的目录
-		const excludes =
-			excludePaths && excludePaths.length > 0 ? excludePaths : ["node_modules", ".git", "dist", "build", "out"]
+		const excludeDirs =
+			excludePaths && excludePaths.length > 0
+				? excludePaths
+				: [
+						// 包管理器目录
+						"node_modules",
+						"bower_components",
+						"vendor",
+						"packages",
+						// 版本控制目录
+						".git",
+						".svn",
+						".hg",
+						".bzr",
+						// 输出和构建目录
+						"dist",
+						"build",
+						"out",
+						"bin",
+						"target",
+						"output",
+						"compiled",
+						"deploy",
+						"release",
+						"debug",
+						"publish",
+						// 临时和缓存目录
+						"tmp",
+						"temp",
+						"cache",
+						".cache",
+						".npm",
+						".yarn",
+						// IDE和编辑器目录
+						".idea",
+						".vscode",
+						".vs",
+						"__pycache__",
+					]
 
 		console.log(`包含路径: ${includes.join(", ")}`)
-		console.log(`排除路径: ${excludes.join(", ")}`)
+		console.log(`排除路径: ${excludeDirs.join(", ")}`)
 
 		// 实现一个简单的扫描逻辑
 		// 首先检查指定的包含目录
@@ -578,14 +618,14 @@ export class CodebaseIndexService {
 			}
 
 			console.log(`扫描目录: ${dirPath}`)
-			await this.scanDirectory(dirPath, results, excludes, options)
+			await this.scanDirectory(dirPath, results, excludeDirs, options)
 			foundFiles = foundFiles || results.length > 0
 		}
 
 		// 如果在指定目录中没有找到文件，则扫描根目录
 		if (!foundFiles) {
 			console.log(`在指定目录中未找到文件，扫描根目录: ${this.workspacePath}`)
-			await this.scanDirectory(this.workspacePath, results, excludes, options)
+			await this.scanDirectory(this.workspacePath, results, excludeDirs, options)
 		}
 
 		console.log(`文件扫描完成，找到 ${results.length} 个文件`)
@@ -607,85 +647,6 @@ export class CodebaseIndexService {
 		// 读取目录内容
 		const entries = fs.readdirSync(directory, { withFileTypes: true })
 
-		// 默认排除的文件类型
-		const defaultExcludeExtensions = [
-			// 系统文件
-			".DS_Store",
-			".Thumbs.db",
-			".desktop.ini",
-			// 版本控制相关
-			".git",
-			".svn",
-			".hg",
-			".gitattributes",
-			".gitmodules",
-			// 二进制文件
-			".exe",
-			".dll",
-			".so",
-			".dylib",
-			".class",
-			".o",
-			".obj",
-			".a",
-			".lib",
-			// 压缩文件
-			".zip",
-			".tar",
-			".gz",
-			".rar",
-			".7z",
-			// 媒体文件
-			".jpg",
-			".jpeg",
-			".png",
-			".gif",
-			".bmp",
-			".svg",
-			".mp3",
-			".wav",
-			".ogg",
-			".mp4",
-			".avi",
-			".mov",
-			// 字体文件
-			".ttf",
-			".otf",
-			".woff",
-			".woff2",
-			".eot",
-			// 编译输出
-			".min.js",
-			".min.css",
-			".map",
-			// 临时文件
-			".tmp",
-			".temp",
-			".swp",
-			".swo",
-			// 日志文件
-			".log",
-			// 数据库文件
-			".db",
-			".sqlite",
-			".sqlite3",
-			// 其他
-			".pdf",
-			".doc",
-			".docx",
-			".xls",
-			".xlsx",
-			".ppt",
-			".pptx",
-			".psd",
-			".ai",
-			".sketch",
-			".fig",
-		]
-
-		// 合并默认排除列表和用户自定义排除列表
-		const excludeExtensions = new Set([...defaultExcludeExtensions, ...(options?.excludeExtensions || [])])
-
 		for (const entry of entries) {
 			const fullPath = join(directory, entry.name)
 
@@ -706,9 +667,9 @@ export class CodebaseIndexService {
 				// 递归扫描子目录
 				await this.scanDirectory(fullPath, results, excludes, options)
 			} else if (entry.isFile()) {
-				// 检查文件扩展名是否在排除列表中
-				const ext = extname(entry.name).toLowerCase()
-				if (!excludeExtensions.has(ext)) {
+				// 使用 shouldIndexFile 方法来统一判断文件是否应该被索引
+				// 这样按钮触发的索引和文件系统监听器触发的索引会使用相同的规则
+				if (this.shouldIndexFile(fullPath)) {
 					results.push(toPosixPath(fullPath))
 				}
 			}
@@ -840,6 +801,18 @@ export class CodebaseIndexService {
 		this.indexQueue = []
 		this.isIndexing = false
 
+		// 清除定时器
+		if (this.debounceTimer) {
+			clearTimeout(this.debounceTimer)
+			this.debounceTimer = null
+		}
+
+		// 关闭文件系统监听器
+		if (this.fileSystemWatcher) {
+			this.fileSystemWatcher.dispose()
+			this.fileSystemWatcher = null
+		}
+
 		// 关闭数据库连接
 		if (this.db) {
 			try {
@@ -849,6 +822,199 @@ export class CodebaseIndexService {
 				console.error("关闭数据库连接失败", error)
 			}
 		}
+	}
+
+	/**
+	 * 设置文件系统监听器
+	 * @private
+	 */
+	private setupFileSystemWatcher(): void {
+		// 创建文件系统监听器，监听所有文件变化
+		this.fileSystemWatcher = vscode.workspace.createFileSystemWatcher("**/*", false, false, false)
+
+		// 监听文件创建事件
+		this.fileSystemWatcher.onDidCreate(async (uri) => {
+			const filePath = uri.fsPath
+			// 检查文件是否应该被索引
+			if (this.shouldIndexFile(filePath)) {
+				this.scheduleIndex(filePath)
+			}
+		})
+
+		// 监听文件修改事件
+		this.fileSystemWatcher.onDidChange(async (uri) => {
+			const filePath = uri.fsPath
+			if (this.shouldIndexFile(filePath)) {
+				this.scheduleIndex(filePath)
+			}
+		})
+
+		// 监听文件删除事件
+		this.fileSystemWatcher.onDidDelete(async (uri) => {
+			const filePath = uri.fsPath
+			await this.removeFileFromIndex(filePath)
+		})
+	}
+
+	/**
+	 * 检查文件是否应该被索引
+	 * @param filePath 文件路径
+	 * @returns 是否应该索引
+	 * @private
+	 */
+	private shouldIndexFile(filePath: string): boolean {
+		const ext = extname(filePath).toLowerCase()
+		const relativePath = toPosixPath(relative(this.workspacePath, filePath))
+
+		// 检查是否在排除目录中
+		const excludeDirs = [
+			// 包管理器目录
+			"node_modules",
+			"bower_components",
+			"vendor",
+			"packages",
+			// 版本控制目录
+			".git",
+			".svn",
+			".hg",
+			".bzr",
+			// 输出和构建目录
+			"dist",
+			"build",
+			"out",
+			"bin",
+			"target",
+			"output",
+			"compiled",
+			"deploy",
+			"release",
+			"debug",
+			"publish",
+			// 临时和缓存目录
+			"tmp",
+			"temp",
+			"cache",
+			".cache",
+			".npm",
+			".yarn",
+			// IDE和编辑器目录
+			".idea",
+			".vscode",
+			".vs",
+			"__pycache__",
+			// 测试和文档目录 (可选，取决于配置)
+			"test",
+			"tests",
+			"spec",
+			"coverage",
+			"docs",
+			"example",
+			"examples",
+		]
+
+		const shouldExclude = excludeDirs.some(
+			(exclude) =>
+				relativePath === exclude ||
+				relativePath.startsWith(`${exclude}/`) ||
+				relativePath.includes(`/${exclude}/`),
+		)
+
+		if (shouldExclude) {
+			return false
+		}
+
+		// 获取默认排除的文件类型
+		const defaultExcludeExtensions = [
+			// 系统文件
+			".DS_Store",
+			".Thumbs.db",
+			".desktop.ini",
+			// 版本控制相关配置文件 - 保留这些文件扩展名
+			".gitignore",
+			".gitattributes",
+			".gitmodules",
+			// 二进制文件
+			".exe",
+			".dll",
+			".so",
+			".dylib",
+			".class",
+			".o",
+			".obj",
+			".a",
+			".lib",
+			// 压缩文件
+			".zip",
+			".tar",
+			".gz",
+			".rar",
+			".7z",
+			// 媒体文件
+			".jpg",
+			".jpeg",
+			".png",
+			".gif",
+			".bmp",
+			".svg",
+			".mp3",
+			".wav",
+			".ogg",
+			".mp4",
+			".avi",
+			".mov",
+			// 字体文件
+			".ttf",
+			".otf",
+			".woff",
+			".woff2",
+			".eot",
+			// 编译输出
+			".min.js",
+			".min.css",
+			".map",
+			// 临时文件
+			".tmp",
+			".temp",
+			".swp",
+			".swo",
+			// 日志文件
+			".log",
+			// 数据库文件
+			".db",
+			".sqlite",
+			".sqlite3",
+			// 其他
+			".pdf",
+			".doc",
+			".docx",
+			".xls",
+			".xlsx",
+			".ppt",
+			".pptx",
+			".psd",
+			".ai",
+			".sketch",
+			".fig",
+		]
+
+		return !defaultExcludeExtensions.includes(ext)
+	}
+
+	/**
+	 * 调度文件索引
+	 * @param filePath 文件路径
+	 * @private
+	 */
+	private scheduleIndex(filePath: string): void {
+		// 清除之前的定时器
+		if (this.debounceTimer) {
+			clearTimeout(this.debounceTimer)
+		}
+
+		// 设置新的定时器，延迟 500ms 执行，避免频繁索引
+		this.debounceTimer = setTimeout(async () => {
+			await this.indexFile(filePath)
+		}, 500)
 	}
 }
 
