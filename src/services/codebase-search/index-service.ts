@@ -6,6 +6,7 @@ import * as vscode from "vscode"
 import { IndexOptions, IndexProgress, IndexStats, IndexTask } from "./types"
 import { toPosixPath, arePathsEqual, extname, join, relative } from "../../utils/path"
 import { createDatabase, Database } from "./database"
+import { SemanticAnalysisService, createSemanticAnalysisService } from "./semantic-analysis"
 
 /**
  * 代码库索引服务类
@@ -19,6 +20,7 @@ export class CodebaseIndexService {
 	private processingDelay: number = 0
 	private priorityFolders: string[] = ["src", "lib", "app", "core"]
 	private db: Database | null = null
+	private semanticAnalyzer: SemanticAnalysisService
 
 	/**
 	 * 构造函数
@@ -26,6 +28,7 @@ export class CodebaseIndexService {
 	 */
 	constructor(workspacePath: string) {
 		this.workspacePath = toPosixPath(workspacePath)
+		this.semanticAnalyzer = createSemanticAnalysisService(this.workspacePath)
 	}
 
 	/**
@@ -193,10 +196,88 @@ export class CodebaseIndexService {
 
 					const fileId = fileRecord.id
 
-					// TODO: 解析文件内容，提取符号
-					// TODO: 将符号写入数据库
+					// 使用语义分析服务提取符号和关系
+					const { symbols, relations } = await this.semanticAnalyzer.analyzeFile(filePath)
 
-					console.log(`Indexed file: ${normalizedPath} (${language})`)
+					// 在事务中保存符号和关系，确保原子性
+					await this.db!.beginTransaction()
+					try {
+						// 先删除该文件的旧符号相关数据
+						await this.db!.run(
+							"DELETE FROM symbol_relations WHERE source_id IN (SELECT id FROM symbols WHERE file_id = ?)",
+							[fileId],
+						)
+						await this.db!.run(
+							"DELETE FROM symbol_contents WHERE symbol_id IN (SELECT id FROM symbols WHERE file_id = ?)",
+							[fileId],
+						)
+						await this.db!.run(
+							"DELETE FROM keywords WHERE symbol_id IN (SELECT id FROM symbols WHERE file_id = ?)",
+							[fileId],
+						)
+						await this.db!.run("DELETE FROM symbols WHERE file_id = ?", [fileId])
+
+						// 保存新的符号
+						for (const symbol of symbols) {
+							// 插入符号
+							const result = await this.db!.run(
+								`INSERT INTO symbols 
+								(file_id, name, type, signature, line, column, parent_id) 
+								VALUES (?, ?, ?, ?, ?, ?, ?)`,
+								[
+									fileId,
+									symbol.name,
+									symbol.type,
+									symbol.signature || "",
+									symbol.line,
+									symbol.column,
+									symbol.parentId || null,
+								],
+							)
+
+							// 获取新插入符号的ID
+							const symbolId = result.lastID
+
+							// 保存符号内容
+							await this.db!.run("INSERT INTO symbol_contents (symbol_id, content) VALUES (?, ?)", [
+								symbolId,
+								symbol.content,
+							])
+
+							// 生成并保存关键词
+							const keywords = this.extractKeywords(symbol.name, symbol.content)
+							for (const keyword of keywords) {
+								// 计算关键词与符号的相关性
+								const relevance = this.semanticAnalyzer.calculateSemanticRelevance(
+									keyword,
+									symbol.content,
+								)
+
+								await this.db!.run(
+									"INSERT INTO keywords (keyword, symbol_id, relevance) VALUES (?, ?, ?)",
+									[keyword, symbolId, relevance],
+								)
+							}
+						}
+
+						// 保存符号关系
+						for (const relation of relations) {
+							// 检查源和目标ID是否有效
+							if (relation.sourceId > 0 && relation.targetId > 0) {
+								await this.db!.run(
+									"INSERT INTO symbol_relations (source_id, target_id, relation_type) VALUES (?, ?, ?)",
+									[relation.sourceId, relation.targetId, relation.relationType],
+								)
+							}
+						}
+
+						await this.db!.commit()
+					} catch (error) {
+						await this.db!.rollback()
+						throw error
+					}
+
+					console.log(`Indexed file: ${normalizedPath} (${language}) with ${symbols.length} symbols`)
 				} catch (dbError) {
 					console.error(`数据库操作失败: ${normalizedPath}`, dbError)
 				}
@@ -239,20 +320,39 @@ export class CodebaseIndexService {
 			const fileRecord = await this.db!.get("SELECT id FROM files WHERE path = ?", [normalizedPath])
 
 			if (fileRecord && fileRecord.id) {
-				// 删除相关的符号和关键词
-				await this.db!.run("DELETE FROM symbols WHERE file_id = ?", [fileRecord.id])
-				await this.db!.run("DELETE FROM keywords WHERE file_id = ?", [fileRecord.id])
+				// 使用事务确保原子性
+				await this.db!.beginTransaction()
+				try {
+					// 删除与该文件相关的符号关系
+					await this.db!.run(
+						"DELETE FROM symbol_relations WHERE source_id IN (SELECT id FROM symbols WHERE file_id = ?)",
+						[fileRecord.id],
+					)
 
-				// 删除与该文件相关的符号
-				await this.db!.run("DELETE FROM symbol_contents WHERE file_path = ?", [normalizedPath])
+					// 删除与该文件相关的符号内容
+					await this.db!.run(
+						"DELETE FROM symbol_contents WHERE symbol_id IN (SELECT id FROM symbols WHERE file_id = ?)",
+						[fileRecord.id],
+					)
 
-				// 删除与该文件相关的符号关系
-				await this.db!.run("DELETE FROM symbol_relations WHERE file_path = ?", [normalizedPath])
+					// 删除与该文件相关的关键词
+					await this.db!.run(
+						"DELETE FROM keywords WHERE symbol_id IN (SELECT id FROM symbols WHERE file_id = ?)",
+						[fileRecord.id],
+					)
 
-				// 删除文件记录
-				await this.db!.run("DELETE FROM files WHERE id = ?", [fileRecord.id])
+					// 删除该文件的符号
+					await this.db!.run("DELETE FROM symbols WHERE file_id = ?", [fileRecord.id])
 
-				console.log(`Removed file from index: ${normalizedPath}`)
+					// 删除文件记录
+					await this.db!.run("DELETE FROM files WHERE id = ?", [fileRecord.id])
+
+					await this.db!.commit()
+					console.log(`Removed file from index: ${normalizedPath}`)
+				} catch (error) {
+					await this.db!.rollback()
+					throw error
+				}
 			}
 		} catch (error) {
 			console.error(`Failed to remove file from index: ${filePath}`, error)
@@ -290,6 +390,30 @@ export class CodebaseIndexService {
 				status: this._progress.status,
 			}
 		}
+	}
+
+	/**
+	 * 从文本中提取关键词
+	 * @param name 符号名称
+	 * @param content 内容文本
+	 * @returns 关键词数组
+	 * @private
+	 */
+	private extractKeywords(name: string, content: string): string[] {
+		// 标准化文本
+		const normalizedText = (name + " " + content).toLowerCase()
+
+		// 移除常见的编程代码标点符号和关键字
+		const cleanedText = normalizedText.replace(
+			/[(){}\[\]<>,.;:'"!?=+\-*\/]|function|class|const|let|var|return|if|else|for|while|do|switch|case|break|continue|new|this|async|await/g,
+			" ",
+		)
+
+		// 按空格分割得到单词
+		const words = cleanedText.split(/\s+/).filter((word) => word.length > 2)
+
+		// 移除重复词并返回
+		return [...new Set(words)]
 	}
 
 	/**
@@ -498,17 +622,21 @@ export class CodebaseIndexService {
 	}
 
 	/**
-	 * 关闭索引服务
+	 * 关闭服务
 	 */
 	public async close(): Promise<void> {
-		// 停止索引任务
+		// 停止索引
 		this.indexQueue = []
 		this.isIndexing = false
 
 		// 关闭数据库连接
 		if (this.db) {
-			await this.db.close()
-			this.db = null
+			try {
+				await this.db.close()
+				this.db = null
+			} catch (error) {
+				console.error("关闭数据库连接失败", error)
+			}
 		}
 	}
 }
