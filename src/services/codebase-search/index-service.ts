@@ -7,6 +7,7 @@ import { IndexOptions, IndexProgress, IndexStats, IndexTask } from "./types"
 import { toPosixPath, arePathsEqual, extname, join, relative } from "../../utils/path"
 import { createDatabase, Database } from "./database"
 import { SemanticAnalysisService, createSemanticAnalysisService } from "./semantic-analysis"
+import * as minimatch from "minimatch"
 
 /**
  * 代码库索引服务类
@@ -65,7 +66,7 @@ export class CodebaseIndexService {
 			await this.initDatabase()
 
 			// 扫描工作区文件
-			const files = await this.scanWorkspace(options?.includePaths, options?.excludePaths)
+			const files = await this.scanWorkspace(options?.includePaths, options?.excludePaths, options)
 			this._progress.total = files.length
 			this._progress.status = "indexing"
 
@@ -103,7 +104,7 @@ export class CodebaseIndexService {
 			await this.initDatabase()
 
 			// 扫描工作区文件
-			const files = await this.scanWorkspace(options?.includePaths, options?.excludePaths)
+			const files = await this.scanWorkspace(options?.includePaths, options?.excludePaths, options)
 
 			// 获取需要更新的文件列表
 			const filesToUpdate: string[] = []
@@ -531,12 +532,17 @@ export class CodebaseIndexService {
 
 	/**
 	 * 扫描工作区文件
-	 * @param includePaths 包含路径
-	 * @param excludePaths 排除路径
-	 * @returns 文件路径数组
-	 * @private
+	 * @param includePaths 包含的路径模式
+	 * @param excludePaths 排除的路径模式
+	 * @param options 索引选项
 	 */
-	private async scanWorkspace(includePaths?: string[], excludePaths?: string[]): Promise<string[]> {
+	private async scanWorkspace(
+		includePaths?: string[],
+		excludePaths?: string[],
+		options?: IndexOptions,
+	): Promise<string[]> {
+		const files: string[] = []
+
 		// 添加日志记录工作区路径
 		console.log(`正在扫描工作区: ${this.workspacePath}`)
 
@@ -572,14 +578,14 @@ export class CodebaseIndexService {
 			}
 
 			console.log(`扫描目录: ${dirPath}`)
-			await this.scanDirectory(dirPath, results, excludes)
+			await this.scanDirectory(dirPath, results, excludes, options)
 			foundFiles = foundFiles || results.length > 0
 		}
 
 		// 如果在指定目录中没有找到文件，则扫描根目录
 		if (!foundFiles) {
 			console.log(`在指定目录中未找到文件，扫描根目录: ${this.workspacePath}`)
-			await this.scanDirectory(this.workspacePath, results, excludes)
+			await this.scanDirectory(this.workspacePath, results, excludes, options)
 		}
 
 		console.log(`文件扫描完成，找到 ${results.length} 个文件`)
@@ -592,9 +598,93 @@ export class CodebaseIndexService {
 	 * @param results 结果数组
 	 * @param excludes 排除的路径
 	 */
-	private async scanDirectory(directory: string, results: string[], excludes: string[]): Promise<void> {
+	private async scanDirectory(
+		directory: string,
+		results: string[],
+		excludes: string[],
+		options?: IndexOptions,
+	): Promise<void> {
 		// 读取目录内容
 		const entries = fs.readdirSync(directory, { withFileTypes: true })
+
+		// 默认排除的文件类型
+		const defaultExcludeExtensions = [
+			// 系统文件
+			".DS_Store",
+			".Thumbs.db",
+			".desktop.ini",
+			// 版本控制相关
+			".git",
+			".svn",
+			".hg",
+			".gitattributes",
+			".gitmodules",
+			// 二进制文件
+			".exe",
+			".dll",
+			".so",
+			".dylib",
+			".class",
+			".o",
+			".obj",
+			".a",
+			".lib",
+			// 压缩文件
+			".zip",
+			".tar",
+			".gz",
+			".rar",
+			".7z",
+			// 媒体文件
+			".jpg",
+			".jpeg",
+			".png",
+			".gif",
+			".bmp",
+			".svg",
+			".mp3",
+			".wav",
+			".ogg",
+			".mp4",
+			".avi",
+			".mov",
+			// 字体文件
+			".ttf",
+			".otf",
+			".woff",
+			".woff2",
+			".eot",
+			// 编译输出
+			".min.js",
+			".min.css",
+			".map",
+			// 临时文件
+			".tmp",
+			".temp",
+			".swp",
+			".swo",
+			// 日志文件
+			".log",
+			// 数据库文件
+			".db",
+			".sqlite",
+			".sqlite3",
+			// 其他
+			".pdf",
+			".doc",
+			".docx",
+			".xls",
+			".xlsx",
+			".ppt",
+			".pptx",
+			".psd",
+			".ai",
+			".sketch",
+			".fig",
+		]
+
+		// 合并默认排除列表和用户自定义排除列表
+		const excludeExtensions = new Set([...defaultExcludeExtensions, ...(options?.excludeExtensions || [])])
 
 		for (const entry of entries) {
 			const fullPath = join(directory, entry.name)
@@ -614,32 +704,11 @@ export class CodebaseIndexService {
 
 			if (entry.isDirectory()) {
 				// 递归扫描子目录
-				await this.scanDirectory(fullPath, results, excludes)
+				await this.scanDirectory(fullPath, results, excludes, options)
 			} else if (entry.isFile()) {
-				// 只索引一些常见的代码文件
+				// 检查文件扩展名是否在排除列表中
 				const ext = extname(entry.name).toLowerCase()
-				const validExtensions = [
-					".ts",
-					".tsx",
-					".js",
-					".jsx",
-					".py",
-					".rb",
-					".go",
-					".java",
-					".c",
-					".cpp",
-					".cs",
-					".php",
-					".rs",
-					".swift",
-					".kt",
-					".html",
-					".css",
-					".json",
-				]
-
-				if (validExtensions.includes(ext)) {
+				if (!excludeExtensions.has(ext)) {
 					results.push(toPosixPath(fullPath))
 				}
 			}
@@ -685,28 +754,79 @@ export class CodebaseIndexService {
 	private detectLanguage(filePath: string): string {
 		const ext = extname(filePath).toLowerCase()
 
-		// 简单的扩展名到语言映射
+		// 扩展的文件类型到语言映射
 		const languageMap: Record<string, string> = {
+			// TypeScript
 			".ts": "typescript",
 			".tsx": "typescript",
+			".mts": "typescript",
+			".cts": "typescript",
+			// JavaScript
 			".js": "javascript",
 			".jsx": "javascript",
+			".mjs": "javascript",
+			".cjs": "javascript",
+			// Python
 			".py": "python",
+			".pyi": "python",
+			".pyw": "python",
+			".pyx": "python",
+			// Ruby
 			".rb": "ruby",
+			".rbw": "ruby",
+			".rake": "ruby",
+			// Go
 			".go": "go",
+			// Java
 			".java": "java",
+			".class": "java",
+			".jar": "java",
+			// C/C++
 			".c": "c",
+			".h": "c",
 			".cpp": "cpp",
+			".cc": "cpp",
+			".cxx": "cpp",
+			".hpp": "cpp",
+			".hxx": "cpp",
+			// C#
 			".cs": "csharp",
+			".csx": "csharp",
+			// PHP
 			".php": "php",
+			".phtml": "php",
+			// Rust
 			".rs": "rust",
+			// Swift
 			".swift": "swift",
+			// Kotlin
 			".kt": "kotlin",
+			".kts": "kotlin",
+			// Web
 			".html": "html",
+			".htm": "html",
 			".css": "css",
+			".scss": "css",
+			".sass": "css",
+			".less": "css",
+			// Data
 			".json": "json",
+			".yaml": "yaml",
+			".yml": "yaml",
+			".toml": "toml",
+			".xml": "xml",
+			".csv": "csv",
+			// Shell
+			".sh": "shell",
+			".bash": "shell",
+			".zsh": "shell",
+			// Markdown
 			".md": "markdown",
-			".sql": "sql",
+			".markdown": "markdown",
+			// Config
+			".ini": "ini",
+			".conf": "ini",
+			".config": "ini",
 		}
 
 		return languageMap[ext] || "plaintext"
