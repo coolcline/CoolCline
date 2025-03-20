@@ -69,24 +69,54 @@ jest.mock("../index", () => {
 	const originalModule = jest.requireActual("../index")
 	return {
 		...originalModule,
-		CodebaseSearchManager: {
-			getInstance: jest.fn().mockReturnValue({
-				initialize: jest.fn().mockResolvedValue(undefined),
-				getIndexService: jest.fn().mockReturnValue({}),
-				search: jest.fn().mockResolvedValue([
+		handleCodebaseSearchTool: jest.fn().mockImplementation(async (params) => {
+			if (!params.query) {
+				return { error: "查询不能为空" }
+			}
+			return {
+				results: [
 					{
 						file: "test.ts",
 						line: 1,
 						context: "test function",
 						relevance: 0.8,
-						type: ResultType.Function,
+						type: "function",
 					},
 					{
 						file: "test2.ts",
 						line: 2,
 						context: "test function",
 						relevance: 0.7,
-						type: ResultType.Function,
+						type: "function",
+					},
+				],
+			}
+		}),
+		CodebaseSearchManager: {
+			getInstance: jest.fn().mockReturnValue({
+				initialize: jest.fn().mockImplementation(async (workspacePath) => {
+					if (!workspacePath) {
+						throw new Error("Invalid workspace path")
+					}
+					return undefined
+				}),
+				getIndexService: jest.fn().mockReturnValue({}),
+				getSearchService: jest.fn().mockReturnValue({}),
+				getSemanticService: jest.fn().mockReturnValue({}),
+				search: jest.fn().mockResolvedValue([
+					{
+						file: "test.ts",
+						line: 1,
+						context: "test function",
+						relevance: 0.8,
+						type: "function",
+					},
+					{
+						file: "test2.ts",
+						line: 2,
+						context: "test function",
+						relevance: 0.7,
+						type: "function",
 					},
 				]),
 			}),
