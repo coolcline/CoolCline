@@ -3715,6 +3715,12 @@ export class CoolCline {
 				// 移动到消息下一行
 				await this.moveCheckpointAfterMessage()
 
+				// 在成功创建检查点后调用差异功能
+				await this.checkpointDiff({
+					ts: Date.now(),
+					commitHash: checkpoint.hash,
+					mode: "checkpoint",
+				})
 				return true
 			}
 			return false
