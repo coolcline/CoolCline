@@ -183,8 +183,6 @@ export class CodebaseIndexService {
 			} else {
 				this._progress.status = "completed"
 			}
-
-			console.log(`索引刷新完成: ${filesToUpdate.length} 个文件更新, ${filesToRemove.length} 个文件删除`)
 		} catch (error) {
 			this._progress.status = "error"
 			console.error("索引刷新失败:", error)
@@ -221,7 +219,6 @@ export class CodebaseIndexService {
 					)
 
 					await this.db.commit()
-					console.log("索引数据已清除")
 				} catch (error) {
 					// 如果出错，回滚事务
 					await this.db.rollback()
@@ -371,8 +368,6 @@ export class CodebaseIndexService {
 						await this.db!.rollback()
 						throw error
 					}
-
-					console.log(`Indexed file: ${normalizedPath} (${language}) with ${symbols.length} symbols`)
 				} catch (dbError) {
 					console.error(`数据库操作失败: ${normalizedPath}`, dbError)
 				}
@@ -443,7 +438,6 @@ export class CodebaseIndexService {
 					await this.db!.run("DELETE FROM files WHERE id = ?", [fileRecord.id])
 
 					await this.db!.commit()
-					console.log(`Removed file from index: ${normalizedPath}`)
 				} catch (error) {
 					await this.db!.rollback()
 					throw error
@@ -546,12 +540,8 @@ export class CodebaseIndexService {
 	): Promise<string[]> {
 		const files: string[] = []
 
-		// 添加日志记录工作区路径
-		console.log(`正在扫描工作区: ${this.workspacePath}`)
-
 		// 检查工作区路径是否存在
 		if (!fs.existsSync(this.workspacePath)) {
-			console.log(`工作区路径不存在: ${this.workspacePath}`)
 			return []
 		}
 
@@ -602,9 +592,6 @@ export class CodebaseIndexService {
 						"__pycache__",
 					]
 
-		console.log(`包含路径: ${includes.join(", ")}`)
-		console.log(`排除路径: ${excludeDirs.join(", ")}`)
-
 		// 实现一个简单的扫描逻辑
 		// 首先检查指定的包含目录
 		let foundFiles = false
@@ -613,22 +600,18 @@ export class CodebaseIndexService {
 
 			// 检查目录是否存在
 			if (!fs.existsSync(dirPath)) {
-				console.log(`包含的目录不存在，跳过: ${dirPath}`)
 				continue
 			}
 
-			console.log(`扫描目录: ${dirPath}`)
 			await this.scanDirectory(dirPath, results, excludeDirs, options)
 			foundFiles = foundFiles || results.length > 0
 		}
 
 		// 如果在指定目录中没有找到文件，则扫描根目录
 		if (!foundFiles) {
-			console.log(`在指定目录中未找到文件，扫描根目录: ${this.workspacePath}`)
 			await this.scanDirectory(this.workspacePath, results, excludeDirs, options)
 		}
 
-		console.log(`文件扫描完成，找到 ${results.length} 个文件`)
 		return results
 	}
 

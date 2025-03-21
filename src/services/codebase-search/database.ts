@@ -147,55 +147,38 @@ export class Database {
 	 */
 	public async initialize(): Promise<void> {
 		if (this.isInitialized) {
-			console.log("数据库已初始化，跳过")
 			return
 		}
 
 		try {
 			// 确保目录存在
 			const dir = dirname(this.dbPath)
-			console.log(`确保数据库目录存在: ${dir}`)
 			if (!fs.existsSync(dir)) {
-				console.log(`创建数据库目录: ${dir}`)
 				fs.mkdirSync(dir, { recursive: true })
 			}
 
 			// 初始化SQL.js
-			console.log("开始初始化SQL.js")
 			const SQL = await initSqlJsOnce()
-			console.log("SQL.js初始化成功")
-
-			// 日志记录数据库模式
-			console.log(`数据库类型: ${this.isMemoryMode ? "内存模式(临时文件)" : "文件数据库"}`)
-			if (this.isMemoryMode) {
-				console.log(`使用临时文件: ${this.dbPath}`)
-			}
 
 			// 尝试从文件读取数据库内容
 			if (!this.isMemoryMode && fs.existsSync(this.dbPath)) {
-				console.log(`读取已存在的数据库文件: ${this.dbPath}`)
 				try {
 					const data = fs.readFileSync(this.dbPath)
-					console.log(`成功读取数据库文件，大小: ${data.length} 字节`)
 					this.db = new SQL.Database(data)
 				} catch (readError) {
 					console.error(`读取数据库文件失败: ${readError.message}`)
-					console.log("创建新的数据库实例")
 					this.db = new SQL.Database()
 				}
 			} else {
 				// 创建新的数据库
-				console.log(`创建新的数据库${this.isMemoryMode ? "(内存模式)" : `(文件: ${this.dbPath})`}`)
 				this.db = new SQL.Database()
 
 				// 如果不是内存数据库，立即保存空数据库文件
 				if (!this.isMemoryMode) {
-					console.log("保存初始空数据库文件")
 					await this.saveToFile()
 				}
 			}
 
-			console.log("数据库初始化完成")
 			this.isInitialized = true
 		} catch (err) {
 			console.error("数据库初始化失败:", err)
@@ -372,7 +355,7 @@ export class Database {
 				this.db!.exec("COMMIT")
 				await this.saveToFile() // 提交后保存
 			} else {
-				console.warn("尝试提交事务，但当前没有活动的事务")
+				// console.warn("尝试提交事务，但当前没有活动的事务")
 			}
 		} catch (err) {
 			console.error("事务提交错误:", err)
@@ -465,7 +448,6 @@ export class Database {
 		if (this.isMemoryMode && this.tempFilePath && fs.existsSync(this.tempFilePath)) {
 			try {
 				fs.unlinkSync(this.tempFilePath)
-				console.log(`临时数据库文件已删除: ${this.tempFilePath}`)
 			} catch (error) {
 				console.error(`删除临时数据库文件失败: ${error.message}`)
 			}
@@ -504,22 +486,14 @@ export async function createDatabase(workspacePath: string): Promise<Database> {
 		join(extensionContext.globalStorageUri.fsPath, "workspace_indexing", `${workspaceId}.db`),
 	)
 
-	// 添加日志记录数据库路径
-	console.log(`创建数据库实例，路径: ${dbPath}`)
-	console.log(`对应工作区: ${toPosixPath(workspacePath)}`)
-
 	// 检查目录是否存在，不存在则创建
 	const dbDir = dirname(dbPath)
 	if (!fs.existsSync(dbDir)) {
-		console.log(`数据库目录不存在，创建目录: ${dbDir}`)
 		fs.mkdirSync(dbDir, { recursive: true })
-	} else {
-		console.log(`数据库目录已存在: ${dbDir}`)
 	}
 
 	// 检查数据库文件是否存在
 	const dbExists = fs.existsSync(dbPath)
-	console.log(`数据库文件${dbExists ? "已存在" : "不存在"}: ${dbPath}`)
 
 	// 创建数据库实例
 	const db = new Database(dbPath)
@@ -623,8 +597,6 @@ async function initDatabaseSchema(db: Database): Promise<void> {
 			"1.0",
 			Date.now(),
 		])
-
-		console.log("数据库表结构初始化完成")
 	} catch (error) {
 		console.error("初始化数据库表结构失败:", error)
 		throw error

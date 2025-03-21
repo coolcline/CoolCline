@@ -95,7 +95,7 @@ describe("CodebaseIndexService", () => {
 		try {
 			await service.close()
 		} catch (error) {
-			console.log("关闭索引服务时出错", error)
+			console.error("关闭索引服务时出错", error)
 		}
 
 		// 清理测试工作区

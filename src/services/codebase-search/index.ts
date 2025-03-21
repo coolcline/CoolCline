@@ -54,8 +54,6 @@ export class CodebaseSearchManager {
 			// 创建语义分析服务
 			const semanticService = createSemanticAnalysisService(workspacePath)
 			this.semanticServices.set(workspacePath, semanticService)
-
-			console.log(`代码库搜索服务已初始化，工作区: ${workspacePath}`)
 		} catch (error) {
 			console.error(`初始化代码库搜索服务失败:`, error)
 			throw error
@@ -212,11 +210,9 @@ export class CodebaseSearchManager {
 export async function initializeCodebaseSearch(): Promise<void> {
 	const workspaceFolders = vscode.workspace.workspaceFolders
 	if (!workspaceFolders || workspaceFolders.length === 0) {
-		console.log("没有打开的工作区，跳过初始化代码库搜索")
 		return
 	}
 
-	console.log(`发现 ${workspaceFolders.length} 个工作区，开始初始化代码库搜索服务`)
 	const manager = CodebaseSearchManager.getInstance()
 
 	// 显示进度通知
@@ -231,7 +227,6 @@ export async function initializeCodebaseSearch(): Promise<void> {
 			for (const folder of workspaceFolders) {
 				try {
 					const workspacePath = folder.uri.fsPath
-					console.log(`初始化工作区: ${workspacePath}`)
 
 					progress.report({ message: "scanning" })
 					// 添加短暂延迟，让用户能看到"scanning"状态
@@ -247,8 +242,6 @@ export async function initializeCodebaseSearch(): Promise<void> {
 						includePaths: ["src", "lib", "app", "core"],
 						excludePaths: ["node_modules", ".git", "dist", "build"],
 					})
-
-					console.log(`工作区初始化完成: ${workspacePath}`)
 				} catch (error) {
 					console.error(`初始化工作区失败:`, error)
 					// 继续处理下一个工作区，不中断整个过程
@@ -261,8 +254,6 @@ export async function initializeCodebaseSearch(): Promise<void> {
 			await delay(2000)
 		},
 	)
-
-	console.log("代码库搜索服务初始化完成并开始索引")
 }
 
 /**
@@ -483,7 +474,7 @@ export async function handleCodebaseSearchWebviewMessage(webview: vscode.Webview
 				break
 
 			default:
-				console.log(`未知的代码库搜索操作: ${message.action}`)
+			// 未知的代码库搜索操作
 		}
 	} catch (error) {
 		console.error("处理代码库搜索消息失败:", error)
