@@ -8,10 +8,15 @@ import { toPosixPath, dirname, join } from "../../utils/path"
 import initSqlJs from "sql.js"
 import type { Database as SqlJsDatabase } from "sql.js"
 import { getExtensionContext } from "./extension-context"
+import * as os from "os"
+import * as crypto from "crypto"
 
 // 全局变量用于存储SQL.js初始化状态
 let SQL: any = null
 let sqlJsInitPromise: Promise<any> | null = null
+
+// 使用常量来标识内存数据库模式，避免使用特殊文件名
+const MEMORY_DB_MODE = Symbol("MEMORY_DB_MODE")
 
 /**
  * 获取SQL.js WASM文件路径
@@ -108,13 +113,33 @@ export class Database {
 	private db: SqlJsDatabase | null = null
 	private dbPath: string
 	private isInitialized: boolean = false
+	private isMemoryMode: boolean = false
+	private tempFilePath: string | null = null
 
 	/**
 	 * 构造函数
-	 * @param dbPath 数据库文件路径
+	 * @param dbPath 数据库文件路径或MEMORY_DB_MODE标识
 	 */
-	constructor(dbPath: string) {
-		this.dbPath = toPosixPath(dbPath)
+	constructor(dbPath: string | typeof MEMORY_DB_MODE) {
+		if (dbPath === MEMORY_DB_MODE) {
+			// 内存模式 - 使用临时文件
+			this.isMemoryMode = true
+			this.tempFilePath = this.createTempDbPath()
+			this.dbPath = this.tempFilePath
+		} else {
+			// 正常文件模式
+			this.isMemoryMode = false
+			this.dbPath = toPosixPath(dbPath as string)
+		}
+	}
+
+	/**
+	 * 创建临时数据库文件路径
+	 */
+	private createTempDbPath(): string {
+		const tempDir = os.tmpdir()
+		const randomId = crypto.randomBytes(8).toString("hex")
+		return toPosixPath(join(tempDir, `coolcline-temp-${randomId}.db`))
 	}
 
 	/**
@@ -140,12 +165,14 @@ export class Database {
 			const SQL = await initSqlJsOnce()
 			console.log("SQL.js初始化成功")
 
-			// 检查是否是内存数据库
-			const isMemoryDb = this.dbPath === ":memory:"
-			console.log(`数据库类型: ${isMemoryDb ? "内存数据库" : "文件数据库"}`)
+			// 日志记录数据库模式
+			console.log(`数据库类型: ${this.isMemoryMode ? "内存模式(临时文件)" : "文件数据库"}`)
+			if (this.isMemoryMode) {
+				console.log(`使用临时文件: ${this.dbPath}`)
+			}
 
 			// 尝试从文件读取数据库内容
-			if (!isMemoryDb && fs.existsSync(this.dbPath)) {
+			if (!this.isMemoryMode && fs.existsSync(this.dbPath)) {
 				console.log(`读取已存在的数据库文件: ${this.dbPath}`)
 				try {
 					const data = fs.readFileSync(this.dbPath)
@@ -158,11 +185,11 @@ export class Database {
 				}
 			} else {
 				// 创建新的数据库
-				console.log(`创建新的数据库${isMemoryDb ? "(内存)" : `(文件: ${this.dbPath})`}`)
+				console.log(`创建新的数据库${this.isMemoryMode ? "(内存模式)" : `(文件: ${this.dbPath})`}`)
 				this.db = new SQL.Database()
 
 				// 如果不是内存数据库，立即保存空数据库文件
-				if (!isMemoryDb) {
+				if (!this.isMemoryMode) {
 					console.log("保存初始空数据库文件")
 					await this.saveToFile()
 				}
@@ -430,13 +457,21 @@ export class Database {
 	 */
 	public async close(): Promise<void> {
 		if (this.db) {
-			// 保存到文件
-			await this.saveToFile()
-			// 关闭连接
 			this.db.close()
 			this.db = null
-			this.isInitialized = false
 		}
+
+		// 如果是内存模式，删除临时文件
+		if (this.isMemoryMode && this.tempFilePath && fs.existsSync(this.tempFilePath)) {
+			try {
+				fs.unlinkSync(this.tempFilePath)
+				console.log(`临时数据库文件已删除: ${this.tempFilePath}`)
+			} catch (error) {
+				console.error(`删除临时数据库文件失败: ${error.message}`)
+			}
+		}
+
+		this.isInitialized = false
 	}
 
 	/**
@@ -620,7 +655,7 @@ function generateWorkspaceId(workspacePath: string): string {
  * @returns 内存数据库实例
  */
 export async function createInMemoryDatabase(): Promise<Database> {
-	const db = new Database(":memory:")
+	const db = new Database(MEMORY_DB_MODE)
 	await db.initialize()
 	return db
 }
