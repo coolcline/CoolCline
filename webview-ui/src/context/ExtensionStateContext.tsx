@@ -82,6 +82,9 @@ export interface ExtensionStateContextType extends ExtensionState {
 	setCheckpointsEnabled: (value: boolean) => void
 	currentCheckpoint?: string
 	requestyModels: Record<string, ModelInfo>
+	// 编辑器类型设置
+	editorType?: string
+	setEditorType: (value: string) => void
 	// 代码库索引相关状态
 	codebaseIndexEnabled: boolean
 	setCodebaseIndexEnabled: (value: boolean) => void
@@ -423,6 +426,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		setCodebaseIndexExcludePaths,
 		codebaseIndexIncludeTests,
 		setCodebaseIndexIncludeTests,
+		setEditorType: (value) => setState((prevState) => ({ ...prevState, editorType: value })),
 	}
 
 	return <ExtensionStateContext.Provider value={contextValue}>{children}</ExtensionStateContext.Provider>

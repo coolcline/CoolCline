@@ -694,6 +694,12 @@
 					"description": "Este control deslizante controla qué tan precisamente deben coincidir los fragmentos de código al aplicar diffs. Valores más bajos permiten coincidencias más flexibles pero aumentan el riesgo de reemplazos incorrectos. Use valores por debajo del 100% con precaución."
 				}
 			},
+			"diffViewMode": {
+				"title": "Diff View Mode",
+				"description": "Select how code differences should be displayed",
+				"inlineDiffView": "Inline Diff View",
+				"diffView": "Tab Diff View"
+			},
 			"checkpoints": {
 				"title": "Gestión de instantáneas Git",
 				"enable": "Habilitar puntos de control",

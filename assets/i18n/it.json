@@ -694,6 +694,12 @@
 					"description": "Questo cursore controlla quanto precisamente i frammenti di codice devono corrispondere quando si applicano i diff. Valori più bassi permettono corrispondenze più flessibili ma aumentano il rischio di sostituzioni errate. Usa valori inferiori al 100% con cautela."
 				}
 			},
+			"diffViewMode": {
+				"title": "Diff View Mode",
+				"description": "Select how code differences should be displayed",
+				"inlineDiffView": "Inline Diff View",
+				"diffView": "Tab Diff View"
+			},
 			"checkpoints": {
 				"title": "Gestione snapshot Git",
 				"enable": "Abilita checkpoint",

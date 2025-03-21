@@ -68,6 +68,8 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
 		setAlwaysAllowModeSwitch,
 		checkpointsEnabled,
 		setCheckpointsEnabled,
+		editorType,
+		setEditorType,
 	} = useExtensionState()
 	const [apiErrorMessage, setApiErrorMessage] = useState<string | undefined>(undefined)
 	const [modelIdErrorMessage, setModelIdErrorMessage] = useState<string | undefined>(undefined)
@@ -130,6 +132,7 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
 
 		vscode.postMessage({ type: "alwaysAllowModeSwitch", bool: alwaysAllowModeSwitch })
 		vscode.postMessage({ type: "checkpointsEnabled", bool: checkpointsEnabled })
+		vscode.postMessage({ type: "editorType", text: editorType || "inlineDiff" })
 		onDone()
 	}
 
@@ -842,6 +845,54 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
 						{diffEnabled && (
 							<div style={{ marginTop: 10 }}>
 								<div style={{ marginTop: 10 }}>
+									{/* 编辑器类型选择 */}
+									<div style={{ marginBottom: 15 }}>
+										<label style={{ display: "block", marginBottom: 5, fontWeight: "500" }}>
+											{t("settings.advanced.diffViewMode.title", "编辑器类型").toString()}
+										</label>
+										<div className="dropdown-container">
+											<Dropdown
+												value={editorType || "inlineDiff"}
+												onChange={(value: unknown) => {
+													const editorType = (value as DropdownOption).value
+													setEditorType(editorType)
+													vscode.postMessage({
+														type: "editorType",
+														text: editorType,
+													})
+												}}
+												style={{ width: "100%" }}
+												options={[
+													{
+														value: "inlineDiff",
+														label: t(
+															"settings.advanced.diffViewMode.inlineDiffView",
+															"内联差异编辑器",
+														).toString(),
+													},
+													{
+														value: "diffView",
+														label: t(
+															"settings.advanced.diffViewMode.diffView",
+															"标准差异视图",
+														).toString(),
+													},
+												]}
+											/>
+										</div>
+										<p
+											style={{
+												fontSize: "12px",
+												marginTop: "5px",
+												color: "var(--vscode-descriptionForeground)",
+											}}>
+											{t(
+												"settings.advanced.diffViewMode.description",
+												"选择AI生成代码时使用的编辑器类型。内联差异编辑器在单一窗口中显示修改，而标准差异视图则提供并排比较。",
+											).toString()}
+										</p>
+									</div>
+
 									<div
 										style={{
 											display: "flex",

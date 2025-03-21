@@ -11,6 +11,8 @@ import * as vscode from "vscode"
 import { ApiHandler, SingleCompletionHandler, buildApiHandler } from "../api"
 import { ApiStream } from "../api/transform/stream"
 import { DiffViewProvider } from "../integrations/editor/DiffViewProvider"
+import { EditorInterface } from "../integrations/editor/EditorInterface"
+import { EditorFactory } from "../integrations/editor/EditorFactory"
 import { findToolName, formatContentBlockToMarkdown } from "../integrations/misc/export-markdown"
 import {
 	extractTextFromFile,
@@ -115,7 +117,7 @@ export class CoolCline {
 	private providerRef: WeakRef<CoolClineProvider>
 	private abort: boolean = false
 	abandoned = false
-	private diffViewProvider: DiffViewProvider
+	private editor: EditorInterface
 	private lastApiRequestTime?: number
 	isInitialized = false
 
@@ -158,7 +160,7 @@ export class CoolCline {
 		this.checkpointsEnabled = enableCheckpoints ?? true
 		this.fuzzyMatchThreshold = fuzzyMatchThreshold ?? 1.0
 		this.providerRef = new WeakRef(provider)
-		this.diffViewProvider = new DiffViewProvider(cwd)
+		this.editor = EditorFactory.createEditor(EditorFactory.getPreferredEditorType(), cwd)
 
 		if (historyItem) {
 			this.taskId = historyItem.id
@@ -1520,12 +1522,12 @@ export class CoolCline {
 						}
 						// Check if file exists using cached map or fs.access
 						let fileExists: boolean
-						if (this.diffViewProvider.editType !== undefined) {
-							fileExists = this.diffViewProvider.editType === "modify"
+						if (this.editor.editType !== undefined) {
+							fileExists = this.editor.editType === "modify"
 						} else {
 							const absolutePath = PathUtils.normalizePath(PathUtils.joinPath(cwd, relPath))
 							fileExists = await fileExistsAtPath(absolutePath)
-							this.diffViewProvider.editType = fileExists ? "modify" : "create"
+							this.editor.editType = fileExists ? "modify" : "create"
 						}
 
 						// pre-processing newContent for cases where weaker models might add artifacts like markdown codeblock markers (deepseek/llama) or extra escape characters (gemini)
@@ -1561,12 +1563,12 @@ export class CoolCline {
 								const partialMessage = JSON.stringify(sharedMessageProps)
 								await this.ask("tool", partialMessage, block.partial).catch(() => {})
 								// update editor
-								if (!this.diffViewProvider.isEditing) {
+								if (!this.editor.isEditing) {
 									// open the editor and prepare to stream content in
-									await this.diffViewProvider.open(relPath)
+									await this.editor.open(relPath)
 								}
 								// editor is open, stream content in
-								await this.diffViewProvider.update(
+								await this.editor.update(
 									everyLineHasLineNumbers(newContent) ? stripLineNumbers(newContent) : newContent,
 									false,
 								)
@@ -1575,13 +1577,13 @@ export class CoolCline {
 								if (!relPath) {
 									this.consecutiveMistakeCount++
 									pushToolResult(await this.sayAndCreateMissingParamError("write_to_file", "path"))
-									await this.diffViewProvider.reset()
+									await this.editor.reset()
 									break
 								}
 								if (!newContent) {
 									this.consecutiveMistakeCount++
 									pushToolResult(await this.sayAndCreateMissingParamError("write_to_file", "content"))
-									await this.diffViewProvider.reset()
+									await this.editor.reset()
 									break
 								}
 								if (!predictedLineCount) {
@@ -1589,7 +1591,7 @@ export class CoolCline {
 									pushToolResult(
 										await this.sayAndCreateMissingParamError("write_to_file", "line_count"),
 									)
-									await this.diffViewProvider.reset()
+									await this.editor.reset()
 									break
 								}
 								this.consecutiveMistakeCount = 0
@@ -1597,29 +1599,29 @@ export class CoolCline {
 								// if isEditingFile false, that means we have the full contents of the file already.
 								// it's important to note how this function works, you can't make the assumption that the block.partial conditional will always be called since it may immediately get complete, non-partial data. So this part of the logic will always be called.
 								// in other words, you must always repeat the block.partial logic here
-								if (!this.diffViewProvider.isEditing) {
+								if (!this.editor.isEditing) {
 									// show gui message before showing edit animation
 									const partialMessage = JSON.stringify(sharedMessageProps)
 									await this.ask("tool", partialMessage, true).catch(() => {}) // sending true for partial even though it's not a partial, this shows the edit row before the content is streamed into the editor
-									await this.diffViewProvider.open(relPath)
+									await this.editor.open(relPath)
 								}
-								await this.diffViewProvider.update(
+								await this.editor.update(
 									everyLineHasLineNumbers(newContent) ? stripLineNumbers(newContent) : newContent,
 									true,
 								)
 								await delay(300) // wait for diff view to update
-								this.diffViewProvider.scrollToFirstDiff()
+								this.editor.scrollToFirstDiff?.()
 
 								// Check for code omissions before proceeding
 								if (
 									detectCodeOmission(
-										this.diffViewProvider.originalContent || "",
+										this.editor.originalContent || "",
 										newContent,
 										predictedLineCount,
 									)
 								) {
 									if (this.diffStrategy) {
-										await this.diffViewProvider.revertChanges()
+										await this.editor.revertChanges()
 										pushToolResult(
 											formatResponse.toolError(
 												`Content appears to be truncated (file has ${
@@ -1652,18 +1654,17 @@ export class CoolCline {
 									diff: fileExists
 										? formatResponse.createPrettyPatch(
 												relPath,
-												this.diffViewProvider.originalContent,
+												this.editor.originalContent,
 												newContent,
 											)
 										: undefined,
 								} satisfies CoolClineSayTool)
 								const didApprove = await askApproval("tool", completeMessage)
 								if (!didApprove) {
-									await this.diffViewProvider.revertChanges()
+									await this.editor.revertChanges()
 									break
 								}
-								const { newProblemsMessage, userEdits, finalContent } =
-									await this.diffViewProvider.saveChanges()
+								const { newProblemsMessage, userEdits, finalContent } = await this.editor.saveChanges()
 								this.didEditFile = true // used to determine if we should wait for busy terminal to update before sending api request
 								if (userEdits) {
 									await this.say(
@@ -1691,12 +1692,12 @@ export class CoolCline {
 										`The content was successfully saved to ${relPath.toPosix()}.${newProblemsMessage}`,
 									)
 								}
-								await this.diffViewProvider.reset()
+								await this.editor.reset()
 								break
 							}
 						} catch (error) {
 							await handleError("writing file", error)
-							await this.diffViewProvider.reset()
+							await this.editor.reset()
 							break
 						}
 					}
@@ -1771,10 +1772,10 @@ export class CoolCline {
 								this.consecutiveMistakeCount = 0
 								this.consecutiveMistakeCountForApplyDiff.delete(relPath)
 								// Show diff view before asking for approval
-								this.diffViewProvider.editType = "modify"
-								await this.diffViewProvider.open(relPath)
-								await this.diffViewProvider.update(diffResult.content, true)
-								await this.diffViewProvider.scrollToFirstDiff()
+								this.editor.editType = "modify"
+								await this.editor.open(relPath)
+								await this.editor.update(diffResult.content, true)
+								await this.editor.scrollToFirstDiff?.()
 
 								const completeMessage = JSON.stringify({
 									...sharedMessageProps,
@@ -1783,12 +1784,11 @@ export class CoolCline {
 
 								const didApprove = await askApproval("tool", completeMessage)
 								if (!didApprove) {
-									await this.diffViewProvider.revertChanges() // This likely handles closing the diff view
+									await this.editor.revertChanges() // This likely handles closing the diff view
 									break
 								}
 
-								const { newProblemsMessage, userEdits, finalContent } =
-									await this.diffViewProvider.saveChanges()
+								const { newProblemsMessage, userEdits, finalContent } = await this.editor.saveChanges()
 								this.didEditFile = true // used to determine if we should wait for busy terminal to update before sending api request
 								if (userEdits) {
 									await this.say(
@@ -1816,12 +1816,12 @@ export class CoolCline {
 										`Changes successfully applied to ${relPath.toPosix()}:\n\n${newProblemsMessage}`,
 									)
 								}
-								await this.diffViewProvider.reset()
+								await this.editor.reset()
 								break
 							}
 						} catch (error) {
 							await handleError("applying diff", error)
-							await this.diffViewProvider.reset()
+							await this.editor.reset()
 							break
 						}
 					}
@@ -1887,8 +1887,8 @@ export class CoolCline {
 
 							// Read the file
 							const fileContent = await fs.readFile(absolutePath, "utf8")
-							this.diffViewProvider.editType = "modify"
-							this.diffViewProvider.originalContent = fileContent
+							this.editor.editType = "modify"
+							this.editor.originalContent = fileContent
 							const lines = fileContent.split("\n")
 
 							const updatedContent = insertGroups(
@@ -1902,12 +1902,12 @@ export class CoolCline {
 							).join("\n")
 
 							// Show changes in diff view
-							if (!this.diffViewProvider.isEditing) {
+							if (!this.editor.isEditing) {
 								await this.ask("tool", JSON.stringify(sharedMessageProps), true).catch(() => {})
 								// First open with original content
-								await this.diffViewProvider.open(relPath)
-								await this.diffViewProvider.update(fileContent, false)
-								this.diffViewProvider.scrollToFirstDiff()
+								await this.editor.open(relPath)
+								await this.editor.update(fileContent, false)
+								this.editor.scrollToFirstDiff?.()
 								await delay(200)
 							}
 
@@ -1918,7 +1918,7 @@ export class CoolCline {
 								break
 							}
 
-							await this.diffViewProvider.update(updatedContent, true)
+							await this.editor.update(updatedContent, true)
 
 							const completeMessage = JSON.stringify({
 								...sharedMessageProps,
@@ -1930,20 +1930,19 @@ export class CoolCline {
 							)
 
 							if (!didApprove) {
-								await this.diffViewProvider.revertChanges()
+								await this.editor.revertChanges()
 								pushToolResult("Changes were rejected by the user.")
 								break
 							}
 
-							const { newProblemsMessage, userEdits, finalContent } =
-								await this.diffViewProvider.saveChanges()
+							const { newProblemsMessage, userEdits, finalContent } = await this.editor.saveChanges()
 							this.didEditFile = true
 
 							if (!userEdits) {
 								pushToolResult(
 									`The content was successfully inserted in ${relPath.toPosix()}.${newProblemsMessage}`,
 								)
-								await this.diffViewProvider.reset()
+								await this.editor.reset()
 								break
 							}
 
@@ -1965,10 +1964,10 @@ export class CoolCline {
 									`3. If the user's edits have addressed part of the task or changed the requirements, adjust your approach accordingly.` +
 									`${newProblemsMessage}`,
 							)
-							await this.diffViewProvider.reset()
+							await this.editor.reset()
 						} catch (error) {
 							handleError("insert content", error)
-							await this.diffViewProvider.reset()
+							await this.editor.reset()
 						}
 						break
 					}
@@ -2041,8 +2040,8 @@ export class CoolCline {
 
 								// Read the original file content
 								const fileContent = await fs.readFile(absolutePath, "utf-8")
-								this.diffViewProvider.editType = "modify"
-								this.diffViewProvider.originalContent = fileContent
+								this.editor.editType = "modify"
+								this.editor.originalContent = fileContent
 								let lines = fileContent.split("\n")
 
 								for (const op of parsedOperations) {
@@ -2088,9 +2087,9 @@ export class CoolCline {
 									break
 								}
 
-								await this.diffViewProvider.open(relPath)
-								await this.diffViewProvider.update(newContent, true)
-								this.diffViewProvider.scrollToFirstDiff()
+								await this.editor.open(relPath)
+								await this.editor.update(newContent, true)
+								this.editor.scrollToFirstDiff?.()
 
 								const completeMessage = JSON.stringify({
 									...sharedMessageProps,
@@ -2099,12 +2098,11 @@ export class CoolCline {
 
 								const didApprove = await askApproval("tool", completeMessage)
 								if (!didApprove) {
-									await this.diffViewProvider.revertChanges() // This likely handles closing the diff view
+									await this.editor.revertChanges() // This likely handles closing the diff view
 									break
 								}
 
-								const { newProblemsMessage, userEdits, finalContent } =
-									await this.diffViewProvider.saveChanges()
+								const { newProblemsMessage, userEdits, finalContent } = await this.editor.saveChanges()
 								this.didEditFile = true // used to determine if we should wait for busy terminal to update before sending api request
 								if (userEdits) {
 									await this.say(
@@ -2130,12 +2128,12 @@ export class CoolCline {
 										`Changes successfully applied to ${relPath.toPosix()}:\n\n${newProblemsMessage}`,
 									)
 								}
-								await this.diffViewProvider.reset()
+								await this.editor.reset()
 								break
 							}
 						} catch (error) {
 							await handleError("applying search and replace", error)
-							await this.diffViewProvider.reset()
+							await this.editor.reset()
 							break
 						}
 					}
@@ -3081,8 +3079,8 @@ export class CoolCline {
 			}
 
 			const abortStream = async (cancelReason: CoolClineApiReqCancelReason, streamingFailedMessage?: string) => {
-				if (this.diffViewProvider.isEditing) {
-					await this.diffViewProvider.revertChanges() // closes diff view
+				if (this.editor.isEditing) {
+					await this.editor.revertChanges() // closes diff view
 				}
 
 				// if last message is a partial we need to update and save it
@@ -3130,7 +3128,7 @@ export class CoolCline {
 			this.didAlreadyUseTool = false
 			this.presentAssistantMessageLocked = false
 			this.presentAssistantMessageHasPendingUpdates = false
-			await this.diffViewProvider.reset()
+			await this.editor.reset()
 
 			const stream = this.attemptApiRequest(previousApiReqIndex) // yields only if the first chunk is successful, otherwise will allow the user to retry the request (most likely due to rate limit error, which gets thrown on the first chunk)
 			let assistantMessage = ""

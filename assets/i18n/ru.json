@@ -694,6 +694,12 @@
 					"description": "Этот ползунок контролирует, насколько точно должны совпадать фрагменты кода при применении diff. Более низкие значения позволяют более гибкое сопоставление, но увеличивают риск неправильных замен. Используйте значения ниже 100% с крайней осторожностью."
 				}
 			},
+			"diffViewMode": {
+				"title": "Diff View Mode",
+				"description": "Select how code differences should be displayed",
+				"inlineDiffView": "Inline Diff View",
+				"diffView": "Tab Diff View"
+			},
 			"checkpoints": {
 				"title": "Управление снимками Git",
 				"enable": "Включить контрольные точки",

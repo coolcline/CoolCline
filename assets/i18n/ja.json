@@ -694,6 +694,12 @@
 					"description": "このスライダーは、diffを適用する際のコード断片の一致精度を制御します。低い値はより柔軟な一致を許可しますが、誤置換のリスクが増加します。100%未満の値は注意して使用してください。"
 				}
 			},
+			"diffViewMode": {
+				"title": "Diff View Mode",
+				"description": "Select how code differences should be displayed",
+				"inlineDiffView": "Inline Diff View",
+				"diffView": "Tab Diff View"
+			},
 			"checkpoints": {
 				"title": "Git スナップショット管理",
 				"enable": "チェックポイントを有効にする",

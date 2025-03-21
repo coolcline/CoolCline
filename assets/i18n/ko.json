@@ -694,6 +694,12 @@
 					"description": "이 슬라이더는 diff 적용 시 코드 조각이 얼마나 정확하게 일치해야 하는지 제어합니다. 낮은 값은 더 유연한 일치를 허용하지만 잘못된 대체 위험이 증가합니다. 100% 미만의 값은 주의해서 사용하세요."
 				}
 			},
+			"diffViewMode": {
+				"title": "Diff View Mode",
+				"description": "Select how code differences should be displayed",
+				"inlineDiffView": "Inline Diff View",
+				"diffView": "Tab Diff View"
+			},
 			"checkpoints": {
 				"title": "Git 스냅샷 관리",
 				"enable": "체크포인트 활성화",

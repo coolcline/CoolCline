@@ -694,6 +694,12 @@
 					"description": "此滑块控制在应用代码差异时的匹配精确度。较低的值虽然能提供更灵活的匹配，但也会增加错误替换的风险。请谨慎使用低于 100% 的值。"
 				}
 			},
+			"diffViewMode": {
+				"title": "差异视图模式",
+				"description": "",
+				"inlineDiffView": "内联差异视图",
+				"diffView": "单页差异视图"
+			},
 			"checkpoints": {
 				"title": "Git 快照管理",
 				"enable": "启用检查点",
@@ -731,6 +737,7 @@
 		},
 		"codebaseIndex": {
 			"title": "代码库索引",
+			"deleteConfirmTitle": "确认清除索引",
 			"deleteConfirm": "确定要删除索引吗？这将移除所有索引数据。",
 			"enable": {
 				"title": "启用代码库索引",

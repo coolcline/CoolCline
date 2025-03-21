@@ -694,6 +694,12 @@
 					"description": "此滑桿控制在應用差異時程式碼片段應該多精確地匹配。較低的值允許更靈活的匹配，但會增加錯誤替換的風險。請謹慎使用低於 100% 的值。"
 				}
 			},
+			"diffViewMode": {
+				"title": "Diff View Mode",
+				"description": "Select how code differences should be displayed",
+				"inlineDiffView": "Inline Diff View",
+				"diffView": "Tab Diff View"
+			},
 			"checkpoints": {
 				"title": "Git 快照管理",
 				"enable": "啟用檢查點",

@@ -9,9 +9,10 @@ import { diagnosticsToProblemsString, getNewDiagnostics } from "../diagnostics"
 import { PathUtils } from "../../services/checkpoints/CheckpointUtils"
 import { EditorInterface } from "./EditorInterface"
 
-export const DIFF_VIEW_URI_SCHEME = "coolcline-diff"
-
-export class DiffViewProvider implements EditorInterface {
+/**
+ * 内联差异编辑器，在单一编辑器窗口中显示内联差异
+ */
+export class InlineDiffEditor implements EditorInterface {
 	editType?: "create" | "modify"
 	isEditing = false
 	originalContent: string | undefined
@@ -20,21 +21,104 @@ export class DiffViewProvider implements EditorInterface {
 	private relPath?: string
 	private newContent?: string
 	private activeEditor?: vscode.TextEditor
-	private fadedOverlayController?: DecorationController
 	private activeLineController?: DecorationController
 	private streamedLines: string[] = []
 	private preDiagnostics: [vscode.Uri, vscode.Diagnostic[]][] = []
 	private readonlyDecorationType: vscode.TextEditorDecorationType
+	private addedDecorationType: vscode.TextEditorDecorationType
+	private changedDecorationType: vscode.TextEditorDecorationType
 
 	constructor(private cwd: string) {
-		console.log("diffview")
-		// 创建一个只读的装饰器类型
+		console.log("InlineDiffEditor initialized")
+		// 创建只读装饰器类型
 		this.readonlyDecorationType = vscode.window.createTextEditorDecorationType({
-			// 使用半透明背景表示只读
 			backgroundColor: "rgba(128, 128, 128, 0.1)",
-			// 禁用光标
 			cursor: "not-allowed",
 		})
+
+		// 创建添加内容的装饰器类型，使用更明显的绿色背景
+		this.addedDecorationType = vscode.window.createTextEditorDecorationType({
+			backgroundColor: "rgba(155, 185, 85, 0.3)",
+			isWholeLine: true,
+			borderColor: "rgba(155, 185, 85, 0.7)",
+			borderStyle: "solid",
+			borderWidth: "0 0 0 2px",
+		})
+
+		// 创建修改内容的装饰器类型，使用更明显的蓝色背景
+		this.changedDecorationType = vscode.window.createTextEditorDecorationType({
+			backgroundColor: "rgba(90, 93, 168, 0.3)",
+			isWholeLine: true,
+			borderColor: "rgba(90, 93, 168, 0.7)",
+			borderStyle: "solid",
+			borderWidth: "0 0 0 2px",
+		})
+		console.log("Decorations created successfully")
+	}
+
+	/**
+	 * 在编辑器中显示内联差异
+	 * @param editor 编辑器
+	 * @param originalContent 原始内容
+	 */
+	private showInlineChanges(editor: vscode.TextEditor, originalContent: string) {
+		console.log("showInlineChanges called")
+		const document = editor.document
+		const currentContent = document.getText()
+
+		// 计算差异
+		const changes = diff.diffLines(originalContent, currentContent)
+		console.log(`Diff calculated, found ${changes.length} change segments`)
+
+		// 应用装饰
+		const addedRanges: vscode.Range[] = []
+		const changedRanges: vscode.Range[] = []
+
+		// 分析差异并创建范围
+		let lineOffset = 0
+		for (const part of changes) {
+			if (part.added) {
+				// 标记为添加的行
+				const startLine = lineOffset
+				const endLine = lineOffset + part.count!
+				console.log(`Added segment from line ${startLine} to ${endLine}`)
+				for (let i = startLine; i < endLine; i++) {
+					// 使用整行范围而不是零宽度范围
+					addedRanges.push(new vscode.Range(i, 0, i, document.lineAt(i).text.length))
+				}
+				lineOffset += part.count!
+			} else if (part.removed) {
+				// 对已移除的行不处理，因为它们在当前文档中不存在
+				console.log(`Removed segment (skipped), count: ${part.count}`)
+			} else {
+				// 未修改的行，只更新计数
+				console.log(`Unchanged segment, lines: ${part.count}`)
+				lineOffset += part.count!
+			}
+		}
+
+		// 尝试另一种方法计算修改的行
+		lineOffset = 0
+		const originalLines = originalContent.split("\n")
+		const currentLines = currentContent.split("\n")
+
+		// 计算修改的行（不是添加的，而是修改的）
+		for (let i = 0; i < Math.min(originalLines.length, currentLines.length); i++) {
+			if (originalLines[i] !== currentLines[i]) {
+				console.log(`发现修改的行: ${i}, 原内容: ${originalLines[i]}, 新内容: ${currentLines[i]}`)
+				changedRanges.push(new vscode.Range(i, 0, i, currentLines[i].length))
+			}
+		}
+
+		console.log(`Applying decorations: ${addedRanges.length} added ranges, ${changedRanges.length} changed ranges`)
+		// 移除现有装饰器
+		editor.setDecorations(this.addedDecorationType, [])
+		editor.setDecorations(this.changedDecorationType, [])
+
+		// 应用新装饰器
+		editor.setDecorations(this.addedDecorationType, addedRanges)
+		editor.setDecorations(this.changedDecorationType, changedRanges)
+		console.log("Decorations applied")
 	}
 
 	private async openEditor(): Promise<vscode.TextEditor> {
@@ -42,17 +126,25 @@ export class DiffViewProvider implements EditorInterface {
 			throw new Error("No file path set")
 		}
 		const uri = vscode.Uri.file(PathUtils.normalizePath(PathUtils.joinPath(this.cwd, this.relPath)))
+		console.log(`Opening editor for file: ${uri.fsPath}`)
+		console.log(`Using view column: ${vscode.ViewColumn.Active} (强制使用Active而非Beside)`)
 
-		// 打开编辑器但不激活它
+		// 尝试使用Active而不是Beside，看是否能避免分屏效果
 		const editor = await vscode.window.showTextDocument(uri, {
 			preview: true,
 			preserveFocus: true,
-			viewColumn: vscode.ViewColumn.Beside,
+			viewColumn: vscode.ViewColumn.Active, // 改为使用当前活动视图
 			selection: new vscode.Range(0, 0, 0, 0), // 将光标放在开始位置
+		})
+		console.log(`Editor opened, viewColumn: ${editor.viewColumn}, document: ${editor.document.uri.fsPath}`)
+		console.log(`打开的编辑器数量: ${vscode.window.visibleTextEditors.length}`)
+		vscode.window.visibleTextEditors.forEach((e, i) => {
+			console.log(`编辑器 ${i}: 文件=${e.document.uri.fsPath}, 视图=${e.viewColumn}`)
 		})
 
 		// 应用只读装饰器
 		editor.setDecorations(this.readonlyDecorationType, [new vscode.Range(0, 0, editor.document.lineCount, 0)])
+		console.log(`Applied readonly decorations to entire document`)
 
 		return editor
 	}
@@ -101,15 +193,14 @@ export class DiffViewProvider implements EditorInterface {
 			this.documentWasOpen = true
 		}
 		this.activeEditor = await this.openEditor()
-		this.fadedOverlayController = new DecorationController("fadedOverlay", this.activeEditor)
 		this.activeLineController = new DecorationController("activeLine", this.activeEditor)
-		this.fadedOverlayController.addLines(0, this.activeEditor.document.lineCount)
+		this.activeLineController.addLines(0, this.activeEditor.document.lineCount)
 		this.scrollEditorToLine(0)
 		this.streamedLines = []
 	}
 
-	async update(accumulatedContent: string, isFinal: boolean) {
-		if (!this.relPath || !this.activeLineController || !this.fadedOverlayController) {
+	async update(accumulatedContent: string, isFinal: boolean): Promise<void> {
+		if (!this.relPath || !this.activeLineController) {
 			throw new Error("Required values not set")
 		}
 		this.newContent = accumulatedContent
@@ -133,9 +224,16 @@ export class DiffViewProvider implements EditorInterface {
 		const contentToReplace = accumulatedLines.slice(0, endLine + 1).join("\n") + "\n"
 		edit.replace(document.uri, rangeToReplace, contentToReplace)
 		await vscode.workspace.applyEdit(edit)
+
+		// 更新活动行
 		this.activeLineController.setActiveLine(endLine)
-		this.fadedOverlayController.updateOverlayAfterLine(endLine, document.lineCount)
 		this.scrollEditorToLine(endLine)
+
+		// 显示内联差异
+		if (this.originalContent) {
+			console.log("调用update中的showInlineChanges")
+			this.showInlineChanges(editor, this.originalContent)
+		}
 
 		this.streamedLines = accumulatedLines
 		if (isFinal) {
@@ -151,8 +249,16 @@ export class DiffViewProvider implements EditorInterface {
 			const finalEdit = new vscode.WorkspaceEdit()
 			finalEdit.replace(document.uri, new vscode.Range(0, 0, document.lineCount, 0), accumulatedContent)
 			await vscode.workspace.applyEdit(finalEdit)
-			this.fadedOverlayController.clear()
-			this.activeLineController.clear()
+
+			// 最后一次显示内联差异
+			if (this.originalContent) {
+				console.log("最终更新，调用showInlineChanges")
+				this.showInlineChanges(editor, this.originalContent)
+			}
+
+			if (this.activeLineController) {
+				this.activeLineController.clear()
+			}
 		}
 	}
 
@@ -175,7 +281,11 @@ export class DiffViewProvider implements EditorInterface {
 			preview: false,
 			preserveFocus: true,
 		})
-		await this.closeAllDiffViews()
+
+		// 清除装饰器
+		this.activeEditor.setDecorations(this.addedDecorationType, [])
+		this.activeEditor.setDecorations(this.changedDecorationType, [])
+		this.activeEditor.setDecorations(this.readonlyDecorationType, [])
 
 		const postDiagnostics = vscode.languages.getDiagnostics()
 		const newProblems = diagnosticsToProblemsString(
@@ -212,7 +322,12 @@ export class DiffViewProvider implements EditorInterface {
 			if (updatedDocument.isDirty) {
 				await updatedDocument.save()
 			}
-			await this.closeAllDiffViews()
+
+			// 清除装饰器
+			this.activeEditor.setDecorations(this.addedDecorationType, [])
+			this.activeEditor.setDecorations(this.changedDecorationType, [])
+			this.activeEditor.setDecorations(this.readonlyDecorationType, [])
+
 			await fs.unlink(absolutePath)
 			for (let i = this.createdDirs.length - 1; i >= 0; i--) {
 				await fs.rmdir(this.createdDirs[i])
@@ -235,40 +350,22 @@ export class DiffViewProvider implements EditorInterface {
 					preserveFocus: true,
 				})
 			}
-			await this.closeAllDiffViews()
+
+			// 清除装饰器
+			this.activeEditor.setDecorations(this.addedDecorationType, [])
+			this.activeEditor.setDecorations(this.changedDecorationType, [])
+			this.activeEditor.setDecorations(this.readonlyDecorationType, [])
 		}
 
 		await this.reset()
 	}
 
-	private async closeAllDiffViews() {
-		try {
-			const tabs = vscode.window.tabGroups.all
-				.flatMap((tg) => tg.tabs)
-				.filter(
-					(tab) =>
-						tab.input instanceof vscode.TabInputTextDiff &&
-						tab.input?.original?.scheme === DIFF_VIEW_URI_SCHEME,
-				)
-			for (const tab of tabs) {
-				if (!tab.isDirty) {
-					try {
-						await vscode.window.tabGroups.close(tab)
-					} catch (err) {
-						console.log(`Error closing diff tab: ${err.message || err}`)
-						// 忽略关闭标签页时出现的错误，通常是由于标签页已被关闭
-					}
-				}
-			}
-		} catch (err) {
-			console.log(`Error in closeAllDiffViews: ${err.message || err}`)
-			// 忽略 tabGroups 相关的任何错误，确保流程继续
-		}
-	}
-
+	/**
+	 * 滚动编辑器到指定行
+	 */
 	private scrollEditorToLine(line: number) {
 		if (this.activeEditor) {
-			const scrollLine = line + 4
+			const scrollLine = Math.max(0, line - 1)
 			this.activeEditor.revealRange(
 				new vscode.Range(scrollLine, 0, scrollLine, 0),
 				vscode.TextEditorRevealType.InCenter,
@@ -276,6 +373,9 @@ export class DiffViewProvider implements EditorInterface {
 		}
 	}
 
+	/**
+	 * 滚动到第一个差异处
+	 */
 	scrollToFirstDiff() {
 		if (!this.activeEditor) {
 			return
@@ -289,17 +389,19 @@ export class DiffViewProvider implements EditorInterface {
 					new vscode.Range(lineCount, 0, lineCount, 0),
 					vscode.TextEditorRevealType.InCenter,
 				)
-				return
-			}
-			if (!part.removed) {
+				break
+			} else {
 				lineCount += part.count || 0
 			}
 		}
 	}
 
-	async reset() {
+	async reset(): Promise<void> {
 		if (this.activeEditor) {
+			// 清除所有装饰器
 			this.activeEditor.setDecorations(this.readonlyDecorationType, [])
+			this.activeEditor.setDecorations(this.addedDecorationType, [])
+			this.activeEditor.setDecorations(this.changedDecorationType, [])
 		}
 		this.editType = undefined
 		this.isEditing = false
@@ -307,30 +409,30 @@ export class DiffViewProvider implements EditorInterface {
 		this.createdDirs = []
 		this.documentWasOpen = false
 		this.activeEditor = undefined
-		this.fadedOverlayController = undefined
 		this.activeLineController = undefined
 		this.streamedLines = []
 		this.preDiagnostics = []
 	}
 
+	// 这个方法在内联编辑器中可选实现
 	async showDiff(): Promise<void> {
-		console.log("调用了 vscode.diff")
+		console.log("showDiff called in InlineDiffEditor")
 		if (!this.relPath || !this.originalContent || !this.activeEditor) {
+			console.log("Cannot show diff: missing required properties", {
+				hasRelPath: !!this.relPath,
+				hasOriginalContent: !!this.originalContent,
+				hasActiveEditor: !!this.activeEditor,
+			})
 			return
 		}
-		const uri = this.activeEditor.document.uri
-		const fileName = PathUtils.basename(uri.fsPath)
-		await vscode.commands.executeCommand(
-			"vscode.diff",
-			vscode.Uri.parse(`${DIFF_VIEW_URI_SCHEME}:${fileName}`).with({
-				query: Buffer.from(this.originalContent).toString("base64"),
-			}),
-			uri,
-			`${fileName}: ${this.editType === "modify" ? "Original ↔ CoolCline's Changes" : "New File"} (Editable)`,
-			{
-				preview: true,
-				preserveFocus: true,
-			},
-		)
+
+		console.log("使用内联差异显示方式")
+		// 直接使用内联差异方式，避免调用vscode.diff命令
+		this.showInlineChanges(this.activeEditor, this.originalContent)
+
+		// 确保滚动到第一个差异处，增强用户体验
+		this.scrollToFirstDiff()
+
+		console.log("内联差异显示完成")
 	}
 }

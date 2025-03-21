@@ -47,6 +47,7 @@ export interface ExtensionMessage {
 		| "currentCheckpointUpdated"
 		| "refreshRequestyModels"
 		| "extensionState"
+		| "editorType"
 	text?: string
 	action?:
 		| "chatButtonClicked"
@@ -129,6 +130,8 @@ export interface ExtensionState {
 	toolRequirements?: Record<string, boolean> // Map of tool names to their requirements (e.g. {"apply_diff": true} if diffEnabled)
 	checkpointsEnabled: boolean
 	requestyModels: Record<string, ModelInfo>
+	// 编辑器类型设置
+	editorType?: string
 	// 代码库索引相关状态
 	codebaseIndexEnabled: boolean
 	codebaseIndexAutoStart: boolean

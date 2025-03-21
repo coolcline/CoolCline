@@ -172,8 +172,10 @@ const CodebaseIndexSettings = () => {
 				isOpen={confirmDialogOpen}
 				onClose={() => setConfirmDialogOpen(false)}
 				onConfirm={handleConfirmClearIndex}
-				title={t("codebaseIndex.deleteConfirmTitle").toString() || "确认清除索引"}
-				description={t("codebaseIndex.deleteConfirm").toString() || "确定要删除索引吗？这将移除所有索引数据。"}
+				title={t("settings.codebaseIndex.deleteConfirmTitle").toString() || "确认清除索引"}
+				description={
+					t("settings.codebaseIndex.deleteConfirm").toString() || "确定要删除索引吗？这将移除所有索引数据。"
+				}
 			/>
 
 			<div style={{ marginBottom: 15 }}>

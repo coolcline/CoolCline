@@ -694,6 +694,12 @@
 					"description": "Este controle deslizante controla o quão precisamente os trechos de código devem corresponder ao aplicar diff. Valores mais baixos permitem correspondência mais flexível, mas aumentam o risco de substituições incorretas. Use valores abaixo de 100% com extrema cautela."
 				}
 			},
+			"diffViewMode": {
+				"title": "Diff View Mode",
+				"description": "Select how code differences should be displayed",
+				"inlineDiffView": "Inline Diff View",
+				"diffView": "Tab Diff View"
+			},
 			"checkpoints": {
 				"title": "Gerenciamento de snapshots Git",
 				"enable": "Ativar checkpoints",

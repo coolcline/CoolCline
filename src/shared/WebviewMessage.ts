@@ -92,6 +92,7 @@ export interface WebviewMessage {
 		| "deleteAllProjectsAllHistory"
 		| "deleteThisProjectAllHistory"
 		| "codebaseSearch"
+		| "editorType"
 	text?: string
 	disabled?: boolean
 	askResponse?: CoolClineAskResponse

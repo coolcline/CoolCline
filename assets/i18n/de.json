@@ -694,6 +694,12 @@
 					"description": "Dieser Schieberegler steuert, wie genau Codestücke beim Anwenden von Diffs übereinstimmen müssen. Niedrigere Werte erlauben flexiblere Übereinstimmungen, erhöhen aber das Risiko falscher Ersetzungen. Verwenden Sie Werte unter 100% mit Vorsicht."
 				}
 			},
+			"diffViewMode": {
+				"title": "Diff View Mode",
+				"description": "Select how code differences should be displayed",
+				"inlineDiffView": "Inline Diff View",
+				"diffView": "Tab Diff View"
+			},
 			"checkpoints": {
 				"title": "Git-Snapshot-Verwaltung",
 				"enable": "Checkpoints aktivieren",

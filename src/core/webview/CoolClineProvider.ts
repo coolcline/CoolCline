@@ -40,6 +40,7 @@ import { CheckpointRestoreMode } from "../../services/checkpoints/types"
 import { getShadowGitPath, hashWorkingDir, PathUtils } from "../../services/checkpoints/CheckpointUtils"
 import { ManageCheckpointRepository } from "../../services/checkpoints/ManageCheckpointRepository"
 import { handleCodebaseSearchWebviewMessage } from "../../services/codebase-search"
+import { EditorFactory, EditorType } from "../../integrations/editor/EditorFactory"
 
 /*
 https://github.com/microsoft/vscode-webview-ui-toolkit-samples/blob/main/default/weather-webview/src/providers/WeatherViewProvider.ts
@@ -133,6 +134,7 @@ type GlobalStateKey =
 	| "codebaseIndexAutoStart"
 	| "codebaseIndexExcludePaths"
 	| "codebaseIndexIncludeTests"
+	| "editorType"
 
 export const GlobalFileNames = {
 	apiConversationHistory: "api_conversation_history.json",
@@ -1169,6 +1171,16 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
 					case "checkpointsEnabled":
 						await this.updateGlobalState("checkpointsEnabled", message.bool ?? false)
 						await this.postStateToWebview()
+						break
+					case "editorType":
+						if (message.text) {
+							// 保存编辑器类型首选项
+							await this.updateGlobalState("editorType", message.text)
+							// 更新VSCode配置
+							await EditorFactory.setPreferredEditorType(message.text as EditorType)
+							// 更新状态
+							await this.postStateToWebview()
+						}
 						break
 					case "enhancePrompt":
 						if (message.text) {
@@ -2409,6 +2421,7 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
 			codebaseIndexAutoStart,
 			codebaseIndexExcludePaths,
 			codebaseIndexIncludeTests,
+			editorType,
 		} = await this.getState()
 
 		const allowedCommands = vscode.workspace.getConfiguration("coolcline").get<string[]>("allowedCommands") || []
@@ -2476,6 +2489,7 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
 			codebaseIndexAutoStart,
 			codebaseIndexExcludePaths,
 			codebaseIndexIncludeTests,
+			editorType,
 		}
 	}
 
@@ -2615,6 +2629,7 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
 			codebaseIndexAutoStart,
 			codebaseIndexExcludePaths,
 			codebaseIndexIncludeTests,
+			editorType,
 		] = await Promise.all([
 			this.getGlobalState("llmProvider") as Promise<llmProvider | undefined>,
 			this.getGlobalState("apiModelId") as Promise<string | undefined>,
@@ -2699,6 +2714,7 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
 			this.getGlobalState("codebaseIndexAutoStart") as Promise<boolean | undefined>,
 			this.getGlobalState("codebaseIndexExcludePaths") as Promise<string | undefined>,
 			this.getGlobalState("codebaseIndexIncludeTests") as Promise<boolean | undefined>,
+			this.getGlobalState("editorType") as Promise<string | undefined>,
 		])
 
 		let llmProvider: llmProvider
@@ -2825,6 +2841,7 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
 			codebaseIndexAutoStart: codebaseIndexAutoStart ?? true,
 			codebaseIndexExcludePaths: codebaseIndexExcludePaths ?? "node_modules,dist,build",
 			codebaseIndexIncludeTests: codebaseIndexIncludeTests ?? false,
+			editorType,
 		}
 	}
 

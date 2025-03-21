@@ -694,6 +694,12 @@
 					"description": "يتحكم هذا المنزلق في مدى دقة تطابق مقاطع الكود عند تطبيق diff. القيم المنخفضة تسمح بمطابقة أكثر مرونة ولكنها تزيد من خطر الاستبدالات غير الصحيحة. استخدم القيم أقل من 100% بحذر شديد."
 				}
 			},
+			"diffViewMode": {
+				"title": "Diff View Mode",
+				"description": "Select how code differences should be displayed",
+				"inlineDiffView": "Inline Diff View",
+				"diffView": "Tab Diff View"
+			},
 			"checkpoints": {
 				"title": "إدارة لقطات Git",
 				"enable": "تمكين نقاط التفتيش",

@@ -694,6 +694,12 @@
 					"description": "Bu kaydırıcı, diff uygulanırken kod parçalarının ne kadar hassas eşleşmesi gerektiğini kontrol eder. Daha düşük değerler daha esnek eşleşmelere izin verir ancak yanlış değiştirme riskini artırır. %100'ün altındaki değerleri dikkatli kullanın."
 				}
 			},
+			"diffViewMode": {
+				"title": "Diff View Mode",
+				"description": "Select how code differences should be displayed",
+				"inlineDiffView": "Inline Diff View",
+				"diffView": "Tab Diff View"
+			},
 			"checkpoints": {
 				"title": "Git Anlık Görüntü Yönetimi",
 				"enable": "Kontrol noktalarını etkinleştir",
@@ -738,28 +744,33 @@
 			},
 			"status": {
 				"title": "İndeks durumu",
-				"indexedFiles": "İndekslenmiş dosyalar",
-				"indexedSymbols": "İndekslenmiş semboller",
+				"filesCount": "Indexed Files",
+				"symbolsCount": "Indexed Symbols",
 				"lastIndexed": "Son indeksleme",
-				"currentStatus": "Mevcut durum",
-				"process": "İşlem",
+				"current": "Current Status",
+				"progress": "Progress",
 				"idle": "Boşta",
 				"scanning": "Taranıyor",
 				"indexing": "İndeksleniyor",
-				"complete": "Tamamlandı",
+				"completed": "Completed",
 				"error": "Hata"
 			},
 			"actions": {
-				"title": "İşlemler",
 				"start": "İndekslemeyi başlat",
 				"refresh": "İndeksi yenile",
 				"clear": "İndeksi temizle"
 			},
-			"options": {
-				"title": "Seçenekler",
-				"autoStart": "Başlangıçta otomatik indeksleme",
-				"includeTests": "Test dosyalarını dahil et",
-				"excludePaths": "Dışlanacak yollar"
+			"autoStart": {
+				"title": "Auto-index on Startup",
+				"description": "Automatically start indexing when the editor launches"
+			},
+			"includeTests": {
+				"title": "Include Test Files",
+				"description": "Whether to include test files in the index"
+			},
+			"excludePaths": {
+				"title": "Exclude Paths",
+				"description": "Paths to exclude from indexing, separated by commas"
 			}
 		}
 	}
