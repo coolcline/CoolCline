@@ -7,7 +7,7 @@ Parameters:
 - path: (required) The path of the file to insert content into (relative to the current working directory ${args.cwd.toPosix()})
 - operations: (required) A JSON array of insertion operations. Each operation is an object with:
     * start_line: (required) The line number where the content should be inserted.  The content currently at that line will end up below the inserted content.
-    * content: (required) The content to insert at the specified position. IMPORTANT NOTE: If the content is a single line, it can be a string. If it's a multi-line content, it should be a string with newline characters (\n) for line breaks. Make sure to include the correct indentation for the content.
+    * content: (required) The content to insert at the specified position. IMPORTANT NOTE: If the content is a single line, it can be a string. If it's a multi-line content, it should be a string with newline characters (\\n) for line breaks. You MUST properly escape ALL special characters in JSON strings, including newlines (\\n), quotes (\\" or \\'), backslashes (\\\\), tabs (\\t), etc. The operations JSON must be valid JSON that can be parsed. Make sure to include the correct indentation for the content.
 Usage:
 <insert_content>
 <path>File path here</path>
@@ -28,7 +28,7 @@ Example: Insert a new function and its import statement
   },
   {
     "start_line": 10,
-    "content": "function calculateTotal(items: number[]): number {\n    return items.reduce((sum, item) => sum + item, 0);\n}"
+    "content": "function calculateTotal(items: number[]): number {\\n    return items.reduce((sum, item) => sum + item, 0);\\n}"
   }
 ]</operations>
 </insert_content>`

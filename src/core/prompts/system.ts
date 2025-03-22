@@ -22,6 +22,8 @@ import {
 	getCapabilitiesSection,
 	getModesSection,
 	addCustomInstructions,
+	getDebuggingSection,
+	getCommunicationSection,
 } from "./sections"
 
 interface PromptConfig {
@@ -43,6 +45,8 @@ interface PromptConfig {
 	experiments?: Record<string, boolean> // 实验设置，可能影响提示词的生成
 	enableToolUse?: boolean // 是否启用工具使用部分
 	enableToolGuidelines?: boolean // 是否启用工具使用指南部分
+	enableDebugging?: boolean // 是否启用调试指导部分，默认启用
+	enableCommunication?: boolean // 是否启用沟通风格指南，默认启用
 }
 
 // 接收两个参数，并调用提示词组装方法`generatePrompt`并把结果`sections`返回
@@ -62,6 +66,12 @@ async function generatePrompt(config: PromptConfig, mode: Mode): Promise<string>
 	// 语言
 	if (config.preferredLanguage) {
 		sections.push(`Language Preference:\nYou MUST ALWAYS respond ONLY in the ${config.preferredLanguage} language.`)
+	}
+
+	// 沟通风格指南 `src/core/prompts/sections/communication.ts`
+	if (config.enableCommunication !== false) {
+		// 默认启用
+		sections.push(getCommunicationSection())
 	}
 
 	// 定义了 AI 助手的工作目标和行为准则 `src/core/prompts/sections/objective.ts`
@@ -195,6 +205,12 @@ async function generatePrompt(config: PromptConfig, mode: Mode): Promise<string>
 				sections.push(customInstructions)
 			}
 		}
+	}
+
+	// 调试指导部分 `src/core/prompts/sections/debugging.ts`
+	if (config.enableDebugging !== false) {
+		// 默认启用
+		sections.push(getDebuggingSection())
 	}
 
 	return sections.join("\n\n")

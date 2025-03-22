@@ -1035,6 +1035,7 @@ export class CoolCline {
 						{
 							preferredLanguage,
 							cwd,
+							enableCommunication: true, // 是否启用沟通风格指南，默认启用
 						},
 						"ask",
 					)
@@ -1062,6 +1063,8 @@ export class CoolCline {
 							experiments,
 							enableToolUse: true, // 显式启用工具使用部分
 							enableToolGuidelines: true, // 显式启用工具使用指南部分
+							enableDebugging: true, // 是否启用调试指导部分，默认启用
+							enableCommunication: true, // 是否启用沟通风格指南，默认启用
 						},
 						"code",
 					)
@@ -1071,6 +1074,7 @@ export class CoolCline {
 						{
 							preferredLanguage,
 							cwd,
+							enableCommunication: true, // 是否启用沟通风格指南，默认启用
 						},
 						"architect",
 					)
@@ -1098,6 +1102,8 @@ export class CoolCline {
 							experiments,
 							enableToolUse: true, // 显式启用工具使用部分
 							enableToolGuidelines: true, // 显式启用工具使用指南部分
+							enableDebugging: true, // 是否启用调试指导部分，默认启用
+							enableCommunication: true, // 是否启用沟通风格指南，默认启用
 						},
 						"agent",
 					)
@@ -1125,6 +1131,8 @@ export class CoolCline {
 							experiments, // 实验设置，可能影响提示词的生成
 							enableToolUse: true, // 显式启用工具使用部分
 							enableToolGuidelines: true, // 显式启用工具使用指南部分
+							enableDebugging: true, // 是否启用调试指导部分，默认启用
+							enableCommunication: true, // 是否启用沟通风格指南，默认启用
 						},
 						mode,
 					)

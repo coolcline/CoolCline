@@ -76,6 +76,19 @@ function getEditingInstructions(diffStrategy?: DiffStrategy, experiments?: Recor
 		)
 	}
 
+	// Add detailed guidelines for editing large files
+	instructions.push(
+		"- When editing large files, follow these guidelines:\n" +
+			"  * Use `// ... existing code ...` comments to represent unchanged code sections\n" +
+			"  * Only show the parts of the file you're actually modifying\n" +
+			"  * Always include sufficient context around your changes (e.g., the containing function or class)\n" +
+			"  * Make each edit's location clear by including unique surrounding code\n" +
+			"  * When referencing code sections, use the format ```startLine:endLine:filepath for precise location\n" +
+			"  * When showing code edits, specify both the language and file path like ```language:path/to/file\n" +
+			"  * Only rewrite the entire file if specifically requested\n" +
+			"  * When you need to make multiple edits to different parts of a file, group them together in a single edit operation",
+	)
+
 	return instructions.join("\n")
 }
 
@@ -93,8 +106,8 @@ RULES
 - You cannot \`cd\` into a different directory to complete a task. You are stuck operating from '${cwd.toPosix()}', so be sure to pass in the correct 'path' parameter when using tools that require a path.
 - Do not use the ~ character or $HOME to refer to the home directory.
 - Before using the execute_command tool, you must first think about the SYSTEM INFORMATION context provided to understand the user's environment and tailor your commands to ensure they are compatible with their system. You must also consider if the command you need to run should be executed in a specific directory outside of the current working directory '${cwd.toPosix()}', and if so prepend with \`cd\`'ing into that directory && then executing the command (as one command since you are stuck operating from '${cwd.toPosix()}'). For example, if you needed to run \`npm install\` in a project outside of '${cwd.toPosix()}', you would need to prepend with a \`cd\` i.e. pseudocode for this would be \`cd (path to project) && (command, in this case npm install)\`.
-- When using the codebase_search tool, craft your queries to focus on functionality and purpose rather than specific text patterns. This tool excels at understanding code meaning and context, making it ideal for finding code that implements specific features or understanding how different parts of the code work together. Use natural language queries that describe what you're looking for, and the tool will return the most relevant code snippets. This should be your preferred tool when searching for code based on its functionality rather than exact text matches.
-- When using the search_files tool, craft your regex patterns carefully to balance specificity and flexibility. Based on the user's task you may use it to find code patterns, TODO comments, function definitions, or any text-based information across the project. The results include context, so analyze the surrounding code to better understand the matches. Leverage the search_files tool in combination with other tools for more comprehensive analysis. For example, use it to find specific code patterns, then use read_file to examine the full context of interesting matches before using write_to_file to make informed changes.
+- When using the codebase_search tool, craft your queries to focus on functionality and purpose rather than specific text patterns. Use natural language queries that describe what you're looking for. Always prioritize this tool over search_files (grep) when searching for code based on its functionality rather than exact text matches.
+- When using the search_files tool, craft your regex patterns carefully to balance specificity and flexibility. Use it for finding exact text patterns, function definitions, or specific code structures. Consider combining it with other tools like read_file to analyze search results in their full context.
 - When creating a new project (such as an app, website, or any software project), organize all new files within a dedicated project directory unless the user specifies otherwise. Use appropriate file paths when writing files, as the write_to_file tool will automatically create any necessary directories. Structure the project logically, adhering to best practices for the specific type of project being created. Unless otherwise specified, new projects should be easily run without additional setup, for example most projects can be built in HTML, CSS, and JavaScript - which you can open in a browser.
 ${getEditingInstructions(diffStrategy, experiments)}
 - Some modes have restrictions on which files they can edit. If you attempt to edit a restricted file, the operation will be rejected with a FileRestrictionError that will specify which file patterns are allowed for the current mode.

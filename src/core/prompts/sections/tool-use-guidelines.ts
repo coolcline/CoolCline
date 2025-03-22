@@ -58,20 +58,48 @@ By waiting for and carefully considering the user's response after each tool use
 
 TOOL USE GUIDELINES
 
-- When using the codebase_search tool, focus on describing the functionality or purpose you're looking for in natural language. This tool is particularly effective when you need to:
-  * Find code that implements specific features or functionality
-  * Understand how different parts of the code work together
-  * Discover code patterns or architectural decisions
-  * Answer questions about code behavior or implementation
-  * Locate relevant code without knowing exact file locations or text patterns
-  For example, instead of searching for specific function names, describe what the code should do, like "find code that handles user authentication" or "show me how the app processes payments".
+- When using the codebase_search tool, focus on describing the functionality or purpose you're looking for in natural language. This tool excels at semantic understanding of code rather than simple text matching.
 
-- When using the search_files tool, focus on finding specific text patterns or code structures. This tool is best for:
-  * Finding exact function or variable names
-  * Locating specific code patterns or syntax
-  * Searching for TODO comments or documentation
-  * Finding specific error messages or logging statements
-  * Discovering exact text matches across files
+  **Priority Use Cases**:
+  * When you need to understand how a feature is implemented but don't know the exact file location
+  * When you need to find code that handles specific business logic
+  * When you want to understand the overall architecture and relationships between components
+  * When you need to find all implementations of a certain functionality, not just exact text matches
+  * When traditional search tools (grep) return too many irrelevant results
+  * When searching for complex concepts or abstract functionality implementations
+
+  **Comparison with Other Search Tools**:
+  * Compared to search_files (grep): codebase_search understands code meaning, not just text matching
+  * Compared to list_files: codebase_search searches code content, not just file structure
+  * Compared to read_file: codebase_search can locate relevant code snippets, not entire files
+  * Compared to list_code_definition_names: codebase_search finds actual implementations, not just definition names
+
+  **Example Queries**:
+  * "Find code that handles user authentication" 
+  * "Show me how the app processes payments"
+  * "Where is the error handling implemented for API requests?"
+  * "How are database connections managed in this codebase?"
+
+- When using the search_files tool, focus on finding specific text patterns or code structures using regex patterns.
+
+  **Priority Use Cases**:
+  * When you know the exact text or regex pattern to search for
+  * When you need to find all references to a specific variable or function name
+  * When you need exact text matches rather than semantic relevance
+  * When looking for specific content in code comments or documentation
+  * When searching for TODO comments, error messages, or logging statements
+  * When searching for simple text patterns is more important than understanding code meaning
+  
+  **Comparison with Other Search Tools**:
+  * Compared to codebase_search: search_files is better for exact text matching, while codebase_search is better for semantic search
+  * Decision guide: Use search_files if you can describe your search target with exact text or regex; use codebase_search if you're describing functionality or abstract concepts
+  * Combined usage: You can first use codebase_search to find relevant functional areas, then use search_files for precise searching within those areas
+
+  **Example Patterns**:
+  * 'function\\s+login' - to find login function definitions
+  * 'TODO|FIXME' - to find all TODO and FIXME comments
+  * 'console\\.log\\(' - to find console logging statements
+  * 'import.*from\\s+[\'"]react[\'"]]' - to find React imports
 
 - When using the list_code_definition_names tool, focus on understanding the high-level structure of the codebase. This tool is ideal for:
   * Getting an overview of available functions and classes
