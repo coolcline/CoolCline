@@ -385,10 +385,11 @@ export class Database {
 	}
 
 	/**
-	 * 检查是否在事务中
+	 * 检查是否在事务中（内部实现）
 	 * @returns 是否在事务中
+	 * @private
 	 */
-	private async isInTransaction(): Promise<boolean> {
+	private async _isInTransaction(): Promise<boolean> {
 		try {
 			// SQL.js 的 transaction_active 可能不起作用，使用额外检查
 			const result = await this.get("PRAGMA transaction_active")
@@ -419,6 +420,16 @@ export class Database {
 			console.error("检查事务状态错误:", err)
 			return false
 		}
+	}
+
+	/**
+	 * 检查是否在事务中
+	 * @returns 是否在事务中
+	 * @public
+	 */
+	public async isInTransaction(): Promise<boolean> {
+		await this.ensureInitialized()
+		return this._isInTransaction()
 	}
 
 	/**

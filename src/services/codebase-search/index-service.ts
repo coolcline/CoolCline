@@ -26,6 +26,36 @@ export class CodebaseIndexService {
 	private debounceTimer: NodeJS.Timeout | null = null
 
 	/**
+	 * 事务管理包装器 - 在事务中执行操作
+	 * @param operation 需要在事务中执行的操作函数
+	 * @returns 操作函数的返回值
+	 * @private
+	 */
+	private async executeInTransaction<T>(operation: () => Promise<T>): Promise<T> {
+		// 确保数据库已初始化
+		await this.initDatabase()
+
+		// 检查是否已在事务中
+		const inTransaction = await this.db!.isInTransaction()
+
+		if (inTransaction) {
+			// 已在事务中，直接执行操作
+			return await operation()
+		}
+
+		// 开始新事务
+		await this.db!.beginTransaction()
+		try {
+			const result = await operation()
+			await this.db!.commit()
+			return result
+		} catch (error) {
+			await this.db!.rollback()
+			throw error
+		}
+	}
+
+	/**
 	 * 构造函数
 	 * @param workspacePath 工作区路径
 	 */
@@ -151,16 +181,7 @@ export class CodebaseIndexService {
 
 			// 删除不再存在的文件
 			if (filesToRemove.length > 0) {
-				await this.db!.beginTransaction()
-				try {
-					for (const filePath of filesToRemove) {
-						await this.removeFileFromIndex(filePath)
-					}
-					await this.db!.commit()
-				} catch (error) {
-					await this.db!.rollback()
-					throw error
-				}
+				await this.removeFilesFromIndex(filesToRemove)
 			}
 
 			// 更新或添加修改过的文件
@@ -203,27 +224,20 @@ export class CodebaseIndexService {
 		try {
 			if (this.db) {
 				// 使用事务保证原子性
-				await this.db.beginTransaction()
-				try {
+				await this.executeInTransaction(async () => {
 					// 清除所有关联表数据，顺序很重要（先清除依赖表）
-					await this.db.exec("DELETE FROM symbol_relations")
-					await this.db.exec("DELETE FROM keywords")
-					await this.db.exec("DELETE FROM symbol_contents")
-					await this.db.exec("DELETE FROM symbols")
-					await this.db.exec("DELETE FROM files")
+					await this.db!.exec("DELETE FROM symbol_relations")
+					await this.db!.exec("DELETE FROM keywords")
+					await this.db!.exec("DELETE FROM symbol_contents")
+					await this.db!.exec("DELETE FROM symbols")
+					await this.db!.exec("DELETE FROM files")
 
 					// 保留工作区元数据表，但更新最后重置时间
-					await this.db.run(
+					await this.db!.run(
 						"INSERT OR REPLACE INTO workspace_meta (key, value, updated_at) VALUES (?, ?, ?)",
 						["last_reset", Date.now().toString(), Date.now()],
 					)
-
-					await this.db.commit()
-				} catch (error) {
-					// 如果出错，回滚事务
-					await this.db.rollback()
-					throw error
-				}
+				})
 			}
 		} catch (error) {
 			console.error("清除索引数据失败:", error)
@@ -292,8 +306,7 @@ export class CodebaseIndexService {
 					const { symbols, relations } = await this.semanticAnalyzer.analyzeFile(filePath)
 
 					// 在事务中保存符号和关系，确保原子性
-					await this.db!.beginTransaction()
-					try {
+					await this.executeInTransaction(async () => {
 						// 先删除该文件的旧符号相关数据
 						await this.db!.run(
 							"DELETE FROM symbol_relations WHERE source_id IN (SELECT id FROM symbols WHERE file_id = ?)",
@@ -362,12 +375,7 @@ export class CodebaseIndexService {
 								)
 							}
 						}
-
-						await this.db!.commit()
-					} catch (error) {
-						await this.db!.rollback()
-						throw error
-					}
+					})
 				} catch (dbError) {
 					console.error(`数据库操作失败: ${normalizedPath}`, dbError)
 				}
@@ -396,10 +404,11 @@ export class CodebaseIndexService {
 	}
 
 	/**
-	 * 从索引中移除文件
+	 * 从索引中删除文件
 	 * @param filePath 文件路径
+	 * @param inTransaction 是否在外部事务中执行
 	 */
-	public async removeFileFromIndex(filePath: string): Promise<void> {
+	public async removeFileFromIndex(filePath: string, inTransaction: boolean = false): Promise<void> {
 		try {
 			// 确保数据库已初始化
 			await this.initDatabase()
@@ -410,9 +419,7 @@ export class CodebaseIndexService {
 			const fileRecord = await this.db!.get("SELECT id FROM files WHERE path = ?", [normalizedPath])
 
 			if (fileRecord && fileRecord.id) {
-				// 使用事务确保原子性
-				await this.db!.beginTransaction()
-				try {
+				const deleteOperation = async () => {
 					// 删除与该文件相关的符号关系
 					await this.db!.run(
 						"DELETE FROM symbol_relations WHERE source_id IN (SELECT id FROM symbols WHERE file_id = ?)",
@@ -436,16 +443,36 @@ export class CodebaseIndexService {
 
 					// 删除文件记录
 					await this.db!.run("DELETE FROM files WHERE id = ?", [fileRecord.id])
+				}
 
-					await this.db!.commit()
-				} catch (error) {
-					await this.db!.rollback()
-					throw error
+				if (inTransaction) {
+					// 已在事务中，直接执行
+					await deleteOperation()
+				} else {
+					// 需要自己管理事务
+					await this.executeInTransaction(deleteOperation)
 				}
 			}
 		} catch (error) {
 			console.error(`Failed to remove file from index: ${filePath}`, error)
+			throw error
 		}
+	}
+
+	/**
+	 * 从索引中批量删除文件
+	 * @param filePaths 文件路径数组
+	 */
+	public async removeFilesFromIndex(filePaths: string[]): Promise<void> {
+		if (filePaths.length === 0) {
+			return
+		}
+
+		await this.executeInTransaction(async () => {
+			for (const filePath of filePaths) {
+				await this.removeFileFromIndex(filePath, true)
+			}
+		})
 	}
 
 	/**
@@ -510,21 +537,36 @@ export class CodebaseIndexService {
 	 * @private
 	 */
 	private async processQueue(): Promise<void> {
-		if (this.indexQueue.length === 0) {
+		// 如果队列为空或已停止索引，则退出
+		if (this.indexQueue.length === 0 || !this.isIndexing) {
 			this._progress.status = "completed"
 			this.isIndexing = false
 			return
 		}
 
+		// 取出一批任务
 		const batch = this.indexQueue.splice(0, this.batchSize)
+		this._progress.status = "indexing"
 
-		// 并行处理批次文件
-		await Promise.all(batch.map((task) => this.indexFile(task.filePath)))
+		try {
+			// 处理批次，使用事务包装器
+			await this.executeInTransaction(async () => {
+				for (const task of batch) {
+					await this.indexFile(task.filePath)
+					this._progress.completed++
+				}
+			})
 
-		this._progress.completed += batch.length
+			// 添加延迟以避免阻塞主线程
+			await new Promise((resolve) => setTimeout(resolve, this.processingDelay))
 
-		// 添加延迟以减少资源占用
-		setTimeout(() => this.processQueue(), this.processingDelay)
+			// 继续处理下一批
+			setTimeout(() => this.processQueue(), 0)
+		} catch (error) {
+			console.error("索引过程错误:", error)
+			this._progress.status = "error"
+			this.isIndexing = false
+		}
 	}
 
 	/**
