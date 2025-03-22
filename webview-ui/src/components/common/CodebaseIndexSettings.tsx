@@ -11,6 +11,7 @@ import { ConfirmDialog } from "../ui"
 interface IndexStats {
 	filesCount: number
 	symbolsCount: number
+	keywordsCount: number
 	lastIndexed: string | null
 	status: string
 }
@@ -21,7 +22,7 @@ interface IndexStats {
 interface IndexProgress {
 	completed: number
 	total: number
-	percent: number
+	status: string
 }
 
 /**
@@ -42,19 +43,19 @@ const CodebaseIndexSettings = () => {
 		setCodebaseIndexIncludeTests,
 	} = useExtensionState()
 
-	// 索引状态
+	// 初始状态
 	const [indexStats, setIndexStats] = useState<IndexStats>({
 		filesCount: 0,
 		symbolsCount: 0,
+		keywordsCount: 0,
 		lastIndexed: null,
 		status: "idle",
 	})
 
-	// 索引进度
 	const [indexProgress, setIndexProgress] = useState<IndexProgress>({
 		completed: 0,
 		total: 0,
-		percent: 0,
+		status: "idle",
 	})
 
 	// 确认对话框状态
@@ -68,31 +69,54 @@ const CodebaseIndexSettings = () => {
 		})
 	}, [])
 
-	// 监听来自扩展的消息
+	// 处理后端消息
 	useEffect(() => {
 		const handleMessage = (event: MessageEvent) => {
 			const message = event.data
+
+			// 处理索引状态更新消息
 			if (message.type === "codebaseIndexStats") {
-				setIndexStats({
-					filesCount: message.stats.filesCount || 0,
-					symbolsCount: message.stats.symbolsCount || 0,
-					lastIndexed: message.stats.lastIndexed
-						? new Date(message.stats.lastIndexed).toLocaleString()
-						: null,
-					status: message.stats.status || "idle",
-				})
+				if (message.stats) {
+					setIndexStats({
+						filesCount: message.stats.filesCount,
+						symbolsCount: message.stats.symbolsCount,
+						keywordsCount: message.stats.keywordsCount,
+						lastIndexed: message.stats.lastIndexed
+							? new Date(message.stats.lastIndexed).toLocaleString()
+							: null,
+						status: message.stats.status,
+					})
+				}
 
 				if (message.progress) {
-					const percent =
-						message.progress.total > 0
-							? Math.floor((message.progress.completed / message.progress.total) * 100)
-							: 0
-
 					setIndexProgress({
-						completed: message.progress.completed || 0,
-						total: message.progress.total || 0,
-						percent: percent,
+						total: message.progress.total,
+						completed: message.progress.completed,
+						status: message.progress.status,
 					})
+				}
+
+				if (message.error) {
+					console.error("索引错误:", message.error)
+					console.error(`索引错误: ${message.error}`)
+				}
+			}
+
+			// 处理扩展状态更新
+			if (message.type === "extensionState") {
+				if (message.state) {
+					if (message.state.codebaseIndexEnabled !== undefined) {
+						setCodebaseIndexEnabled(message.state.codebaseIndexEnabled)
+					}
+					if (message.state.codebaseIndexAutoStart !== undefined) {
+						setCodebaseIndexAutoStart(message.state.codebaseIndexAutoStart)
+					}
+					if (message.state.codebaseIndexExcludePaths !== undefined) {
+						setCodebaseIndexExcludePaths(message.state.codebaseIndexExcludePaths)
+					}
+					if (message.state.codebaseIndexIncludeTests !== undefined) {
+						setCodebaseIndexIncludeTests(message.state.codebaseIndexIncludeTests)
+					}
 				}
 			}
 		}
@@ -105,9 +129,17 @@ const CodebaseIndexSettings = () => {
 		// 定期获取索引状态更新
 		const intervalId = setInterval(fetchIndexStatus, 2000)
 
+		// 当索引状态为"indexing"时，使用更短的间隔获取进度
+		const fastUpdateIntervalId = setInterval(() => {
+			if (indexProgress.status === "indexing" || indexProgress.status === "scanning") {
+				fetchIndexStatus()
+			}
+		}, 500)
+
 		return () => {
 			window.removeEventListener("message", handleMessage)
 			clearInterval(intervalId)
+			clearInterval(fastUpdateIntervalId)
 		}
 	}, [fetchIndexStatus])
 
@@ -147,6 +179,14 @@ const CodebaseIndexSettings = () => {
 			action: "clearIndex",
 		})
 		setConfirmDialogOpen(false)
+
+		// 清除索引后立即更新进度条状态为空闲
+		setIndexProgress({
+			...indexProgress,
+			status: "idle",
+			completed: 0,
+			total: 0,
+		})
 	}
 
 	// 切换启用状态
@@ -280,51 +320,91 @@ const CodebaseIndexSettings = () => {
 							</div>
 						</div>
 
-						{/* 进度条 */}
-						{indexStats.status === "indexing" && (
-							<div style={{ marginTop: 15 }}>
-								<div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-									<span>{t("settings.codebaseIndex.status.progress").toString() || "进度"}</span>
-									<span>
-										{indexProgress.percent}% ({indexProgress.completed}/{indexProgress.total})
-									</span>
-								</div>
-								<div
-									style={{
-										height: 4,
-										backgroundColor: "var(--vscode-progressBar-background)",
-										borderRadius: 2,
-										marginTop: 5,
-										overflow: "hidden",
-									}}>
-									<div
-										style={{
-											height: "100%",
-											width: `${indexProgress.percent}%`,
-											backgroundColor: "var(--vscode-button-background)",
-											transition: "width 0.3s ease",
-										}}></div>
-								</div>
+						{/* 进度条 - 移除条件显示逻辑，始终显示进度条 */}
+						<div style={{ margin: "10px 0" }}>
+							<div
+								style={{
+									display: "flex",
+									justifyContent: "space-between",
+									fontSize: 13,
+									marginBottom: 5,
+								}}>
+								<span>{t("settings.codebaseIndex.status.progress").toString() || "进度"}</span>
+								<span>
+									{indexProgress.status === "scanning"
+										? t("settings.codebaseIndex.status.scanning").toString() || "正在扫描..."
+										: indexProgress.status === "indexing"
+											? indexProgress.total > 0
+												? `${Math.floor((indexProgress.completed / indexProgress.total) * 100)}% (${indexProgress.completed}/${indexProgress.total})`
+												: t("settings.codebaseIndex.status.indexing").toString() ||
+													"正在索引..."
+											: indexProgress.status === "error"
+												? t("settings.codebaseIndex.status.error").toString() || "索引错误"
+												: indexProgress.status === "completed"
+													? "100% - " +
+														(t("settings.codebaseIndex.status.completed").toString() ||
+															"索引完成")
+													: t("settings.codebaseIndex.status.idle").toString() || "空闲"}
+								</span>
 							</div>
-						)}
+							<div
+								style={{
+									width: "100%",
+									height: 8,
+									backgroundColor: "var(--vscode-list-hoverBackground)",
+									borderRadius: 4,
+									overflow: "hidden",
+								}}>
+								{(() => {
+									// 计算进度条宽度
+									let width = "0%"
+									let color = "var(--vscode-button-background)" // 默认蓝色
+
+									if (indexProgress.status === "completed") {
+										width = "100%"
+										color = "var(--vscode-testing-iconPassed)" // 绿色
+									} else if (indexProgress.status === "indexing" && indexProgress.total > 0) {
+										const percentage = Math.floor(
+											(indexProgress.completed / indexProgress.total) * 100,
+										)
+										width = `${percentage}%`
+									} else if (indexProgress.status === "scanning") {
+										width = "5%" // 扫描中时显示一点进度
+									} else if (indexProgress.status === "error") {
+										width = "100%"
+										color = "var(--vscode-inputValidation-errorBorder)" // 错误时为红色
+									}
+
+									return (
+										<div
+											style={{
+												height: "100%",
+												width: width,
+												backgroundColor: color,
+												transition: "width 0.3s ease",
+											}}></div>
+									)
+								})()}
+							</div>
+						</div>
 
 						{/* 操作按钮 */}
-						<div style={{ display: "flex", gap: 8, marginTop: 15 }}>
+						<div style={{ display: "flex", gap: 10, marginTop: 15 }}>
 							{/* <VSCodeButton
-								appearance="primary"
-								onClick={handleStartIndex}
-								disabled={indexStats.status === "indexing" || indexStats.status === "scanning"}>
-								{t("settings.codebaseIndex.actions.start").toString() || "开始索引"}
+								disabled={indexProgress.status === "indexing" || indexProgress.status === "scanning"}
+								onClick={handleStartIndex}>
+								{indexProgress.status === "indexing" || indexProgress.status === "scanning"
+									? t("settings.codebaseIndex.status.indexing").toString() || "正在索引..."
+									: t("settings.codebaseIndex.actions.start").toString() || "开始索引"}
 							</VSCodeButton> */}
-
 							<VSCodeButton
 								className={`codicon codicon-inspect`}
 								style={{ display: "flex", alignItems: "center", padding: "0 8px" }}
+								// disabled={indexProgress.status === "indexing" || indexProgress.status === "scanning"}
 								onClick={handleRefreshIndex}
 								disabled={indexStats.status === "indexing" || indexStats.status === "scanning"}>
 								{t("settings.codebaseIndex.actions.refresh").toString() || "刷新索引"}
 							</VSCodeButton>
-
 							<VSCodeButton
 								className={`codicon codicon-trash`} // 使用正确的垃圾桶图标类名
 								style={{ display: "flex", alignItems: "center", padding: "0 8px" }}

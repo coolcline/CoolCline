@@ -7,7 +7,8 @@ import { CodebaseSearchService, createSearchService } from "./search-service"
 import { SemanticAnalysisService, createSemanticAnalysisService } from "./semantic-analysis"
 import { CodebaseSearchOptions, IndexOptions, IndexProgress, IndexStats, SearchResult } from "./types"
 import { toPosixPath, toRelativePath } from "../../utils/path"
-import delay from "delay"
+import { CodeSymbol, RelationType, ResultType, WorkspaceSearchResult } from "./types"
+import { IndexStatus } from "./index-service"
 
 /**
  * 代码库搜索管理器
@@ -17,6 +18,7 @@ export class CodebaseSearchManager {
 	private indexServices: Map<string, CodebaseIndexService> = new Map()
 	private searchServices: Map<string, CodebaseSearchService> = new Map()
 	private semanticServices: Map<string, SemanticAnalysisService> = new Map()
+	private currentWorkspacePath: string = ""
 
 	/**
 	 * 获取管理器单例
@@ -41,6 +43,7 @@ export class CodebaseSearchManager {
 
 			// 规范化工作区路径
 			workspacePath = toPosixPath(workspacePath)
+			this.currentWorkspacePath = workspacePath
 
 			// 创建索引服务
 			const indexService = createIndexService(workspacePath)
@@ -63,12 +66,11 @@ export class CodebaseSearchManager {
 	 * 获取指定工作区的索引服务
 	 * @param workspacePath 工作区路径
 	 */
-	public getIndexService(workspacePath: string): CodebaseIndexService {
-		const indexService = this.indexServices.get(workspacePath)
-		if (!indexService) {
-			throw new Error(`索引服务未找到，工作区: ${workspacePath}`)
+	public getIndexService(workspacePath: string): CodebaseIndexService | undefined {
+		if (!workspacePath) {
+			workspacePath = this.currentWorkspacePath
 		}
-		return indexService
+		return this.indexServices.get(workspacePath)
 	}
 
 	/**
@@ -118,7 +120,15 @@ export class CodebaseSearchManager {
 		try {
 			const workspacePath = this.getCurrentWorkspacePath()
 			const indexService = this.getIndexService(workspacePath)
-			return await indexService.getIndexStats()
+			return (
+				(await indexService?.getIndexStats()) || {
+					filesCount: 0,
+					symbolsCount: 0,
+					keywordsCount: 0,
+					lastIndexed: null,
+					status: "error",
+				}
+			)
 		} catch (error) {
 			console.error("获取索引状态失败:", error)
 			return {
@@ -138,7 +148,7 @@ export class CodebaseSearchManager {
 		try {
 			const workspacePath = this.getCurrentWorkspacePath()
 			const indexService = this.getIndexService(workspacePath)
-			return indexService.progress
+			return indexService?.progress || { total: 0, completed: 0, status: "error" }
 		} catch (error) {
 			console.error("获取索引进度失败:", error)
 			return { total: 0, completed: 0, status: "error" }
@@ -153,7 +163,7 @@ export class CodebaseSearchManager {
 		try {
 			const workspacePath = this.getCurrentWorkspacePath()
 			const indexService = this.getIndexService(workspacePath)
-			await indexService.startIndexing(options)
+			await indexService?.startIndexing(options)
 		} catch (error) {
 			console.error("开始索引失败:", error)
 			throw new Error(`开始索引失败: ${error.message}`)
@@ -168,7 +178,7 @@ export class CodebaseSearchManager {
 		try {
 			const workspacePath = this.getCurrentWorkspacePath()
 			const indexService = this.getIndexService(workspacePath)
-			await indexService.refreshIndex(options)
+			await indexService?.refreshIndex(options)
 		} catch (error) {
 			console.error("刷新索引失败:", error)
 			throw new Error(`刷新索引失败: ${error.message}`)
@@ -182,7 +192,7 @@ export class CodebaseSearchManager {
 		try {
 			const workspacePath = this.getCurrentWorkspacePath()
 			const indexService = this.getIndexService(workspacePath)
-			await indexService.clearIndex()
+			await indexService?.clearIndex()
 		} catch (error) {
 			console.error("清除索引失败:", error)
 			throw new Error(`清除索引失败: ${error.message}`)
@@ -200,6 +210,19 @@ export class CodebaseSearchManager {
 			throw new Error("没有打开的工作区")
 		}
 		return toPosixPath(workspaceFolders[0].uri.fsPath)
+	}
+
+	/**
+	 * 订阅索引状态变更事件
+	 * @param listener 监听器函数
+	 * @returns 可释放的事件订阅
+	 */
+	public onIndexStatusChange(listener: (status: IndexStatus) => void): vscode.Disposable {
+		const service = this.getIndexService(this.currentWorkspacePath)
+		if (!service) {
+			return { dispose: () => {} }
+		}
+		return service.onIndexStatusChange(listener)
 	}
 }
 
@@ -418,43 +441,120 @@ export async function handleCodebaseSearchWebviewMessage(webview: vscode.Webview
 				break
 
 			case "refreshIndex":
-				// 刷新索引
-				const refreshOptions: IndexOptions = {}
+				try {
+					// 解析前端发送的设置
+					const refreshOptions: IndexOptions = {}
 
-				// 如果提供了设置，使用它们
-				if (message.settings) {
-					if (message.settings.excludePaths) {
-						refreshOptions.excludePaths = message.settings.excludePaths
-							.split(",")
-							.map((path: string) => path.trim())
-							.filter(Boolean)
+					// 如果提供了设置，使用它们
+					if (message.settings) {
+						if (message.settings.excludePaths) {
+							refreshOptions.excludePaths = message.settings.excludePaths
+								.split(",")
+								.map((path: string) => path.trim())
+								.filter(Boolean)
+						}
+
+						if (message.settings.includeTests !== undefined) {
+							refreshOptions.includeTests = message.settings.includeTests
+						}
 					}
 
-					if (message.settings.includeTests !== undefined) {
-						refreshOptions.includeTests = message.settings.includeTests
-					}
+					// 开始刷新索引
+					await manager.refreshIndex(refreshOptions)
+
+					// 获取最新的索引统计数据
+					const stats = await manager.getIndexStatus()
+
+					// 向 WebView 发送最初的响应
+					webview.postMessage({
+						type: "codebaseIndexStats",
+						stats,
+						progress: manager.getIndexProgress(),
+					})
+
+					// 添加索引状态变更监听器
+					const disposable = manager.onIndexStatusChange((status) => {
+						// 向 WebView 发送进度更新（保持之前的消息格式）
+						webview.postMessage({
+							type: "codebaseIndexStats",
+							stats: status.stats,
+							progress: status.progress,
+						})
+
+						// 如果索引已完成或出错，移除监听器
+						if (status.progress.status === "completed" || status.progress.status === "error") {
+							disposable.dispose()
+						}
+					})
+				} catch (error) {
+					console.error("刷新索引失败:", error)
+					// 向 WebView 发送错误响应
+					webview.postMessage({
+						type: "codebaseIndexStats",
+						error: String(error),
+						stats: {
+							filesCount: 0,
+							symbolsCount: 0,
+							keywordsCount: 0,
+							lastIndexed: null,
+							status: "error",
+						},
+						progress: { total: 0, completed: 0, status: "error" },
+					})
 				}
-
-				await manager.refreshIndex(refreshOptions)
-
-				// 发送更新的状态和进度
-				webview.postMessage({
-					type: "codebaseIndexStats",
-					stats: await manager.getIndexStatus(),
-					progress: manager.getIndexProgress(),
-				})
 				break
 
 			case "clearIndex":
-				// 清除索引
-				await manager.clearIndex()
+				try {
+					// 清除索引
+					await manager.clearIndex()
 
-				// 发送更新的状态和进度
-				webview.postMessage({
-					type: "codebaseIndexStats",
-					stats: await manager.getIndexStatus(),
-					progress: manager.getIndexProgress(),
-				})
+					// 获取最新状态
+					const stats = await manager.getIndexStatus()
+					const progress = manager.getIndexProgress()
+
+					// 发送更新的状态和进度
+					webview.postMessage({
+						type: "codebaseIndexStats",
+						stats,
+						progress: {
+							...progress,
+							status: "idle", // 确保状态为idle
+							completed: 0,
+							total: 0,
+						},
+					})
+
+					// 添加索引状态变更监听器
+					const disposable = manager.onIndexStatusChange((status) => {
+						// 向 WebView 发送进度更新
+						webview.postMessage({
+							type: "codebaseIndexStats",
+							stats: status.stats,
+							progress: status.progress,
+						})
+
+						// 如果索引已完成或出错，移除监听器
+						if (status.progress.status === "completed" || status.progress.status === "error") {
+							disposable.dispose()
+						}
+					})
+				} catch (error) {
+					console.error("清除索引失败:", error)
+					// 向 WebView 发送错误响应
+					webview.postMessage({
+						type: "codebaseIndexStats",
+						error: String(error),
+						stats: {
+							filesCount: 0,
+							symbolsCount: 0,
+							keywordsCount: 0,
+							lastIndexed: null,
+							status: "error",
+						},
+						progress: { total: 0, completed: 0, status: "error" },
+					})
+				}
 				break
 
 			case "updateSettings":

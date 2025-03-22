@@ -5,12 +5,16 @@ import * as fs from "fs"
 import * as vscode from "vscode"
 import { CodebaseSearchOptions, ParsedQuery, ResultType, SearchResult } from "./types"
 import { toPosixPath, arePathsEqual, join, isAbsolute } from "../../utils/path"
+import { createDatabase, Database } from "./database"
+import { createSemanticAnalysisService, SemanticAnalysisService } from "./semantic-analysis"
 
 /**
  * 代码库搜索服务类
  */
 export class CodebaseSearchService {
 	private workspacePath: string
+	private db: Database | null = null
+	private semanticAnalyzer: SemanticAnalysisService | null = null
 
 	/**
 	 * 构造函数
@@ -78,42 +82,170 @@ export class CodebaseSearchService {
 	 * @private
 	 */
 	private parseQuery(query: string): ParsedQuery {
-		// 简单实现，后续可以增加NLP分析提高准确性
-		const keywords = query
-			.toLowerCase()
-			.split(/\s+/)
-			.filter((word) => word.length > 2)
-			.filter((word) => !["the", "and", "for", "this", "that"].includes(word))
+		// 常见停用词
+		const stopWords = [
+			"the",
+			"and",
+			"a",
+			"an",
+			"of",
+			"to",
+			"in",
+			"for",
+			"with",
+			"by",
+			"at",
+			"this",
+			"that",
+			"on",
+			"are",
+			"be",
+			"is",
+			"as",
+			"or",
+			"it",
+			"can",
+			"will",
+			"would",
+			"should",
+			"could",
+			"i",
+			"me",
+			"find",
+			"search",
+			"show",
+			"get",
+			"give",
+			"where",
+			"how",
+			"what",
+			"which",
+			"when",
+			"who",
+		]
 
-		// 尝试识别意图和结果类型
+		// 编程概念词典 - 用于识别意图和结果类型
+		const conceptMapping: Record<string, { type: ResultType; synonyms: string[] }> = {
+			function: {
+				type: ResultType.Function,
+				synonyms: ["method", "procedure", "routine", "subroutine", "callable", "func"],
+			},
+			class: {
+				type: ResultType.Class,
+				synonyms: ["struct", "component", "module", "object", "blueprint", "type"],
+			},
+			interface: {
+				type: ResultType.Interface,
+				synonyms: ["protocol", "contract", "signature", "abstract"],
+			},
+			variable: {
+				type: ResultType.Variable,
+				synonyms: ["var", "field", "property", "attribute", "const", "let", "param", "parameter", "argument"],
+			},
+			import: {
+				type: ResultType.Import,
+				synonyms: ["require", "include", "use", "using", "imports", "dependency"],
+			},
+		}
+
+		// 标准化查询字符串
+		const normalizedQuery = query.toLowerCase().trim()
+
+		// 分词
+		const rawTokens = normalizedQuery.split(/\s+|[.,;:?!]/)
+
+		// 移除停用词并去重
+		const tokens = Array.from(new Set(rawTokens.filter((word) => word.length > 1 && !stopWords.includes(word))))
+
+		// 意图识别
 		let intent = "search"
-		const resultTypes: ResultType[] = []
-
-		if (query.match(/find|search|where|how|what/i)) {
-			intent = "search"
-		} else if (query.match(/implement|extends|inherit/i)) {
+		if (normalizedQuery.match(/implement|extends|inherit|derived|subclass/i)) {
 			intent = "implementation"
-			resultTypes.push(ResultType.Class)
+		} else if (normalizedQuery.match(/call|invoke|use/i)) {
+			intent = "reference"
+		} else if (normalizedQuery.match(/define|declaration|create/i)) {
+			intent = "declaration"
 		}
 
-		if (query.match(/function|method|procedure/i)) {
-			resultTypes.push(ResultType.Function)
+		// 识别符号 - 检查引号内的内容作为精确符号匹配
+		const symbols: string[] = []
+		const symbolMatches = normalizedQuery.match(/'([^']+)'|"([^"]+)"|`([^`]+)`/g)
+		if (symbolMatches) {
+			symbolMatches.forEach((match) => {
+				// 去除引号
+				const symbol = match.replace(/^['"`]|['"`]$/g, "")
+				symbols.push(symbol)
+			})
 		}
-		if (query.match(/class|interface|type|struct/i)) {
-			resultTypes.push(ResultType.Class)
-			resultTypes.push(ResultType.Interface)
+
+		// 识别结果类型
+		const resultTypes: ResultType[] = []
+		const allConceptTerms = Object.keys(conceptMapping).concat(
+			...Object.values(conceptMapping).map((item) => item.synonyms),
+		)
+
+		// 检查每个词是否匹配概念词典
+		for (const token of tokens) {
+			// 检查完全匹配
+			for (const [concept, data] of Object.entries(conceptMapping)) {
+				if (token === concept || data.synonyms.includes(token)) {
+					resultTypes.push(data.type)
+					break
+				}
+			}
+
+			// 检查包含匹配
+			if (resultTypes.length === 0) {
+				for (const [concept, data] of Object.entries(conceptMapping)) {
+					// 例如，"functions"会匹配"function"
+					if (token.includes(concept) || data.synonyms.some((syn) => token.includes(syn))) {
+						resultTypes.push(data.type)
+						break
+					}
+				}
+			}
 		}
-		if (query.match(/variable|var|const|let|field|property/i)) {
-			resultTypes.push(ResultType.Variable)
+
+		// 提取关键词 - 移除已识别为意图或类型的词
+		const keywords = tokens.filter(
+			(token) =>
+				!allConceptTerms.includes(token) &&
+				!["implementation", "reference", "declaration", "search"].includes(token),
+		)
+
+		// 处理同义词扩展（简单实现）
+		const expandedKeywords = new Set<string>(keywords)
+
+		// 常见编程同义词
+		const synonymMap: Record<string, string[]> = {
+			create: ["new", "init", "instantiate", "make"],
+			delete: ["remove", "destroy", "erase"],
+			update: ["modify", "change", "edit"],
+			list: ["array", "collection", "iterable"],
+			user: ["account", "profile"],
+			authentication: ["auth", "login", "signin"],
+			database: ["db", "storage", "persistence"],
+			// 可以根据需要添加更多
 		}
+
+		// 添加同义词到扩展关键词中
+		keywords.forEach((word) => {
+			for (const [key, synonyms] of Object.entries(synonymMap)) {
+				if (word === key || synonyms.includes(word)) {
+					// 添加原词及其所有同义词
+					expandedKeywords.add(key)
+					synonyms.forEach((syn) => expandedKeywords.add(syn))
+				}
+			}
+		})
 
 		return {
 			originalQuery: query,
 			intent,
-			symbols: [], // 暂时为空，未来可以识别具体符号
+			symbols,
 			resultTypes:
 				resultTypes.length > 0 ? resultTypes : [ResultType.Function, ResultType.Class, ResultType.Variable],
-			keywords,
+			keywords: Array.from(expandedKeywords),
 		}
 	}
 
@@ -144,36 +276,106 @@ export class CodebaseSearchService {
 	 * @private
 	 */
 	private async executeSearch(parsedQuery: ParsedQuery, options?: CodebaseSearchOptions): Promise<SearchResult[]> {
-		// TODO: 实现真正的搜索逻辑，连接数据库查询或使用语义分析
+		// 确保依赖服务
+		if (!this.db) {
+			this.db = await createDatabase(this.workspacePath)
+		}
 
-		// 临时模拟结果
-		const mockResults: SearchResult[] = [
-			{
-				file: toPosixPath(join(this.workspacePath, "src/services/codebase-search/search-service.ts")),
-				line: 30,
-				column: 2,
-				context:
-					"public async search(query: string, options?: CodebaseSearchOptions): Promise<SearchResult[]> {",
-				relevance: 0.95,
-				type: ResultType.Function,
-				symbol: "search",
-				signature: "search(query: string, options?: CodebaseSearchOptions): Promise<SearchResult[]>",
-				language: "typescript",
-			},
-			{
-				file: toPosixPath(join(this.workspacePath, "src/services/codebase-search/index-service.ts")),
-				line: 36,
-				column: 2,
-				context: "public async startIndexing(options?: IndexOptions): Promise<void> {",
-				relevance: 0.75,
-				type: ResultType.Function,
-				symbol: "startIndexing",
-				signature: "startIndexing(options?: IndexOptions): Promise<void>",
-				language: "typescript",
-			},
-		]
+		if (!this.semanticAnalyzer) {
+			this.semanticAnalyzer = createSemanticAnalysisService(this.workspacePath)
+		}
 
-		return mockResults
+		// 构建SQL查询
+		const { resultTypes, keywords } = parsedQuery
+		const limit = options?.maxResults || 100
+
+		// 检查结果类型过滤
+		let typeCondition = ""
+		const typeParams: string[] = []
+		if (resultTypes && resultTypes.length > 0) {
+			typeCondition = "AND s.type IN (" + resultTypes.map(() => "?").join(",") + ")"
+			typeParams.push(...resultTypes)
+		}
+
+		// 检查语言过滤
+		let languageCondition = ""
+		const languageParams: string[] = []
+		if (options?.language) {
+			const languages = Array.isArray(options.language) ? options.language : [options.language]
+			if (languages.length > 0) {
+				languageCondition = "AND f.language IN (" + languages.map(() => "?").join(",") + ")"
+				languageParams.push(...languages)
+			}
+		}
+
+		// 构建关键词查询
+		if (keywords && keywords.length > 0) {
+			// 关键词搜索
+			const sql = `
+				SELECT s.id, s.name, s.type, s.signature, s.line, s.column, f.path as file, 
+					   sc.content, MAX(k.relevance) as relevance, f.language
+				FROM symbols s
+				JOIN files f ON s.file_id = f.id
+				JOIN symbol_contents sc ON s.id = sc.symbol_id
+				JOIN keywords k ON s.id = k.symbol_id
+				WHERE k.keyword IN (${keywords.map(() => "?").join(",")})
+				${typeCondition}
+				${languageCondition}
+				GROUP BY s.id
+				ORDER BY relevance DESC
+				LIMIT ?
+			`
+
+			const params = [...keywords, ...typeParams, ...languageParams, limit]
+
+			// 执行SQL查询
+			const rows = await this.db.all(sql, params)
+
+			// 转换结果
+			return rows.map((row) => this.mapRowToSearchResult(row))
+		} else {
+			// 无关键词时的通用搜索
+			const sql = `
+				SELECT s.id, s.name, s.type, s.signature, s.line, s.column, f.path as file, 
+					   sc.content, 0.5 as relevance, f.language
+				FROM symbols s
+				JOIN files f ON s.file_id = f.id
+				JOIN symbol_contents sc ON s.id = sc.symbol_id
+				WHERE 1=1
+				${typeCondition}
+				${languageCondition}
+				ORDER BY s.name
+				LIMIT ?
+			`
+
+			const params = [...typeParams, ...languageParams, limit]
+
+			// 执行SQL查询
+			const rows = await this.db.all(sql, params)
+
+			// 转换结果
+			return rows.map((row) => this.mapRowToSearchResult(row))
+		}
+	}
+
+	/**
+	 * 将数据库行映射为搜索结果
+	 * @param row 数据库查询结果行
+	 * @returns 搜索结果对象
+	 * @private
+	 */
+	private mapRowToSearchResult(row: Record<string, any>): SearchResult {
+		return {
+			file: row.file,
+			line: row.line,
+			column: row.column,
+			context: row.content,
+			relevance: row.relevance,
+			type: row.type as ResultType,
+			symbol: row.name,
+			signature: row.signature,
+			language: row.language,
+		}
 	}
 
 	/**
@@ -195,12 +397,111 @@ export class CodebaseSearchService {
 		}
 
 		if (sortBy === "modified") {
-			// 按修改时间排序，这里简化实现
+			// 按修改时间排序，这里简化实现，未来可以从Git或文件系统获取实际修改时间
 			return results
 		}
 
-		// 默认按相关性排序
-		return [...results].sort((a, b) => b.relevance - a.relevance)
+		// 按相关性排序
+		return [...results].sort((a, b) => {
+			// 首先检查初始相关性分数
+			const baseComparison = b.relevance - a.relevance
+			if (Math.abs(baseComparison) > 0.1) {
+				// 如果差距足够大，直接使用基础相关性
+				return baseComparison
+			}
+
+			// 精确符号匹配加分
+			const aSymbolMatch = parsedQuery.symbols.some(
+				(symbol) =>
+					a.symbol?.toLowerCase() === symbol.toLowerCase() ||
+					a.context.toLowerCase().includes(symbol.toLowerCase()),
+			)
+			const bSymbolMatch = parsedQuery.symbols.some(
+				(symbol) =>
+					b.symbol?.toLowerCase() === symbol.toLowerCase() ||
+					b.context.toLowerCase().includes(symbol.toLowerCase()),
+			)
+
+			if (aSymbolMatch && !bSymbolMatch) return -1
+			if (!aSymbolMatch && bSymbolMatch) return 1
+
+			// 结果类型匹配加分
+			const aTypeMatch = parsedQuery.resultTypes.includes(a.type)
+			const bTypeMatch = parsedQuery.resultTypes.includes(b.type)
+
+			if (aTypeMatch && !bTypeMatch) return -1
+			if (!aTypeMatch && bTypeMatch) return 1
+
+			// 关键词匹配数量比较
+			const aKeywordMatches = this.countKeywordMatches(parsedQuery.keywords, a)
+			const bKeywordMatches = this.countKeywordMatches(parsedQuery.keywords, b)
+
+			if (aKeywordMatches !== bKeywordMatches) {
+				return bKeywordMatches - aKeywordMatches
+			}
+
+			// 文件路径优先级 - 核心代码目录优先
+			const aCorePathScore = this.getPathPriorityScore(a.file)
+			const bCorePathScore = this.getPathPriorityScore(b.file)
+
+			if (aCorePathScore !== bCorePathScore) {
+				return bCorePathScore - aCorePathScore
+			}
+
+			// 如果所有因素都相等，回退到使用原始相关性分数
+			return baseComparison
+		})
+	}
+
+	/**
+	 * 计算关键词匹配数量
+	 * @param keywords 关键词列表
+	 * @param result 搜索结果
+	 * @returns 匹配数量
+	 * @private
+	 */
+	private countKeywordMatches(keywords: string[], result: SearchResult): number {
+		let count = 0
+		const content = (result.symbol || "") + " " + result.context.toLowerCase()
+
+		for (const keyword of keywords) {
+			if (content.includes(keyword.toLowerCase())) {
+				count++
+			}
+		}
+
+		return count
+	}
+
+	/**
+	 * 获取文件路径优先级分数
+	 * @param filePath 文件路径
+	 * @returns 优先级分数
+	 * @private
+	 */
+	private getPathPriorityScore(filePath: string): number {
+		const normalizedPath = filePath.toLowerCase()
+
+		// 核心代码目录优先
+		const corePaths = ["/src/", "/app/", "/lib/", "/core/"]
+		const testPaths = ["/test/", "/tests/", "/spec/", "/__tests__/"]
+
+		// 核心路径得分最高
+		for (const corePath of corePaths) {
+			if (normalizedPath.includes(corePath)) {
+				return 3
+			}
+		}
+
+		// 测试路径得分较低
+		for (const testPath of testPaths) {
+			if (normalizedPath.includes(testPath)) {
+				return 1
+			}
+		}
+
+		// 其他路径得分中等
+		return 2
 	}
 }
 

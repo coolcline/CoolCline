@@ -252,3 +252,12 @@ export function isAbsolute(filePath: string): boolean {
 	}
 	return path.isAbsolute(toPosixPath(filePath))
 }
+
+/**
+ * 获取路径中的文件名部分
+ * @param filePath 文件路径
+ * @returns 文件名
+ */
+export function basename(filePath: string): string {
+	return path.basename(toPosixPath(filePath))
+}

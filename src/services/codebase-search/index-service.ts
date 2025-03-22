@@ -1,13 +1,26 @@
 /**
  * 代码库索引服务
+ * 检查函数调用链路：
+	界面点击"刷新索引"按钮 -> handleRefreshIndex 函数
+	发送 codebaseSearch 类型消息，action 为 refreshIndex
+	消息传递到 handleCodebaseSearchWebviewMessage 处理
+	调用 manager.refreshIndex 函数 (来自 CodebaseSearchManager)
+	最终调用 CodebaseIndexService.refreshIndex
  */
 import * as fs from "fs"
 import * as vscode from "vscode"
-import { IndexOptions, IndexProgress, IndexStats, IndexTask } from "./types"
+import { IndexOptions, IndexProgress, IndexStats, IndexTask, ResultType } from "./types"
 import { toPosixPath, arePathsEqual, extname, join, relative } from "../../utils/path"
 import { createDatabase, Database } from "./database"
 import { SemanticAnalysisService, createSemanticAnalysisService } from "./semantic-analysis"
 import * as minimatch from "minimatch"
+
+// 定义索引状态接口
+export interface IndexStatus {
+	isIndexing: boolean
+	progress: IndexProgress
+	stats: IndexStats
+}
 
 /**
  * 代码库索引服务类
@@ -24,6 +37,8 @@ export class CodebaseIndexService {
 	private semanticAnalyzer: SemanticAnalysisService
 	private fileSystemWatcher: vscode.FileSystemWatcher | null = null
 	private debounceTimer: NodeJS.Timeout | null = null
+	private _onIndexStatusChange = new vscode.EventEmitter<IndexStatus>()
+	public readonly onIndexStatusChange = this._onIndexStatusChange.event
 
 	/**
 	 * 事务管理包装器 - 在事务中执行操作
@@ -133,6 +148,10 @@ export class CodebaseIndexService {
 		}
 
 		try {
+			// 标记开始索引
+			this.isIndexing = true
+			this._progress = { total: 0, completed: 0, status: "scanning" }
+
 			// 确保数据库已初始化
 			await this.initDatabase()
 
@@ -202,10 +221,17 @@ export class CodebaseIndexService {
 				// 启动处理队列
 				this.processQueue()
 			} else {
+				// 没有需要更新的文件，也要将状态设为完成
 				this._progress.status = "completed"
+				this._progress.total = 0
+				this._progress.completed = 0
+				this.isIndexing = false
+				// 通知状态变化，这样前端可以显示"完成"的状态
+				this.notifyStatusChange()
 			}
 		} catch (error) {
 			this._progress.status = "error"
+			this.isIndexing = false
 			console.error("索引刷新失败:", error)
 			throw error
 		}
@@ -218,9 +244,7 @@ export class CodebaseIndexService {
 		// 停止当前索引任务
 		this.indexQueue = []
 		this.isIndexing = false
-		this._progress = { total: 0, completed: 0, status: "idle" }
 
-		// 清除数据库内容
 		try {
 			if (this.db) {
 				// 使用事务保证原子性
@@ -238,9 +262,17 @@ export class CodebaseIndexService {
 						["last_reset", Date.now().toString(), Date.now()],
 					)
 				})
+
+				// 更新状态为已完成清除
+				this._progress = { total: 0, completed: 0, status: "idle" }
+				// 通知状态变化
+				this.notifyStatusChange()
 			}
 		} catch (error) {
 			console.error("清除索引数据失败:", error)
+			this._progress.status = "error"
+			this.notifyStatusChange()
+			throw error
 		}
 	}
 
@@ -541,6 +573,14 @@ export class CodebaseIndexService {
 		if (this.indexQueue.length === 0 || !this.isIndexing) {
 			this._progress.status = "completed"
 			this.isIndexing = false
+			// 确保进度值在完成时是有效的
+			if (this._progress.total > 0 && this._progress.completed < this._progress.total) {
+				this._progress.completed = this._progress.total
+			} else if (this._progress.total === 0) {
+				this._progress.completed = 0
+			}
+			// 通知监听器索引已完成
+			this.notifyStatusChange()
 			return
 		}
 
@@ -554,6 +594,11 @@ export class CodebaseIndexService {
 				for (const task of batch) {
 					await this.indexFile(task.filePath)
 					this._progress.completed++
+
+					// 每完成一个任务就通知进度变化
+					if (this._progress.completed % 5 === 0 || this._progress.completed === this._progress.total) {
+						this.notifyStatusChange()
+					}
 				}
 			})
 
@@ -566,6 +611,8 @@ export class CodebaseIndexService {
 			console.error("索引过程错误:", error)
 			this._progress.status = "error"
 			this.isIndexing = false
+			// 通知监听器索引出错
+			this.notifyStatusChange()
 		}
 	}
 
@@ -1040,6 +1087,50 @@ export class CodebaseIndexService {
 		this.debounceTimer = setTimeout(async () => {
 			await this.indexFile(filePath)
 		}, 500)
+	}
+
+	/**
+	 * 通知索引状态变化
+	 * @private
+	 */
+	private notifyStatusChange(): void {
+		// 由于 getIndexStats 是异步的，我们需要先获取基本的状态信息
+		const basicStats: IndexStats = {
+			filesCount: 0,
+			symbolsCount: 0,
+			keywordsCount: 0,
+			lastIndexed: null,
+			status: this._progress.status,
+		}
+
+		// 为了保持进度条显示的一致性，首先确保进度值有效
+		if (this._progress.status === "completed" && this._progress.total > 0) {
+			// 如果状态是完成，但进度不匹配，则修正进度
+			this._progress.completed = this._progress.total
+		}
+
+		// 触发状态变化事件
+		this._onIndexStatusChange.fire({
+			isIndexing: this.isIndexing,
+			progress: this._progress,
+			stats: basicStats,
+		})
+
+		// 然后异步更新完整的统计信息
+		this.getIndexStats()
+			.then((fullStats) => {
+				// 确保stats的status值与progress的status保持一致
+				fullStats.status = this._progress.status
+
+				this._onIndexStatusChange.fire({
+					isIndexing: this.isIndexing,
+					progress: this._progress,
+					stats: fullStats,
+				})
+			})
+			.catch((error) => {
+				console.error("获取索引统计信息失败:", error)
+			})
 	}
 }
 

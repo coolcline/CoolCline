@@ -4,7 +4,8 @@
 import * as fs from "fs"
 import * as vscode from "vscode"
 import { CodeSymbol, ParsedFile, RelationType, ResultType, SymbolRelation } from "./types"
-import { toPosixPath, extname } from "../../utils/path"
+import { toPosixPath, extname, dirname, join, basename } from "../../utils/path"
+import * as os from "os"
 
 // 尝试导入现有的Tree-sitter服务
 let treeSitterService: any
@@ -128,10 +129,30 @@ export class SemanticAnalysisService {
 	 */
 	private async extractSymbols(content: string, language: string, filePath: string): Promise<CodeSymbol[]> {
 		// 如果Tree-sitter服务可用，使用它提取符号
-		if (treeSitterService) {
+		if (treeSitterService && treeSitterService.parseSourceCodeForDefinitionsTopLevel) {
 			try {
-				// TODO: 使用Tree-sitter提取符号
-				return this.extractSymbolsFallback(content, language)
+				const dirPath = dirname(filePath)
+				const fileName = basename(filePath)
+
+				// 创建临时目录结构用于Tree-sitter解析
+				const tempDir = join(os.tmpdir(), `coolcline-${Date.now()}`)
+				await fs.promises.mkdir(tempDir, { recursive: true })
+				await fs.promises.writeFile(join(tempDir, fileName), content)
+
+				// 使用Tree-sitter解析代码
+				const parseResult = await treeSitterService.parseSourceCodeForDefinitionsTopLevel(tempDir)
+
+				// 解析Tree-sitter结果
+				const symbols = this.parseTreeSitterResult(parseResult, content)
+
+				// 清理临时文件
+				try {
+					await fs.promises.rm(tempDir, { recursive: true, force: true })
+				} catch (error) {
+					console.warn("清理临时文件失败:", error)
+				}
+
+				return symbols.length > 0 ? symbols : this.extractSymbolsFallback(content, language)
 			} catch (error) {
 				console.warn("Tree-sitter extraction failed, using fallback:", error)
 				return this.extractSymbolsFallback(content, language)
@@ -140,6 +161,92 @@ export class SemanticAnalysisService {
 			// 使用简单的回退方法
 			return this.extractSymbolsFallback(content, language)
 		}
+	}
+
+	/**
+	 * 解析Tree-sitter结果
+	 * @param parseResult Tree-sitter解析结果
+	 * @param originalContent 原始文件内容
+	 * @returns 符号数组
+	 * @private
+	 */
+	private parseTreeSitterResult(parseResult: string, originalContent: string): CodeSymbol[] {
+		const symbols: CodeSymbol[] = []
+		const contentLines = originalContent.split("\n")
+
+		// 解析Tree-sitter输出格式
+		const sections = parseResult.split("|----")
+
+		for (const section of sections) {
+			const lines = section.trim().split("\n")
+			for (const line of lines) {
+				if (!line || !line.startsWith("│")) continue
+
+				// 去除前缀
+				const content = line.substring(1)
+
+				// 尝试确定行号
+				let lineNumber = -1
+				for (let i = 0; i < contentLines.length; i++) {
+					if (contentLines[i].includes(content)) {
+						lineNumber = i + 1
+						break
+					}
+				}
+
+				if (lineNumber === -1) continue
+
+				// 确定符号类型
+				let type = ResultType.Variable
+				if (content.includes("function") || content.includes("def ") || content.includes("func ")) {
+					type = ResultType.Function
+				} else if (content.includes("class") || content.includes("interface") || content.includes("struct")) {
+					type = ResultType.Class
+				} else if (content.includes("import") || content.includes("require")) {
+					type = ResultType.Import
+				}
+
+				// 提取符号名称
+				let name = ""
+
+				// 按语言特性提取名称
+				if (type === ResultType.Function) {
+					const functionMatch = content.match(/(?:function|def|func)\s+(\w+)|(\w+)\s*\([^)]*\)/)
+					if (functionMatch) {
+						name = functionMatch[1] || functionMatch[2]
+					}
+				} else if (type === ResultType.Class) {
+					const classMatch = content.match(/(?:class|interface|struct)\s+(\w+)/)
+					if (classMatch) {
+						name = classMatch[1]
+					}
+				} else {
+					const varMatch = content.match(/(?:const|let|var|public|private)\s+(\w+)\s*(?::|=)/)
+					if (varMatch) {
+						name = varMatch[1]
+					} else {
+						// 尝试提取任何可能的标识符
+						const wordMatch = content.match(/^\s*(\w+)\s*(?::|=|{)/)
+						if (wordMatch) {
+							name = wordMatch[1]
+						}
+					}
+				}
+
+				if (name) {
+					symbols.push({
+						name,
+						type,
+						line: lineNumber,
+						column: content.indexOf(name),
+						content: content.trim(),
+						signature: type === ResultType.Function ? content.trim() : undefined,
+					})
+				}
+			}
+		}
+
+		return symbols
 	}
 
 	/**
