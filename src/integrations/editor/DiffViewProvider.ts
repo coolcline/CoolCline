@@ -27,7 +27,6 @@ export class DiffViewProvider implements EditorInterface {
 	private readonlyDecorationType: vscode.TextEditorDecorationType
 
 	constructor(private cwd: string) {
-		console.log("diffview")
 		// 创建一个只读的装饰器类型
 		this.readonlyDecorationType = vscode.window.createTextEditorDecorationType({
 			// 使用半透明背景表示只读
@@ -216,9 +215,7 @@ export class DiffViewProvider implements EditorInterface {
 			await fs.unlink(absolutePath)
 			for (let i = this.createdDirs.length - 1; i >= 0; i--) {
 				await fs.rmdir(this.createdDirs[i])
-				console.log(`Directory ${this.createdDirs[i]} has been deleted.`)
 			}
-			console.log(`File ${absolutePath} has been deleted.`)
 		} else {
 			const edit = new vscode.WorkspaceEdit()
 			const fullRange = new vscode.Range(
@@ -228,7 +225,6 @@ export class DiffViewProvider implements EditorInterface {
 			edit.replace(updatedDocument.uri, fullRange, this.originalContent ?? "")
 			await vscode.workspace.applyEdit(edit)
 			await updatedDocument.save()
-			console.log(`File ${absolutePath} has been reverted to its original content.`)
 			if (this.documentWasOpen) {
 				await vscode.window.showTextDocument(vscode.Uri.file(absolutePath), {
 					preview: false,
@@ -314,7 +310,6 @@ export class DiffViewProvider implements EditorInterface {
 	}
 
 	async showDiff(): Promise<void> {
-		console.log("调用了 vscode.diff")
 		if (!this.relPath || !this.originalContent || !this.activeEditor) {
 			return
 		}

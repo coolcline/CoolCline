@@ -29,7 +29,6 @@ export class InlineDiffEditor implements EditorInterface {
 	private changedDecorationType: vscode.TextEditorDecorationType
 
 	constructor(private cwd: string) {
-		console.log("InlineDiffEditor initialized")
 		// 创建只读装饰器类型
 		this.readonlyDecorationType = vscode.window.createTextEditorDecorationType({
 			backgroundColor: "rgba(128, 128, 128, 0.1)",
@@ -53,7 +52,6 @@ export class InlineDiffEditor implements EditorInterface {
 			borderStyle: "solid",
 			borderWidth: "0 0 0 2px",
 		})
-		console.log("Decorations created successfully")
 	}
 
 	/**
@@ -62,13 +60,11 @@ export class InlineDiffEditor implements EditorInterface {
 	 * @param originalContent 原始内容
 	 */
 	private showInlineChanges(editor: vscode.TextEditor, originalContent: string) {
-		console.log("showInlineChanges called")
 		const document = editor.document
 		const currentContent = document.getText()
 
 		// 计算差异
 		const changes = diff.diffLines(originalContent, currentContent)
-		console.log(`Diff calculated, found ${changes.length} change segments`)
 
 		// 应用装饰
 		const addedRanges: vscode.Range[] = []
@@ -81,7 +77,6 @@ export class InlineDiffEditor implements EditorInterface {
 				// 标记为添加的行
 				const startLine = lineOffset
 				const endLine = lineOffset + part.count!
-				console.log(`Added segment from line ${startLine} to ${endLine}`)
 				for (let i = startLine; i < endLine; i++) {
 					// 使用整行范围而不是零宽度范围
 					addedRanges.push(new vscode.Range(i, 0, i, document.lineAt(i).text.length))
@@ -89,10 +84,8 @@ export class InlineDiffEditor implements EditorInterface {
 				lineOffset += part.count!
 			} else if (part.removed) {
 				// 对已移除的行不处理，因为它们在当前文档中不存在
-				console.log(`Removed segment (skipped), count: ${part.count}`)
 			} else {
 				// 未修改的行，只更新计数
-				console.log(`Unchanged segment, lines: ${part.count}`)
 				lineOffset += part.count!
 			}
 		}
@@ -105,12 +98,10 @@ export class InlineDiffEditor implements EditorInterface {
 		// 计算修改的行（不是添加的，而是修改的）
 		for (let i = 0; i < Math.min(originalLines.length, currentLines.length); i++) {
 			if (originalLines[i] !== currentLines[i]) {
-				console.log(`发现修改的行: ${i}, 原内容: ${originalLines[i]}, 新内容: ${currentLines[i]}`)
 				changedRanges.push(new vscode.Range(i, 0, i, currentLines[i].length))
 			}
 		}
 
-		console.log(`Applying decorations: ${addedRanges.length} added ranges, ${changedRanges.length} changed ranges`)
 		// 移除现有装饰器
 		editor.setDecorations(this.addedDecorationType, [])
 		editor.setDecorations(this.changedDecorationType, [])
@@ -118,7 +109,6 @@ export class InlineDiffEditor implements EditorInterface {
 		// 应用新装饰器
 		editor.setDecorations(this.addedDecorationType, addedRanges)
 		editor.setDecorations(this.changedDecorationType, changedRanges)
-		console.log("Decorations applied")
 	}
 
 	private async openEditor(): Promise<vscode.TextEditor> {
@@ -126,8 +116,6 @@ export class InlineDiffEditor implements EditorInterface {
 			throw new Error("No file path set")
 		}
 		const uri = vscode.Uri.file(PathUtils.normalizePath(PathUtils.joinPath(this.cwd, this.relPath)))
-		console.log(`Opening editor for file: ${uri.fsPath}`)
-		console.log(`Using view column: ${vscode.ViewColumn.Active} (强制使用Active而非Beside)`)
 
 		// 尝试使用Active而不是Beside，看是否能避免分屏效果
 		const editor = await vscode.window.showTextDocument(uri, {
@@ -136,15 +124,9 @@ export class InlineDiffEditor implements EditorInterface {
 			viewColumn: vscode.ViewColumn.Active, // 改为使用当前活动视图
 			selection: new vscode.Range(0, 0, 0, 0), // 将光标放在开始位置
 		})
-		console.log(`Editor opened, viewColumn: ${editor.viewColumn}, document: ${editor.document.uri.fsPath}`)
-		console.log(`打开的编辑器数量: ${vscode.window.visibleTextEditors.length}`)
-		vscode.window.visibleTextEditors.forEach((e, i) => {
-			console.log(`编辑器 ${i}: 文件=${e.document.uri.fsPath}, 视图=${e.viewColumn}`)
-		})
 
 		// 应用只读装饰器
 		editor.setDecorations(this.readonlyDecorationType, [new vscode.Range(0, 0, editor.document.lineCount, 0)])
-		console.log(`Applied readonly decorations to entire document`)
 
 		return editor
 	}
@@ -231,7 +213,6 @@ export class InlineDiffEditor implements EditorInterface {
 
 		// 显示内联差异
 		if (this.originalContent) {
-			console.log("调用update中的showInlineChanges")
 			this.showInlineChanges(editor, this.originalContent)
 		}
 
@@ -252,7 +233,6 @@ export class InlineDiffEditor implements EditorInterface {
 
 			// 最后一次显示内联差异
 			if (this.originalContent) {
-				console.log("最终更新，调用showInlineChanges")
 				this.showInlineChanges(editor, this.originalContent)
 			}
 
@@ -331,9 +311,7 @@ export class InlineDiffEditor implements EditorInterface {
 			await fs.unlink(absolutePath)
 			for (let i = this.createdDirs.length - 1; i >= 0; i--) {
 				await fs.rmdir(this.createdDirs[i])
-				console.log(`Directory ${this.createdDirs[i]} has been deleted.`)
 			}
-			console.log(`File ${absolutePath} has been deleted.`)
 		} else {
 			const edit = new vscode.WorkspaceEdit()
 			const fullRange = new vscode.Range(
@@ -343,7 +321,6 @@ export class InlineDiffEditor implements EditorInterface {
 			edit.replace(updatedDocument.uri, fullRange, this.originalContent ?? "")
 			await vscode.workspace.applyEdit(edit)
 			await updatedDocument.save()
-			console.log(`File ${absolutePath} has been reverted to its original content.`)
 			if (this.documentWasOpen) {
 				await vscode.window.showTextDocument(vscode.Uri.file(absolutePath), {
 					preview: false,
@@ -416,23 +393,13 @@ export class InlineDiffEditor implements EditorInterface {
 
 	// 这个方法在内联编辑器中可选实现
 	async showDiff(): Promise<void> {
-		console.log("showDiff called in InlineDiffEditor")
 		if (!this.relPath || !this.originalContent || !this.activeEditor) {
-			console.log("Cannot show diff: missing required properties", {
-				hasRelPath: !!this.relPath,
-				hasOriginalContent: !!this.originalContent,
-				hasActiveEditor: !!this.activeEditor,
-			})
 			return
 		}
 
-		console.log("使用内联差异显示方式")
-		// 直接使用内联差异方式，避免调用vscode.diff命令
 		this.showInlineChanges(this.activeEditor, this.originalContent)
 
 		// 确保滚动到第一个差异处，增强用户体验
 		this.scrollToFirstDiff()
-
-		console.log("内联差异显示完成")
 	}
 }
