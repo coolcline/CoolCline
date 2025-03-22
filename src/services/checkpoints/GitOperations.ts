@@ -285,6 +285,50 @@ export class GitOperations {
 			result.push(diff)
 		}
 
+		// 检查是否有未提交的变更（工作区和暂存区）
+		const status = await git.status()
+		if (status.files.length > 0) {
+			for (const file of status.files) {
+				const relativePath = file.path
+				const absolutePath = PathUtils.joinPath(this.userProjectPath, relativePath)
+				let before = ""
+				let after = ""
+
+				// 获取最新提交的文件内容作为"之前"
+				try {
+					before = await git.show([`${hash_two}:${relativePath}`])
+				} catch (error) {
+					// 如果文件是新增的，在 hash_two 中不存在
+				}
+
+				// 获取当前工作区的文件内容作为"之后"
+				try {
+					// 如果文件已被删除，这将抛出错误
+					const filePath = PathUtils.joinPath(this.userProjectPath, relativePath)
+					after = await fs.readFile(filePath, { encoding: "utf8" })
+				} catch (error) {
+					// 文件可能已被删除
+				}
+
+				// 检查是否已有此文件的差异（避免重复）
+				const existingDiffIndex = result.findIndex((diff) => diff.relativePath === relativePath)
+
+				if (existingDiffIndex >= 0) {
+					// 更新现有差异
+					result[existingDiffIndex].after = after
+				} else {
+					// 添加新差异
+					const diff: CheckpointDiff = {
+						relativePath,
+						absolutePath,
+						before,
+						after,
+					}
+					result.push(diff)
+				}
+			}
+		}
+
 		return result
 	}
 
@@ -338,6 +382,50 @@ export class GitOperations {
 				after,
 			}
 			result.push(diff)
+		}
+
+		// 检查是否有未提交的变更（工作区和暂存区）
+		const status = await git.status()
+		if (status.files.length > 0) {
+			for (const file of status.files) {
+				const relativePath = file.path
+				const absolutePath = PathUtils.joinPath(this.userProjectPath, relativePath)
+				let before = ""
+				let after = ""
+
+				// 获取最新提交的文件内容作为"之前"
+				try {
+					before = await git.show([`${hash_two}:${relativePath}`])
+				} catch (error) {
+					// 如果文件是新增的，在 hash_two 中不存在
+				}
+
+				// 获取当前工作区的文件内容作为"之后"
+				try {
+					// 如果文件已被删除，这将抛出错误
+					const filePath = PathUtils.joinPath(this.userProjectPath, relativePath)
+					after = await fs.readFile(filePath, { encoding: "utf8" })
+				} catch (error) {
+					// 文件可能已被删除
+				}
+
+				// 检查是否已有此文件的差异（避免重复）
+				const existingDiffIndex = result.findIndex((diff) => diff.relativePath === relativePath)
+
+				if (existingDiffIndex >= 0) {
+					// 更新现有差异
+					result[existingDiffIndex].after = after
+				} else {
+					// 添加新差异
+					const diff: CheckpointDiff = {
+						relativePath,
+						absolutePath,
+						before,
+						after,
+					}
+					result.push(diff)
+				}
+			}
 		}
 
 		return result

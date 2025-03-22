@@ -8,7 +8,6 @@ import { SemanticAnalysisService, createSemanticAnalysisService } from "./semant
 import { CodebaseSearchOptions, IndexOptions, IndexProgress, IndexStats, SearchResult } from "./types"
 import { toPosixPath, toRelativePath } from "../../utils/path"
 import delay from "delay"
-import i18next from "i18next"
 
 /**
  * 代码库搜索管理器
@@ -215,45 +214,68 @@ export async function initializeCodebaseSearch(): Promise<void> {
 
 	const manager = CodebaseSearchManager.getInstance()
 
-	// 显示进度通知
-	await vscode.window.withProgress(
-		{
-			location: vscode.ProgressLocation.Notification,
-			title: "Codebase Index",
-			cancellable: false,
-		},
-		async (progress) => {
-			// 为每个工作区初始化服务
-			for (const folder of workspaceFolders) {
-				try {
-					const workspacePath = folder.uri.fsPath
+	// 先初始化服务，这个过程较快
+	for (const folder of workspaceFolders) {
+		try {
+			const workspacePath = folder.uri.fsPath
+			await manager.initialize(workspacePath)
+		} catch (error) {
+			console.error(`初始化工作区失败:`, error)
+		}
+	}
 
-					progress.report({ message: "scanning" })
-					// 添加短暂延迟，让用户能看到"scanning"状态
-					await delay(500)
+	// 使用setImmediate将索引过程移到下一个事件循环，不阻塞扩展激活
+	setImmediate(() => {
+		// 显示进度通知
+		vscode.window.withProgress(
+			{
+				location: vscode.ProgressLocation.Notification,
+				title: "Codebase Index",
+				cancellable: false,
+			},
+			async (progress) => {
+				// 为每个工作区启动索引
+				for (const folder of workspaceFolders) {
+					try {
+						const workspacePath = folder.uri.fsPath
+						progress.report({ message: "Scanning" })
 
-					await manager.initialize(workspacePath)
+						// 开始索引过程
+						await manager.startIndexing({
+							includePaths: ["src", "lib", "app", "core"],
+							excludePaths: ["node_modules", ".git", "dist", "build"],
+						})
 
-					progress.report({ message: "indexing" })
-					// 添加短暂延迟，让用户能看到"indexing"状态
-					await delay(1500)
-
-					await manager.startIndexing({
-						includePaths: ["src", "lib", "app", "core"],
-						excludePaths: ["node_modules", ".git", "dist", "build"],
-					})
-				} catch (error) {
-					console.error(`初始化工作区失败:`, error)
-					// 继续处理下一个工作区，不中断整个过程
+						// 获取索引状态并更新进度
+						const indexStats = await manager.getIndexStatus()
+						progress.report({
+							message: `Indexed ${indexStats.filesCount} files`,
+						})
+					} catch (error) {
+						console.error(`索引工作区失败:`, error)
+						progress.report({
+							message: "Indexing error",
+						})
+					}
 				}
-			}
 
-			progress.report({ message: "Completed" })
+				// 显示完成消息
+				progress.report({
+					message: "Indexing completed",
+				})
 
-			// 添加2秒延时，确保用户能看清进度条
-			await delay(2000)
-		},
-	)
+				// 显示状态栏消息通知用户索引已完成
+				vscode.window.setStatusBarMessage("Codebase indexing completed", 5000)
+
+				return new Promise<void>((resolve) => {
+					// 短暂显示完成消息后关闭进度条
+					setTimeout(() => {
+						resolve()
+					}, 3000)
+				})
+			},
+		)
+	})
 }
 
 /**
@@ -277,6 +299,24 @@ export async function handleCodebaseSearchTool(params: any): Promise<any> {
 			}
 		}
 
+		// 检查索引状态
+		const indexStats = await manager.getIndexStatus()
+		if (indexStats.status === "indexing" || indexStats.status === "scanning") {
+			// 如果索引正在进行中，提示用户并继续搜索
+			const indexProgress = manager.getIndexProgress()
+			const progressMessage =
+				indexProgress.total > 0 ? `indexing (${indexProgress.completed}/${indexProgress.total})` : "indexing"
+
+			// 创建状态消息通知用户索引未完成
+			vscode.window.setStatusBarMessage("Codebase indexing in progress - search results may be incomplete", 3000)
+
+			// 设置警告消息，但仍然继续搜索
+			const warning = {
+				warning: true,
+				message: `Note: Codebase indexing not complete (${progressMessage}), search results may be incomplete`,
+			}
+		}
+
 		// 构建搜索选项
 		const options: CodebaseSearchOptions = {}
 
@@ -292,7 +332,15 @@ export async function handleCodebaseSearchTool(params: any): Promise<any> {
 		const results = await manager.search(params.query, options)
 
 		// 格式化结果
-		return formatSearchResults(results)
+		const formattedResults = formatSearchResults(results)
+
+		// 如果有警告消息和索引未完成，添加到结果中
+		if (indexStats.status === "indexing" || indexStats.status === "scanning") {
+			formattedResults.indexing = true
+			formattedResults.message = "Note: Codebase indexing not complete, search results may be incomplete"
+		}
+
+		return formattedResults
 	} catch (error) {
 		console.error("代码库搜索工具调用失败:", error)
 		return {
