@@ -26,6 +26,8 @@ module.exports = {
 		"^strip-ansi$": "<rootDir>/src/__mocks__/strip-ansi.js",
 		"^default-shell$": "<rootDir>/src/__mocks__/default-shell.js",
 		"^os-name$": "<rootDir>/src/__mocks__/os-name.js",
+		"^src/services/codebase-search/extension-context$":
+			"<rootDir>/src/services/codebase-search/__mocks__/extension-context.ts",
 	},
 	transformIgnorePatterns: [
 		"node_modules/(?!(@modelcontextprotocol|delay|p-wait-for|globby|serialize-error|strip-ansi|default-shell|os-name)/)",

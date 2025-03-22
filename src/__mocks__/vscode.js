@@ -24,6 +24,7 @@ const vscode = {
 		onDidSaveTextDocument: jest.fn(),
 		createFileSystemWatcher: jest.fn().mockReturnValue({
 			onDidCreate: jest.fn().mockReturnValue({ dispose: jest.fn() }),
+			onDidChange: jest.fn().mockReturnValue({ dispose: jest.fn() }),
 			onDidDelete: jest.fn().mockReturnValue({ dispose: jest.fn() }),
 			dispose: jest.fn(),
 		}),
@@ -148,7 +149,12 @@ const vscode = {
 	Disposable: {
 		from: jest.fn(),
 	},
-	EventEmitter: jest.fn(),
+	EventEmitter: class {
+		constructor() {
+			this.event = jest.fn()
+			this.fire = jest.fn()
+		}
+	},
 	CancellationError: jest.fn(),
 	CodeAction: jest.fn(),
 	CodeLens: jest.fn(),

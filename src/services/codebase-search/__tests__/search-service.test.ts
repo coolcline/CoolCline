@@ -1,6 +1,12 @@
 import { CodebaseSearchService } from "../search-service"
 import { ResultType } from "../types"
 
+// 确保使用正确的vscode mock
+jest.mock("vscode")
+
+// 模拟扩展上下文
+jest.mock("../extension-context")
+
 describe("CodebaseSearchService", () => {
 	let searchService: CodebaseSearchService
 

@@ -2,32 +2,8 @@ import * as fs from "fs"
 import { expect } from "chai"
 import * as path from "path"
 
-// 在运行测试前模拟VS Code API
-jest.mock(
-	"vscode",
-	() => ({
-		window: {
-			showInformationMessage: jest.fn(),
-			showErrorMessage: jest.fn(),
-		},
-		workspace: {
-			workspaceFolders: [
-				{
-					uri: { fsPath: path.join(__dirname, "test-workspace") },
-					name: "test",
-					index: 0,
-				},
-			],
-			createFileSystemWatcher: jest.fn().mockReturnValue({
-				onDidCreate: jest.fn(),
-				onDidChange: jest.fn(),
-				onDidDelete: jest.fn(),
-				dispose: jest.fn(),
-			}),
-		},
-	}),
-	{ virtual: true },
-)
+// 确保使用正确的vscode mock
+jest.mock("vscode")
 
 // 然后导入依赖其他模块的对象
 import { CodebaseIndexService } from "../index-service"
@@ -138,6 +114,8 @@ describe("CodebaseIndexService", () => {
 			// 不验证具体数量，而是验证字段存在
 			expect(stats).to.have.property("filesCount")
 			expect(stats.filesCount).to.equal(2)
+			expect(stats).to.have.property("filesCount")
+			expect(stats.filesCount).to.be.greaterThan(0)
 		})
 
 		it("应该能够从索引中移除文件", async () => {

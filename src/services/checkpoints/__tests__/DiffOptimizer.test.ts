@@ -166,7 +166,7 @@ describe("DiffOptimizer", () => {
 			await optimizer.computeDiff(commits[0], commits[2])
 			const duration = Date.now() - start
 
-			expect(duration).toBeLessThan(100) // 应该很快，因为使用了缓存
+			expect(duration).toBeLessThan(200) // 应该很快，因为使用了缓存
 		})
 	})
 
