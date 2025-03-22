@@ -74,6 +74,8 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
 				return <span>{String(t("chat.contextMenu.pasteUrl"))}</span>
 			case ContextMenuOptionType.NoResults:
 				return <span>{String(t("chat.contextMenu.noResults"))}</span>
+			case ContextMenuOptionType.Codebase:
+				return <span>Codebase</span>
 			case ContextMenuOptionType.Git:
 				if (option.value) {
 					return (
@@ -145,6 +147,8 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
 				return "link"
 			case ContextMenuOptionType.Git:
 				return "git-commit"
+			case ContextMenuOptionType.Codebase:
+				return "search"
 			case ContextMenuOptionType.NoResults:
 				return "info"
 			default:

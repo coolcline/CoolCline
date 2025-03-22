@@ -76,6 +76,7 @@ export enum ContextMenuOptionType {
 	Problems = "problems",
 	URL = "url",
 	Git = "git",
+	Codebase = "codebase",
 	NoResults = "noResults",
 	Mode = "mode",
 }
@@ -181,6 +182,7 @@ export function getContextMenuOptions(
 			{ type: ContextMenuOptionType.Folder },
 			{ type: ContextMenuOptionType.File },
 			{ type: ContextMenuOptionType.Git },
+			{ type: ContextMenuOptionType.Codebase },
 		]
 	}
 
@@ -197,6 +199,14 @@ export function getContextMenuOptions(
 		})
 	} else if ("git-changes".startsWith(lowerQuery)) {
 		suggestions.push(workingChanges)
+	}
+	if ("codebase".startsWith(lowerQuery)) {
+		suggestions.push({
+			type: ContextMenuOptionType.Codebase,
+			label: "Codebase",
+			description: "Codebase semantic search",
+			icon: "$(search)",
+		})
 	}
 	if ("problems".startsWith(lowerQuery)) {
 		suggestions.push({ type: ContextMenuOptionType.Problems })

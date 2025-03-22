@@ -220,6 +220,8 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 						insertValue = "problems"
 					} else if (type === ContextMenuOptionType.Git) {
 						insertValue = value || ""
+					} else if (type === ContextMenuOptionType.Codebase) {
+						insertValue = "codebase"
 					}
 
 					const { newValue, mentionIndex } = insertMention(
