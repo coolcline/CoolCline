@@ -1,10 +1,10 @@
 import * as vscode from "vscode"
 import * as path from "path"
-import * as os from "os"
+
 import * as fs from "fs"
 
 // 创建临时目录作为存储路径
-const tmpDir = path.join(os.tmpdir(), "coolcline-test-storage")
+const tmpDir = path.join(__dirname, "../__tests__/test-storage")
 if (!fs.existsSync(tmpDir)) {
 	fs.mkdirSync(tmpDir, { recursive: true })
 }
