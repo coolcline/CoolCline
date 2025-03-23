@@ -350,6 +350,7 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 				// setPrimaryButtonText(undefined)
 				// setSecondaryButtonText(undefined)
 				disableAutoScrollRef.current = false
+				// 在用户发送新消息时，恢复自动滚动功能
 				userScrolledRef.current = false
 			}
 		},
@@ -419,7 +420,8 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 			setCoolClineAsk(undefined)
 			setEnableButtons(false)
 			disableAutoScrollRef.current = false
-			userScrolledRef.current = false
+			// 移除重置用户滚动标记，保持用户滚动状态
+			// userScrolledRef.current = false
 		},
 		[coolclineAsk, startNewTask],
 	)
@@ -467,7 +469,8 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 			setCoolClineAsk(undefined)
 			setEnableButtons(false)
 			disableAutoScrollRef.current = false
-			userScrolledRef.current = false
+			// 移除重置用户滚动标记，保持用户滚动状态
+			// userScrolledRef.current = false
 		},
 		[coolclineAsk, startNewTask, isStreaming],
 	)
@@ -817,6 +820,11 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 		})
 	}, [])
 
+	// 判断是否应该自动滚动
+	const shouldAutoScroll = useCallback(() => {
+		return !disableAutoScrollRef.current && !userScrolledRef.current
+	}, [])
+
 	// scroll when user toggles certain rows
 	const toggleRowExpansion = useCallback(
 		(ts: number) => {
@@ -874,7 +882,7 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 
 	const handleRowHeightChange = useCallback(
 		(isTaller: boolean) => {
-			if (!disableAutoScrollRef.current) {
+			if (shouldAutoScroll()) {
 				if (isTaller) {
 					scrollToBottomSmooth()
 				} else {
@@ -884,14 +892,14 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 				}
 			}
 		},
-		[scrollToBottomSmooth, scrollToBottomAuto],
+		[scrollToBottomSmooth, scrollToBottomAuto, shouldAutoScroll],
 	)
 
 	const handleWheel = useCallback((event: Event) => {
 		const wheelEvent = event as WheelEvent
-		if (wheelEvent.deltaY && wheelEvent.deltaY < 0) {
+		if (wheelEvent.deltaY) {
 			if (scrollContainerRef.current?.contains(wheelEvent.target as Node)) {
-				// 用户滚动时禁用自动滚动
+				// 用户滚动时禁用自动滚动，无论是向上还是向下滚动
 				disableAutoScrollRef.current = true
 				userScrolledRef.current = true
 			}
@@ -901,12 +909,12 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 	useEvent("wheel", handleWheel, window, { passive: true }) // passive improves scrolling performance
 
 	useEffect(() => {
-		if (!userScrolledRef.current) {
+		if (shouldAutoScroll()) {
 			setTimeout(() => {
 				scrollToBottomSmooth()
 			}, 50)
 		}
-	}, [groupedMessages.length, scrollToBottomSmooth])
+	}, [groupedMessages.length, scrollToBottomSmooth, shouldAutoScroll])
 
 	const placeholderText = useMemo(() => {
 		const baseText = task ? String(t("chat.input.typeMessage")) : String(t("chat.input.typeTask"))
@@ -1144,6 +1152,7 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 								onClick={() => {
 									scrollToBottomSmooth()
 									disableAutoScrollRef.current = false
+									userScrolledRef.current = false
 								}}>
 								<span className="codicon codicon-chevron-down" style={{ fontSize: "18px" }}></span>
 							</ScrollToBottomButton>
