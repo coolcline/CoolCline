@@ -52,7 +52,7 @@ export interface SearchResult {
 export interface IndexProgress {
 	total: number // 总文件数
 	completed: number // 已完成文件数
-	status: "idle" | "scanning" | "indexing" | "completed" | "error"
+	status: "idle" | "scanning" | "indexing" | "completed" | "error" | "stopped"
 }
 
 /**

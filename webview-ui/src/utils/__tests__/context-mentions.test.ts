@@ -73,13 +73,14 @@ describe("getContextMenuOptions", () => {
 
 	it("should return all option types for empty query", () => {
 		const result = getContextMenuOptions("", null, [])
-		expect(result).toHaveLength(5)
+		expect(result).toHaveLength(6)
 		expect(result.map((item) => item.type)).toEqual([
 			ContextMenuOptionType.Problems,
 			ContextMenuOptionType.URL,
 			ContextMenuOptionType.Folder,
 			ContextMenuOptionType.File,
 			ContextMenuOptionType.Git,
+			ContextMenuOptionType.Codebase,
 		])
 	})
 

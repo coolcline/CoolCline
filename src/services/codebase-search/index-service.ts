@@ -152,6 +152,24 @@ export class CodebaseIndexService {
 	}
 
 	/**
+	 * 停止当前索引
+	 * 可以被用户手动触发停止当前索引过程
+	 */
+	public async stopIndexing(): Promise<void> {
+		if (this.isIndexing) {
+			// 清空索引队列
+			this.indexQueue = []
+			// 更新状态
+			this.isIndexing = false
+			this._progress.status = "stopped"
+			// 通知前端状态变化
+			this.notifyStatusChange()
+
+			console.log("索引过程已暂停")
+		}
+	}
+
+	/**
 	 * 刷新索引
 	 * @param options 索引选项
 	 */
@@ -160,6 +178,9 @@ export class CodebaseIndexService {
 			// 停止当前索引任务
 			this.indexQueue = []
 			this.isIndexing = false
+
+			// 添加短暂延迟确保索引状态被完全清理
+			await new Promise((resolve) => setTimeout(resolve, 50))
 		}
 
 		try {
@@ -591,6 +612,14 @@ export class CodebaseIndexService {
 	private async processQueue(): Promise<void> {
 		// 如果队列为空或已停止索引，则退出
 		if (this.indexQueue.length === 0 || !this.isIndexing) {
+			// 如果是由于停止索引导致的，保持停止状态
+			if (this._progress.status === "stopped") {
+				this.isIndexing = false
+				// 通知监听器索引已停止
+				this.notifyStatusChange()
+				return
+			}
+
 			this._progress.status = "completed"
 			this.isIndexing = false
 			// 确保进度值在完成时是有效的

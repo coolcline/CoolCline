@@ -224,6 +224,19 @@ export class CodebaseSearchManager {
 		}
 		return service.onIndexStatusChange(listener)
 	}
+
+	/**
+	 * 停止当前索引过程
+	 */
+	public async stopIndexing(): Promise<void> {
+		try {
+			const workspacePath = this.getCurrentWorkspacePath()
+			const indexService = this.getIndexService(workspacePath)
+			await indexService?.stopIndexing()
+		} catch (error) {
+			console.error("停止索引失败:", error)
+		}
+	}
 }
 
 /**
@@ -618,6 +631,25 @@ export async function handleCodebaseSearchWebviewMessage(webview: vscode.Webview
 							codebaseIndexIncludeTests: message.settings.includeTests,
 						},
 					})
+				}
+				break
+
+			case "stopIndexing":
+				await manager.stopIndexing()
+
+				// 获取最新状态并通知UI
+				try {
+					const stats = await manager.getIndexStatus()
+					const progress = manager.getIndexProgress()
+
+					// 发送更新的状态和进度
+					webview.postMessage({
+						type: "codebaseIndexStats",
+						stats,
+						progress,
+					})
+				} catch (error) {
+					console.error("获取索引状态失败:", error)
 				}
 				break
 

@@ -167,6 +167,14 @@ const CodebaseIndexSettings = () => {
 		})
 	}
 
+	// 停止索引
+	const handleStopIndexing = () => {
+		vscode.postMessage({
+			type: "codebaseSearch",
+			action: "stopIndexing",
+		})
+	}
+
 	// 清除索引 - 打开确认对话框
 	const handleClearIndex = () => {
 		setConfirmDialogOpen(true)
@@ -397,14 +405,22 @@ const CodebaseIndexSettings = () => {
 									? t("settings.codebaseIndex.status.indexing").toString() || "正在索引..."
 									: t("settings.codebaseIndex.actions.start").toString() || "开始索引"}
 							</VSCodeButton> */}
-							<VSCodeButton
-								className={`codicon codicon-inspect`}
-								style={{ display: "flex", alignItems: "center", padding: "0 8px" }}
-								// disabled={indexProgress.status === "indexing" || indexProgress.status === "scanning"}
-								onClick={handleRefreshIndex}
-								disabled={indexStats.status === "indexing" || indexStats.status === "scanning"}>
-								{t("settings.codebaseIndex.actions.refresh").toString() || "刷新索引"}
-							</VSCodeButton>
+							{indexStats.status === "indexing" || indexStats.status === "scanning" ? (
+								<VSCodeButton
+									className={`codicon codicon-stop`}
+									style={{ display: "flex", alignItems: "center", padding: "0 8px" }}
+									onClick={handleStopIndexing}>
+									{t("settings.codebaseIndex.actions.stop").toString() || "Stop Indexing"}
+								</VSCodeButton>
+							) : (
+								<VSCodeButton
+									className={`codicon codicon-inspect`}
+									style={{ display: "flex", alignItems: "center", padding: "0 8px" }}
+									onClick={handleRefreshIndex}
+									disabled={indexStats.status === "indexing" || indexStats.status === "scanning"}>
+									{t("settings.codebaseIndex.actions.refresh").toString() || "刷新索引"}
+								</VSCodeButton>
+							)}
 							<VSCodeButton
 								className={`codicon codicon-trash`} // 使用正确的垃圾桶图标类名
 								style={{ display: "flex", alignItems: "center", padding: "0 8px" }}
