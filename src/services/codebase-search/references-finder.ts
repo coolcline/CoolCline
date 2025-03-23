@@ -2,13 +2,20 @@
  * 符号引用查找器
  * 用于在 codebase 代码库中查找符号的所有引用
  */
-import { CodebaseTreeSitterService, SymbolReference } from "./tree-sitter-service"
-import { TypeScriptImportParser } from "./tree-sitter-service"
-import { PythonImportParser } from "./tree-sitter-service"
-import { JavaImportParser } from "./tree-sitter-service"
-import { GoImportParser } from "./tree-sitter-service"
-import type { ImportParser } from "./tree-sitter-service"
+import * as vscode from "vscode"
 import { LRUCache } from "./lru-cache"
+import { SearchResult, ResultType } from "./types"
+import {
+	CodebaseTreeSitterService,
+	SymbolReference,
+	TypeScriptImportParser,
+	PythonImportParser,
+	CSharpImportParser,
+	JavaImportParser,
+	GoImportParser,
+} from "./tree-sitter-service"
+import { CodebaseSearchManager } from "./index"
+import type { ImportParser } from "./tree-sitter-service"
 
 /**
  * 位置信息
@@ -77,9 +84,11 @@ export class ReferencesFinder {
 		this.importParsers.set("typescript", new TypeScriptImportParser(this.treeService))
 		this.importParsers.set("javascript", new TypeScriptImportParser(this.treeService))
 		this.importParsers.set("python", new PythonImportParser(this.treeService))
-		// 暂时注释掉Java和Go解析器，等测试程序更新后再启用
-		// this.importParsers.set("java", new JavaImportParser(this.treeService))
-		// this.importParsers.set("go", new GoImportParser(this.treeService))
+		// 添加C#导入解析器
+		this.importParsers.set("csharp", new CSharpImportParser(this.treeService))
+		// 恢复Java和Go解析器注册
+		this.importParsers.set("java", new JavaImportParser(this.treeService))
+		this.importParsers.set("go", new GoImportParser(this.treeService))
 		// 其他语言可以在这里添加...
 	}
 

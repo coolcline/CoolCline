@@ -261,3 +261,22 @@ export function isAbsolute(filePath: string): boolean {
 export function basename(filePath: string): string {
 	return path.basename(toPosixPath(filePath))
 }
+
+/**
+ * 解析路径为对象，包含根目录、目录、基本名称和扩展名
+ * @param filePath 需要解析的路径
+ * @returns 解析后的路径对象，包含root、dir、base、name和ext属性
+ */
+export function parse(filePath: string): path.ParsedPath {
+	// 先使用Node.js原生parse方法解析
+	const parsed = path.parse(filePath)
+
+	// 将Windows反斜杠转换为正斜杠
+	return {
+		root: toPosixPath(parsed.root),
+		dir: toPosixPath(parsed.dir),
+		base: parsed.base,
+		name: parsed.name,
+		ext: parsed.ext,
+	}
+}
