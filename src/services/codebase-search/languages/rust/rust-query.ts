@@ -65,6 +65,50 @@ export function getRustQuery(): string {
       (use_declaration
         path: (path) @use.path) @import
         
+      ; 嵌套模块中的函数定义
+      (mod_item
+        body: (declaration_list
+          (function_item
+            name: (identifier) @name.definition.nested.function))) @nested.module.function
+            
+      ; 嵌套模块中的结构体定义
+      (mod_item
+        body: (declaration_list
+          (struct_item
+            name: (type_identifier) @name.definition.nested.struct))) @nested.module.struct
+            
+      ; 嵌套模块中的特征定义
+      (mod_item
+        body: (declaration_list
+          (trait_item
+            name: (type_identifier) @name.definition.nested.trait))) @nested.module.trait
+            
+      ; 结构体中的嵌套类型定义（关联类型）
+      (impl_item
+        type: (type_identifier) @parent.type
+        body: (declaration_list
+          (type_item
+            name: (type_identifier) @name.definition.nested.type))) @nested.struct.type
+            
+      ; 特征中定义的关联类型
+      (trait_item
+        body: (declaration_list
+          (associated_type
+            name: (type_identifier) @name.definition.associated.type))) @trait.associated.type
+            
+      ; 结构体中的嵌套方法
+      (impl_item
+        type: (type_identifier) @parent.type
+        body: (declaration_list
+          (function_item
+            name: (identifier) @name.definition.nested.method))) @nested.struct.method
+            
+      ; 特征中定义的方法
+      (trait_item
+        body: (declaration_list
+          (function_item
+            name: (identifier) @name.definition.trait.method))) @trait.method
+
       ; 引用捕获
       (identifier) @name.reference
       (type_identifier) @name.reference.type
@@ -88,6 +132,24 @@ export function getRustQuery(): string {
       (scoped_identifier
         path: (scoped_identifier) @name.reference.module.path
         name: (identifier) @name.reference.module.member) @reference.module
+        
+      ; 嵌套模块中的函数引用
+      (call_expression
+        function: (scoped_identifier
+          path: (identifier) @parent.module
+          name: (identifier) @name.reference.nested.function)) @reference.nested.function
+          
+      ; 结构体方法嵌套调用
+      (call_expression
+        function: (field_expression
+          object: (identifier) @parent.struct
+          field: (field_identifier) @name.reference.nested.method)) @reference.nested.method
+          
+      ; 关联类型引用
+      (generic_type
+        type: (type_identifier) @parent.type
+        arguments: (type_arguments
+          (type_identifier) @name.reference.associated.type)) @reference.associated.type
         
       ; use声明 (导入)
       (use_declaration) @import

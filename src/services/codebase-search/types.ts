@@ -192,6 +192,7 @@ export interface SymbolReference {
 		line: number
 		column: number
 	}
+	parentContext?: string // 符号所在父级上下文（如嵌套类的外部类）
 	content?: string // 添加内容字段，便于调试和显示
 }
 
@@ -228,4 +229,23 @@ export interface ProcessedSymbols {
 	references: SymbolReference[]
 	imports: ImportStatement[]
 	docComments: Map<string, string>
+}
+
+export interface SymbolInfo {
+	/** 符号名称 */
+	name: string
+	/** 符号类型 */
+	type: string
+	/** 符号位置 */
+	location: Location
+	/** 符号所属父类（如方法所属的类） */
+	parent?: string
+	/** 符号所属命名空间 */
+	namespace?: string
+	/** 符号所在父级上下文（如嵌套类的外部类） */
+	parentContext?: string
+	/** 是否是定义本身 */
+	isDefinition?: boolean
+	/** 附加内容信息 */
+	content?: string
 }

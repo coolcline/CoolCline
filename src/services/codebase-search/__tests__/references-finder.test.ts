@@ -907,6 +907,73 @@ describe("C++ References", () => {
 		const invalidRef = references.find((ref) => ref.line === 45)
 		expect(invalidRef).toBeUndefined()
 	})
+
+	test("C++嵌套类方法引用应该被正确识别", async () => {
+		// 覆盖parseFileWithReferences方法模拟嵌套类结构
+		treeService.parseFileWithReferences = jest.fn().mockResolvedValue({
+			definitions: [
+				{
+					name: "OuterClass",
+					type: "class",
+					location: { line: 5, column: 7 },
+					namespace: "app",
+				},
+				{
+					name: "processData",
+					type: "function",
+					location: { line: 10, column: 11 },
+					parent: "InnerClass",
+					parentContext: "OuterClass",
+					namespace: "app",
+				},
+			],
+			references: [
+				{
+					name: "processData",
+					location: { line: 20, column: 15 },
+					parent: "InnerClass",
+					parentContext: "OuterClass",
+					namespace: "app",
+				},
+				{
+					name: "processData",
+					location: { line: 35, column: 18 },
+					parent: "InnerClass", // 相同类名但无父级上下文
+					namespace: "app",
+					// 没有parentContext
+				},
+			],
+		})
+
+		const filePath = "/src/nested_classes.cpp"
+		const symbolInfo: SymbolInfo = {
+			name: "processData",
+			type: "function",
+			parent: "InnerClass",
+			parentContext: "OuterClass", // 父级上下文表示嵌套结构
+			namespace: "app",
+			location: {
+				file: filePath,
+				line: 10,
+				column: 11,
+			},
+		}
+
+		// 测试文件内引用查找
+		const references = await finder["findReferencesInFile"](symbolInfo, filePath)
+
+		// 应该只找到匹配的引用，包括正确的嵌套上下文
+		expect(references.length).toBe(1)
+
+		// 验证引用位置
+		const validRef = references.find((ref) => ref.line === 20)
+		expect(validRef).toBeDefined()
+		expect(validRef?.column).toBe(15)
+
+		// 不应该找到不匹配的引用（没有父级上下文的）
+		const invalidRef = references.find((ref) => ref.line === 35)
+		expect(invalidRef).toBeUndefined()
+	})
 })
 
 describe("Rust References", () => {
@@ -974,6 +1041,71 @@ describe("Rust References", () => {
 		const invalidRef = references.find((ref) => ref.line === 40)
 		expect(invalidRef).toBeUndefined()
 	})
+
+	test("Rust嵌套模块函数引用应该被正确识别", async () => {
+		// 覆盖parseFileWithReferences方法模拟嵌套模块结构
+		treeService.parseFileWithReferences = jest.fn().mockResolvedValue({
+			definitions: [
+				{
+					name: "outer_mod",
+					type: "module",
+					location: { line: 3, column: 4 },
+					namespace: "app",
+				},
+				{
+					name: "inner_mod",
+					type: "module",
+					location: { line: 5, column: 8 },
+					namespace: "app::outer_mod",
+				},
+				{
+					name: "process_data",
+					type: "function",
+					location: { line: 7, column: 12 },
+					namespace: "app::outer_mod::inner_mod",
+				},
+			],
+			references: [
+				{
+					name: "process_data",
+					location: { line: 15, column: 10 },
+					namespace: "app::outer_mod::inner_mod",
+				},
+				{
+					name: "process_data",
+					location: { line: 25, column: 15 },
+					namespace: "app::other_mod", // 不匹配的命名空间
+				},
+			],
+		})
+
+		const filePath = "/src/nested_modules.rs"
+		const symbolInfo: SymbolInfo = {
+			name: "process_data",
+			type: "function",
+			namespace: "app::outer_mod::inner_mod", // 嵌套模块路径
+			location: {
+				file: filePath,
+				line: 7,
+				column: 12,
+			},
+		}
+
+		// 测试文件内引用查找
+		const references = await finder["findReferencesInFile"](symbolInfo, filePath)
+
+		// 应该只找到匹配的引用，包括正确的嵌套命名空间
+		expect(references.length).toBe(1)
+
+		// 验证引用位置
+		const validRef = references.find((ref) => ref.line === 15)
+		expect(validRef).toBeDefined()
+		expect(validRef?.column).toBe(10)
+
+		// 不应该找到不匹配的引用（不同命名空间的）
+		const invalidRef = references.find((ref) => ref.line === 25)
+		expect(invalidRef).toBeUndefined()
+	})
 })
 
 describe("Swift References", () => {
@@ -990,38 +1122,38 @@ describe("Swift References", () => {
 		treeService.parseFileWithReferences = jest.fn().mockResolvedValue({
 			definitions: [
 				{
-					name: "fetchData",
+					name: "processData",
 					type: "function",
-					location: { line: 12, column: 4 },
-					parent: "DataService",
+					location: { line: 8, column: 4 },
+					parent: "DataHandler",
 					namespace: "App",
 				},
 			],
 			references: [
 				{
-					name: "fetchData",
-					location: { line: 28, column: 15 },
-					parent: "DataService",
+					name: "processData",
+					location: { line: 25, column: 12 },
+					parent: "DataHandler",
 					namespace: "App",
 				},
 				{
-					name: "fetchData",
-					location: { line: 42, column: 20 },
-					parent: "OtherService", // 不匹配的父类
+					name: "processData",
+					location: { line: 40, column: 18 },
+					parent: "OtherClass", // 不匹配的父类
 					namespace: "App",
 				},
 			],
 		})
 
-		const filePath = "/src/Services/DataService.swift"
+		const filePath = "/src/DataHandler.swift"
 		const symbolInfo: SymbolInfo = {
-			name: "fetchData",
+			name: "processData",
 			type: "function",
-			parent: "DataService",
+			parent: "DataHandler",
 			namespace: "App",
 			location: {
 				file: filePath,
-				line: 12,
+				line: 8,
 				column: 4,
 			},
 		}
@@ -1033,12 +1165,79 @@ describe("Swift References", () => {
 		expect(references.length).toBe(1) // 只有1个匹配引用 (排除了定义自身和不匹配父类的引用)
 
 		// 验证引用位置
-		const validRef = references.find((ref) => ref.line === 28)
+		const validRef = references.find((ref) => ref.line === 25)
+		expect(validRef).toBeDefined()
+		expect(validRef?.column).toBe(12)
+
+		// 不应该找到不匹配的引用
+		const invalidRef = references.find((ref) => ref.line === 40)
+		expect(invalidRef).toBeUndefined()
+	})
+
+	test("Swift嵌套类方法引用应该被正确识别", async () => {
+		// 覆盖parseFileWithReferences方法模拟嵌套类结构
+		treeService.parseFileWithReferences = jest.fn().mockResolvedValue({
+			definitions: [
+				{
+					name: "OuterClass",
+					type: "class",
+					location: { line: 3, column: 4 },
+					namespace: "App",
+				},
+				{
+					name: "processData",
+					type: "function",
+					location: { line: 8, column: 8 },
+					parent: "InnerClass",
+					namespace: "App",
+					parentContext: "OuterClass",
+				},
+			],
+			references: [
+				{
+					name: "processData",
+					location: { line: 20, column: 15 },
+					parent: "InnerClass",
+					namespace: "App",
+					parentContext: "OuterClass",
+				},
+				{
+					name: "processData",
+					location: { line: 35, column: 12 },
+					parent: "InnerClass",
+					namespace: "App",
+					// 没有parentContext
+				},
+			],
+		})
+
+		const filePath = "/src/NestedClass.swift"
+		const symbolInfo: SymbolInfo = {
+			name: "processData",
+			type: "function",
+			parent: "InnerClass",
+			namespace: "App",
+			parentContext: "OuterClass",
+			location: {
+				file: filePath,
+				line: 8,
+				column: 8,
+			},
+		}
+
+		// 测试文件内引用查找
+		const references = await finder["findReferencesInFile"](symbolInfo, filePath)
+
+		// 应该只找到匹配的引用，包括正确的嵌套上下文
+		expect(references.length).toBe(1)
+
+		// 验证引用位置
+		const validRef = references.find((ref) => ref.line === 20)
 		expect(validRef).toBeDefined()
 		expect(validRef?.column).toBe(15)
 
-		// 不应该找到不匹配的引用
-		const invalidRef = references.find((ref) => ref.line === 42)
+		// 不应该找到不匹配的引用（没有父级上下文的）
+		const invalidRef = references.find((ref) => ref.line === 35)
 		expect(invalidRef).toBeUndefined()
 	})
 })
@@ -1059,7 +1258,7 @@ describe("Kotlin References", () => {
 				{
 					name: "processData",
 					type: "function",
-					location: { line: 15, column: 4 },
+					location: { line: 8, column: 4 },
 					parent: "DataProcessor",
 					namespace: "com.app.services",
 				},
@@ -1067,20 +1266,20 @@ describe("Kotlin References", () => {
 			references: [
 				{
 					name: "processData",
-					location: { line: 32, column: 15 },
+					location: { line: 25, column: 12 },
 					parent: "DataProcessor",
 					namespace: "com.app.services",
 				},
 				{
 					name: "processData",
-					location: { line: 48, column: 20 },
+					location: { line: 40, column: 18 },
 					parent: "OtherClass", // 不匹配的父类
 					namespace: "com.app.services",
 				},
 			],
 		})
 
-		const filePath = "/src/main/kotlin/com/app/services/DataProcessor.kt"
+		const filePath = "/src/services/DataProcessor.kt"
 		const symbolInfo: SymbolInfo = {
 			name: "processData",
 			type: "function",
@@ -1088,7 +1287,7 @@ describe("Kotlin References", () => {
 			namespace: "com.app.services",
 			location: {
 				file: filePath,
-				line: 15,
+				line: 8,
 				column: 4,
 			},
 		}
@@ -1100,12 +1299,79 @@ describe("Kotlin References", () => {
 		expect(references.length).toBe(1) // 只有1个匹配引用 (排除了定义自身和不匹配父类的引用)
 
 		// 验证引用位置
-		const validRef = references.find((ref) => ref.line === 32)
+		const validRef = references.find((ref) => ref.line === 25)
+		expect(validRef).toBeDefined()
+		expect(validRef?.column).toBe(12)
+
+		// 不应该找到不匹配的引用
+		const invalidRef = references.find((ref) => ref.line === 40)
+		expect(invalidRef).toBeUndefined()
+	})
+
+	test("Kotlin嵌套类方法引用应该被正确识别", async () => {
+		// 覆盖parseFileWithReferences方法模拟嵌套类结构
+		treeService.parseFileWithReferences = jest.fn().mockResolvedValue({
+			definitions: [
+				{
+					name: "OuterClass",
+					type: "class",
+					location: { line: 3, column: 4 },
+					namespace: "com.app.services",
+				},
+				{
+					name: "processData",
+					type: "function",
+					location: { line: 8, column: 8 },
+					parent: "InnerClass",
+					namespace: "com.app.services",
+					parentContext: "OuterClass",
+				},
+			],
+			references: [
+				{
+					name: "processData",
+					location: { line: 20, column: 15 },
+					parent: "InnerClass",
+					namespace: "com.app.services",
+					parentContext: "OuterClass",
+				},
+				{
+					name: "processData",
+					location: { line: 35, column: 12 },
+					parent: "InnerClass",
+					namespace: "com.app.services",
+					// 没有parentContext
+				},
+			],
+		})
+
+		const filePath = "/src/services/NestedClass.kt"
+		const symbolInfo: SymbolInfo = {
+			name: "processData",
+			type: "function",
+			parent: "InnerClass",
+			namespace: "com.app.services",
+			parentContext: "OuterClass",
+			location: {
+				file: filePath,
+				line: 8,
+				column: 8,
+			},
+		}
+
+		// 测试文件内引用查找
+		const references = await finder["findReferencesInFile"](symbolInfo, filePath)
+
+		// 应该只找到匹配的引用，包括正确的嵌套上下文
+		expect(references.length).toBe(1)
+
+		// 验证引用位置
+		const validRef = references.find((ref) => ref.line === 20)
 		expect(validRef).toBeDefined()
 		expect(validRef?.column).toBe(15)
 
-		// 不应该找到不匹配的引用
-		const invalidRef = references.find((ref) => ref.line === 48)
+		// 不应该找到不匹配的引用（没有父级上下文的）
+		const invalidRef = references.find((ref) => ref.line === 35)
 		expect(invalidRef).toBeUndefined()
 	})
 })

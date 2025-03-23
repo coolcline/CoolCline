@@ -58,6 +58,72 @@ export function getSwiftQuery(): string {
       ; 闭包参数定义
       (closure_parameter
         (identifier) @name.definition.parameter) @definition.parameter
+      
+      ; 嵌套类定义
+      (class_declaration
+        (class_body
+          (class_declaration
+            name: (type_identifier) @name.definition.nested.class))) @nested.class
+            
+      ; 嵌套结构体定义
+      (class_declaration
+        (class_body
+          (struct_declaration
+            name: (type_identifier) @name.definition.nested.struct))) @nested.class.struct
+            
+      ; 结构体中的嵌套结构体
+      (struct_declaration
+        (struct_body
+          (struct_declaration
+            name: (type_identifier) @name.definition.nested.struct))) @nested.struct.struct
+            
+      ; 结构体中的嵌套类
+      (struct_declaration
+        (struct_body
+          (class_declaration
+            name: (type_identifier) @name.definition.nested.class))) @nested.struct.class
+            
+      ; 类中的嵌套枚举
+      (class_declaration
+        (class_body
+          (enum_declaration
+            name: (type_identifier) @name.definition.nested.enum))) @nested.class.enum
+            
+      ; 结构体中的嵌套枚举
+      (struct_declaration
+        (struct_body
+          (enum_declaration
+            name: (type_identifier) @name.definition.nested.enum))) @nested.struct.enum
+            
+      ; 类中的嵌套方法
+      (class_declaration
+        (class_body
+          (function_declaration
+            name: (identifier) @name.definition.nested.method))) @nested.class.method
+            
+      ; 结构体中的嵌套方法
+      (struct_declaration
+        (struct_body
+          (function_declaration
+            name: (identifier) @name.definition.nested.method))) @nested.struct.method
+            
+      ; 枚举中的嵌套方法
+      (enum_declaration
+        (enum_body
+          (function_declaration
+            name: (identifier) @name.definition.nested.method))) @nested.enum.method
+            
+      ; 扩展中的方法
+      (extension_declaration
+        (extension_body
+          (function_declaration
+            name: (identifier) @name.definition.extension.method))) @extension.method
+            
+      ; 协议中的方法定义
+      (protocol_declaration
+        (protocol_body
+          (function_declaration
+            name: (identifier) @name.definition.protocol.method))) @protocol.method
         
       ; 引用捕获
       (identifier) @name.reference
@@ -75,6 +141,24 @@ export function getSwiftQuery(): string {
       ; 函数调用
       (call_expression
         function: (identifier) @name.reference.function) @reference.function
+        
+      ; 嵌套类型成员访问
+      (member_expression
+        object: (member_expression
+          object: (identifier) @parent.type
+          name: (identifier) @parent.nested.type)
+        name: (identifier) @name.reference.nested.member) @reference.nested.nested.member
+        
+      ; 类型嵌套成员访问
+      (member_expression
+        object: (identifier) @parent.type
+        name: (identifier) @name.reference.nested.member) @reference.nested.member
+        
+      ; 静态成员访问
+      (call_expression
+        function: (member_expression
+          object: (simple_type_identifier) @parent.type
+          name: (identifier) @name.reference.static.member)) @reference.static.member
         
       ; 导入语句
       (import_declaration
