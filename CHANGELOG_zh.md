@@ -4,6 +4,10 @@
 >
 > 详细文档: [English](docs/user-docs/en/index.md) | [简体中文](https://gitee.com/coolcline/coolcline/blob/main/docs/user-docs/zh/index.md)
 
+## [4.5.6] 2023-03-23
+
+- 优化codebase
+
 ## [4.5.5] 2025-03-22
 
 - 优化代码库索引

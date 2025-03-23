@@ -3,6 +3,10 @@
 >
 > Detailed Documentation: [English](docs/user-docs/en/index.md) | [简体中文](https://gitee.com/coolcline/coolcline/blob/main/docs/user-docs/zh/index.md)
 
+## [4.5.6] 2023-03-23
+
+- Optimized codebase
+
 ## [4.5.5] 2025-03-22
 - Optimized Codebase Indexing
 - Added "Codebase" type and suggestions for context mentions
