@@ -166,6 +166,9 @@ export class CoolCline {
 			this.taskId = historyItem.id
 		}
 
+		// 注册工具
+		this.registerTools()
+
 		// Initialize diffStrategy based on current state
 		this.updateDiffStrategy(Experiments.isEnabled(experiments ?? {}, EXPERIMENT_IDS.DIFF_STRATEGY))
 
@@ -173,6 +176,34 @@ export class CoolCline {
 			this.startTask(task, images)
 		} else if (historyItem) {
 			this.resumeTaskFromHistory()
+		}
+	}
+
+	// 注册代码库搜索和引用查找工具
+	private registerTools(): void {
+		const api = this.api
+		if (api.registerTool) {
+			// 注册代码库搜索工具
+			const register = (tool: any) => {
+				if (api.registerTool) {
+					api.registerTool(tool)
+				}
+			}
+
+			// 动态导入并注册工具
+			import("../services/codebase-search/tool-registration")
+				.then((module) => {
+					if (module.registerCodebaseSearchTool) {
+						module.registerCodebaseSearchTool(register)
+					}
+					// 注册引用查找工具（作为代码库搜索功能的一部分）
+					if (module.registerFindReferencesTool) {
+						module.registerFindReferencesTool(register)
+					}
+				})
+				.catch((err) => {
+					console.error("无法加载代码库搜索工具:", err)
+				})
 		}
 	}
 

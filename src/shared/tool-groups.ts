@@ -21,12 +21,20 @@ export const TOOL_DISPLAY_NAMES = {
 	switch_mode: "switch modes",
 	new_task: "create new task",
 	codebase_search: "semantic code search",
+	find_references: "find symbol references",
 } as const
 
 // Define available tool groups
 export const TOOL_GROUPS: Record<string, ToolGroupConfig> = {
 	read: {
-		tools: ["read_file", "codebase_search", "search_files", "list_files", "list_code_definition_names"],
+		tools: [
+			"read_file",
+			"codebase_search",
+			"search_files",
+			"list_files",
+			"list_code_definition_names",
+			"find_references",
+		],
 	},
 	edit: {
 		tools: ["write_to_file", "edit_file", "apply_diff", "insert_content", "search_and_replace"],

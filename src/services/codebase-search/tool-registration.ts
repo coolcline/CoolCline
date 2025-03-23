@@ -1,7 +1,7 @@
 /**
  * 代码库搜索工具注册
  */
-import { handleCodebaseSearchTool } from "./index"
+import { handleCodebaseSearchTool, handleFindReferences } from "./index"
 
 /**
  * 代码库搜索工具定义
@@ -81,4 +81,110 @@ export const codebaseSearchUsageGuidance = `
  */
 export function registerCodebaseSearchTool(register: (tool: any) => void): void {
 	register(codebaseSearchTool)
+}
+
+/**
+ * 引用查找工具定义 - 代码库搜索的组成部分
+ */
+export const findReferencesTool = {
+	name: "find_references",
+	description:
+		"Find all references to a symbol in the codebase, including definitions and usages across files. This is a part of the codebase search functionality that focuses on precise symbol references.",
+	parameters: {
+		properties: {
+			filePath: {
+				description: "The path to the file containing the symbol",
+				type: "string",
+			},
+			line: {
+				description: "The line number where the symbol is located (1-indexed)",
+				type: "number",
+			},
+			column: {
+				description: "The column number where the symbol is located (0-indexed)",
+				type: "number",
+			},
+			symbolName: {
+				description:
+					"Optional name of the symbol to find references for. If not provided, will be inferred from position.",
+				type: "string",
+			},
+			includeSelf: {
+				description: "Whether to include the definition itself in results",
+				type: "boolean",
+			},
+			maxResults: {
+				description: "Maximum number of results to return",
+				type: "number",
+			},
+			includeImports: {
+				description: "Whether to search in imported files",
+				type: "boolean",
+			},
+			maxDepth: {
+				description: "Maximum depth to search in imported files",
+				type: "number",
+			},
+			explanation: {
+				description:
+					"One sentence explanation as to why this tool is being used, and how it contributes to the goal.",
+				type: "string",
+			},
+		},
+		required: ["filePath", "line", "column"],
+		type: "object",
+	},
+	handler: handleFindReferences,
+}
+
+/**
+ * 引用查找工具组 - 代码库搜索的组成部分
+ */
+export const findReferencesToolGroup = {
+	id: "find_references",
+	name: "find_references",
+	description: "Find all references to a symbol in the codebase (part of codebase search)",
+	emoji: "🔎",
+	schema: findReferencesTool.parameters,
+	component: "default",
+}
+
+/**
+ * 引用查找工具使用指南
+ */
+export const findReferencesUsageGuidance = `
+# 符号引用查找工具 (find_references)
+
+## 作为代码库搜索功能的一部分
+此工具是代码库搜索功能集的组成部分，专注于精确符号引用查找。
+
+## 最佳使用场景
+- 需要找到某个函数、变量或类在整个代码库中的所有引用
+- 需要了解一个符号的使用位置和上下文
+- 查看继承类的方法覆写情况
+- 寻找接口的所有实现
+
+## 与其他工具的区别
+- 代码库搜索 (codebase_search): 适用于一般性代码查找
+- 文本搜索 (grep_search): 可能返回不相关的同名文本匹配
+- 文件读取 (read_file): 只能查看单个文件内容
+
+## 使用示例
+- "查找登录函数的所有调用位置"
+- "查看用户类的所有使用位置"
+- "查找数据库连接初始化方法的所有引用"
+
+## 参数说明
+- filePath: 符号所在的文件路径
+- line: 符号所在的行号（从1开始）
+- column: 符号所在的列号（从0开始）
+- symbolName: 可选，符号名称（如果不提供，将根据位置推断）
+`
+
+/**
+ * 注册引用查找工具 - 代码库搜索的组成部分
+ * @param register 工具注册函数
+ */
+export function registerFindReferencesTool(register: (tool: any) => void): void {
+	register(findReferencesTool)
 }

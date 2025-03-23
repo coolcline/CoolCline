@@ -643,6 +643,129 @@ export async function handleCodebaseSearchWebviewMessage(webview: vscode.Webview
 	}
 }
 
+/**
+ * 符号引用查找处理函数
+ * 用于查找代码中符号的引用位置
+ */
+export async function handleFindReferences(params: any): Promise<any> {
+	try {
+		// 参数解析
+		const { filePath, line, column, symbolName, includeSelf, maxResults, includeImports, maxDepth } = params
+
+		if (!filePath) {
+			throw new Error("必须提供文件路径")
+		}
+
+		if (line === undefined || column === undefined) {
+			throw new Error("必须提供符号位置（行号和列号）")
+		}
+
+		// 获取服务实例
+		const manager = CodebaseSearchManager.getInstance()
+
+		// 通过vscode API获取当前工作区路径
+		const workspacePath = getWorkspacePath()
+
+		// 使用ReferencesFinder服务
+		const { codebaseTSService, referencesFinder } = getReferenceServices()
+
+		// 查找引用
+		const options = {
+			includeSelf: includeSelf !== false,
+			maxResults: maxResults || 100,
+			includeImports: includeImports !== false,
+			maxDepth: maxDepth || 1,
+		}
+
+		// 执行查找
+		const references = await referencesFinder.findReferences(symbolName, filePath, { line, column }, options)
+
+		// 格式化结果
+		return formatReferenceResults(references, workspacePath)
+	} catch (error) {
+		console.error("查找引用失败:", error)
+		return {
+			error: `查找引用失败: ${error.message}`,
+			references: [],
+		}
+	}
+}
+
+/**
+ * 获取当前工作区路径
+ */
+function getWorkspacePath(): string {
+	const workspaceFolders = vscode.workspace.workspaceFolders
+	if (!workspaceFolders || workspaceFolders.length === 0) {
+		throw new Error("没有打开的工作区")
+	}
+	return toPosixPath(workspaceFolders[0].uri.fsPath)
+}
+
+/**
+ * 获取引用查找服务实例
+ * 懒加载方式，避免不必要的资源消耗
+ */
+let referenceServices: { codebaseTSService: any; referencesFinder: any } | null = null
+
+function getReferenceServices() {
+	if (!referenceServices) {
+		// 动态引入服务，避免循环依赖
+		const { CodebaseTreeSitterService } = require("./tree-sitter-service")
+		const { ReferencesFinder } = require("./references-finder")
+
+		// 创建服务实例
+		const codebaseTSService = new CodebaseTreeSitterService()
+
+		// 异步初始化（但不阻塞当前流程）
+		codebaseTSService.initialize().catch((err: Error) => {
+			console.error("初始化 CodebaseTreeSitterService 失败:", err)
+		})
+
+		const referencesFinder = new ReferencesFinder(codebaseTSService)
+
+		// 缓存服务实例
+		referenceServices = { codebaseTSService, referencesFinder }
+
+		// 设置定期清理缓存
+		const HOUR_IN_MS = 60 * 60 * 1000
+		setInterval(() => {
+			referencesFinder.cleanExpiredCache()
+		}, HOUR_IN_MS)
+	}
+
+	return referenceServices
+}
+
+/**
+ * 格式化引用查找结果
+ */
+function formatReferenceResults(references: any[], workspacePath: string): any {
+	// 如果没有结果
+	if (!references || references.length === 0) {
+		return {
+			count: 0,
+			references: [],
+		}
+	}
+
+	// 格式化结果
+	const formattedReferences = references.map((ref) => {
+		return {
+			file: toRelativePath(workspacePath, ref.file),
+			line: ref.line,
+			column: ref.column,
+			content: ref.content || "",
+			isDefinition: ref.isDefinition || false,
+		}
+	})
+
+	return {
+		count: formattedReferences.length,
+		references: formattedReferences,
+	}
+}
+
 // 导出类型
 export * from "./types"
 
