@@ -1,4 +1,3 @@
-import * as path from "path"
 import { toPosixPath } from "../../../utils/path"
 import * as vscode from "vscode"
 import { CodebaseSearchManager, initializeCodebaseSearch, handleCodebaseSearchTool } from "../index"
@@ -6,6 +5,7 @@ import { CodebaseSearchOptions, ResultType, SearchResult } from "../types"
 import { createSearchService } from "../search-service"
 import { setExtensionContext } from "../extension-context"
 import { CodebaseSearchService } from "../search-service"
+import { beforeAllTests, afterAllTests } from "./test-cleanup"
 
 // Mock vscode workspace
 jest.mock("vscode", () => ({
@@ -199,4 +199,16 @@ describe("handleCodebaseSearchTool", () => {
 		expect(result.results[0]).toHaveProperty("context")
 		expect(result.results[0]).toHaveProperty("relevance")
 	})
+})
+
+// 测试开始前全局清理
+beforeAll(async () => {
+	// 清理测试环境
+	await beforeAllTests()
+})
+
+// 测试结束后全局清理
+afterAll(async () => {
+	// 再次清理测试环境
+	await afterAllTests()
 })

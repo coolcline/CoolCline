@@ -451,13 +451,36 @@ export class Database {
 	 */
 	public async close(): Promise<void> {
 		if (this.db) {
-			this.db.close()
-			this.db = null
+			try {
+				// 确保所有未完成的事务被回滚
+				if (await this.isInTransaction()) {
+					await this.rollback()
+				}
+
+				// 尝试保存并关闭
+				await this.saveToFile()
+				this.db.close()
+				this.db = null
+			} catch (error) {
+				console.error(`关闭数据库时出错: ${error.message}`)
+
+				// 即使出错也尝试关闭
+				if (this.db) {
+					try {
+						this.db.close()
+					} catch (e) {
+						// 忽略二次错误
+					}
+					this.db = null
+				}
+			}
 		}
 
 		// 如果是内存模式，删除临时文件
 		if (this.isMemoryMode && this.tempFilePath && fs.existsSync(this.tempFilePath)) {
 			try {
+				// 延迟一小段时间确保文件句柄被释放
+				await new Promise((resolve) => setTimeout(resolve, 100))
 				fs.unlinkSync(this.tempFilePath)
 			} catch (error) {
 				console.error(`删除临时数据库文件失败: ${error.message}`)
@@ -619,7 +642,7 @@ async function initDatabaseSchema(db: Database): Promise<void> {
  * @param workspacePath 工作区路径
  * @returns 唯一标识符
  */
-function generateWorkspaceId(workspacePath: string): string {
+export function generateWorkspaceId(workspacePath: string): string {
 	// 简单方法：使用路径的哈希值
 	let hash = 0
 	for (let i = 0; i < workspacePath.length; i++) {

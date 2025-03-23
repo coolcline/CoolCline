@@ -904,8 +904,22 @@ export class CodebaseIndexService {
 		// 关闭数据库连接
 		if (this.db) {
 			try {
+				// 确保所有数据已写入
+				if (this._progress.status === "indexing") {
+					// 强制停止索引
+					this._progress.status = "completed"
+					this._progress.completed = this._progress.total
+				}
+
+				// 添加延迟确保所有异步操作完成
+				await new Promise((resolve) => setTimeout(resolve, 100))
+
+				// 关闭数据库
 				await this.db.close()
 				this.db = null
+
+				// 再次延迟确保文件系统完成
+				await new Promise((resolve) => setTimeout(resolve, 100))
 			} catch (error) {
 				console.error("关闭数据库连接失败", error)
 			}
