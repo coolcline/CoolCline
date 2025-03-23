@@ -1,6 +1,6 @@
 /**
  * 嵌套结构引用查找测试
- * 测试Ruby和PHP的嵌套结构支持
+ * 测试Ruby、PHP和Java的嵌套结构支持
  */
 import { ReferencesFinder, Location } from "../references-finder"
 import { CodebaseTreeSitterService } from "../tree-sitter-service"
@@ -17,6 +17,7 @@ describe("嵌套结构引用查找测试", () => {
 	// 使用固定的模拟路径
 	const rubyFilePath = "/mock/path/test.rb"
 	const phpFilePath = "/mock/path/test.php"
+	const javaFilePath = "/mock/path/test.java"
 
 	beforeEach(() => {
 		// 初始化依赖
@@ -194,6 +195,134 @@ describe("嵌套结构引用查找测试", () => {
 			expect(refs).toHaveLength(1)
 			expect(refs[0].line).toBe(25)
 			expect(refs[0].column).toBe(15)
+		})
+	})
+
+	describe("Java嵌套类和接口支持", () => {
+		it("应该能找到Java嵌套类中的方法引用", async () => {
+			// 模拟Tree-sitter服务返回的解析结果
+			const processDataDef: SymbolDefinition = {
+				name: "processData",
+				type: "nested.method",
+				parent: "DataProcessor",
+				location: {
+					file: javaFilePath,
+					line: 5,
+					column: 4,
+				},
+				content: "public void processData()",
+			}
+
+			const processDataRef: SymbolReference = {
+				name: "processData",
+				parent: "DataProcessor",
+				type: "reference.nested.method",
+				location: {
+					file: javaFilePath,
+					line: 15,
+					column: 20,
+				},
+			}
+
+			mockTreeService.parseFileWithReferences.mockResolvedValue({
+				definitions: [processDataDef],
+				references: [processDataRef],
+			})
+
+			// 模拟语言检测为Java
+			mockTreeService.getLanguageIdForFile.mockReturnValue("java")
+
+			// 执行引用查找
+			const refs = await finder.findReferences("processData", javaFilePath, { line: 5, column: 4 })
+
+			// 验证结果
+			expect(refs).toHaveLength(1)
+			expect(refs[0].line).toBe(15)
+			expect(refs[0].column).toBe(20)
+		})
+
+		it("应该能找到Java静态内部类的引用", async () => {
+			// 模拟Tree-sitter服务返回的解析结果
+			const builderDef: SymbolDefinition = {
+				name: "Builder",
+				type: "nested.class",
+				parent: "Person",
+				location: {
+					file: javaFilePath,
+					line: 10,
+					column: 2,
+				},
+				content: "public static class Builder",
+			}
+
+			const builderRef: SymbolReference = {
+				name: "Builder",
+				parent: "Person",
+				type: "reference.nested.class",
+				location: {
+					file: javaFilePath,
+					line: 30,
+					column: 15,
+				},
+			}
+
+			mockTreeService.parseFileWithReferences.mockResolvedValue({
+				definitions: [builderDef],
+				references: [builderRef],
+			})
+
+			// 模拟语言检测为Java
+			mockTreeService.getLanguageIdForFile.mockReturnValue("java")
+
+			// 执行引用查找
+			const refs = await finder.findReferences("Builder", javaFilePath, { line: 10, column: 2 })
+
+			// 验证结果
+			expect(refs).toHaveLength(1)
+			expect(refs[0].line).toBe(30)
+			expect(refs[0].column).toBe(15)
+		})
+
+		it("应该能找到Java包中的类引用", async () => {
+			// 模拟Tree-sitter服务返回的解析结果
+			const userServiceDef: SymbolDefinition = {
+				name: "UserService",
+				type: "class",
+				namespace: "com.example.services",
+				location: {
+					file: javaFilePath,
+					line: 3,
+					column: 1,
+				},
+				content: "public class UserService",
+			}
+
+			const userServiceRef: SymbolReference = {
+				name: "UserService",
+				namespace: "com.example.services",
+				type: "reference.class",
+				location: {
+					file: javaFilePath,
+					line: 20,
+					column: 10,
+				},
+			}
+
+			mockTreeService.parseFileWithReferences.mockResolvedValue({
+				definitions: [userServiceDef],
+				references: [userServiceRef],
+			})
+
+			// 模拟语言检测为Java
+			mockTreeService.getLanguageIdForFile.mockReturnValue("java")
+
+			// 执行引用查找
+			const refs = await finder.findReferences("UserService", javaFilePath, { line: 3, column: 1 })
+
+			// 验证结果
+			expect(refs).toHaveLength(1)
+			expect(refs[0].line).toBe(20)
+			expect(refs[0].column).toBe(10)
 		})
 	})
 })

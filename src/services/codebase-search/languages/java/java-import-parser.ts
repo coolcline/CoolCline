@@ -27,10 +27,13 @@ export class JavaImportParser implements ImportParser {
 			// 提取导入语句
 			const importPaths = this.extractImportPaths(content)
 
+			// 同时提取当前文件的包名，用于解析内部类
+			const packageName = this.extractPackageName(content)
+
 			// 解析所有导入路径
 			const resolvedPaths: string[] = []
 			for (const importPath of importPaths) {
-				const resolvedPath = await this.resolveJavaImport(importPath, filePath)
+				const resolvedPath = await this.resolveJavaImport(importPath, filePath, packageName)
 				if (resolvedPath) {
 					resolvedPaths.push(resolvedPath)
 				}
@@ -62,10 +65,10 @@ export class JavaImportParser implements ImportParser {
 			}
 
 			// 匹配导入语句
-			if ((match = importRegex.exec(line)) !== null) {
-				if (match[1]) {
-					importPaths.push(match[1])
-				}
+			const importRegex = /import\s+([\w.]+);/
+			const match = line.match(importRegex)
+			if (match && match[1]) {
+				importPaths.push(match[1])
 			}
 
 			// 匹配静态导入: import static com.example.Utils.helper;
@@ -87,12 +90,38 @@ export class JavaImportParser implements ImportParser {
 	}
 
 	/**
+	 * 从Java文件中提取包名
+	 */
+	private extractPackageName(content: string): string {
+		// 匹配包声明: package com.example.app;
+		const packageRegex = /package\s+([\w.]+);/
+		const match = content.match(packageRegex)
+		return match ? match[1] : ""
+	}
+
+	/**
 	 * 解析Java导入路径为绝对文件路径
 	 */
-	private async resolveJavaImport(importPath: string, sourceFile: string): Promise<string | null> {
+	private async resolveJavaImport(
+		importPath: string,
+		sourceFile: string,
+		currentPackage: string = "",
+	): Promise<string | null> {
 		try {
 			const sourceDir = dirname(sourceFile)
 			const projectRoot = this.findProjectRoot(sourceDir)
+
+			// 检查是否是内部类导入
+			// 内部类形式：OuterClass.InnerClass
+			const innerClassMatch = importPath.match(/^(.+)\.([A-Z][a-zA-Z0-9_]*)$/)
+			if (innerClassMatch && /[A-Z]/.test(innerClassMatch[2][0])) {
+				// 可能是内部类引用，先尝试解析外部类
+				const outerClassPath = innerClassMatch[1]
+				const outerClassFilePath = await this.resolveJavaImport(outerClassPath, sourceFile, currentPackage)
+				if (outerClassFilePath) {
+					return outerClassFilePath
+				}
+			}
 
 			// 移除星号通配符
 			const normalizedImport = importPath.replace(/\.\*$/, "")
@@ -114,6 +143,13 @@ export class JavaImportParser implements ImportParser {
 				} catch (e) {
 					// 文件不存在，继续尝试
 				}
+			}
+
+			// 处理同包引用
+			// 如果导入没有包名前缀，且当前文件有包名，尝试在同包下查找
+			if (!importPath.includes(".") && currentPackage) {
+				const samePkgImportPath = currentPackage + "." + importPath
+				return this.resolveJavaImport(samePkgImportPath, sourceFile)
 			}
 
 			// 无法解析为具体文件
