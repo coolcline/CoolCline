@@ -841,3 +841,271 @@ describe("PHP References", () => {
 			})
 	})
 })
+
+describe("C++ References", () => {
+	let treeService: CodebaseTreeSitterService
+	let finder: ReferencesFinder
+
+	beforeEach(() => {
+		treeService = new CodebaseTreeSitterService()
+		finder = new ReferencesFinder(treeService)
+	})
+
+	test("C++类方法引用应该被正确识别", async () => {
+		// 覆盖parseFileWithReferences方法模拟
+		treeService.parseFileWithReferences = jest.fn().mockResolvedValue({
+			definitions: [
+				{
+					name: "getValue",
+					type: "function",
+					location: { line: 10, column: 4 },
+					parent: "DataProcessor",
+					namespace: "app",
+				},
+			],
+			references: [
+				{
+					name: "getValue",
+					location: { line: 30, column: 15 },
+					parent: "DataProcessor",
+					namespace: "app",
+				},
+				{
+					name: "getValue",
+					location: { line: 45, column: 20 },
+					parent: "OtherClass", // 不匹配的父类
+					namespace: "app",
+				},
+			],
+		})
+
+		const filePath = "/src/processor.cpp"
+		const symbolInfo: SymbolInfo = {
+			name: "getValue",
+			type: "function",
+			parent: "DataProcessor",
+			namespace: "app",
+			location: {
+				file: filePath,
+				line: 10,
+				column: 4,
+			},
+		}
+
+		// 测试文件内引用查找
+		const references = await finder["findReferencesInFile"](symbolInfo, filePath)
+
+		// 应该只找到匹配的引用
+		expect(references.length).toBe(1) // 只有1个匹配引用 (排除了定义自身和不匹配父类的引用)
+
+		// 验证引用位置
+		const validRef = references.find((ref) => ref.line === 30)
+		expect(validRef).toBeDefined()
+		expect(validRef?.column).toBe(15)
+
+		// 不应该找到不匹配的引用
+		const invalidRef = references.find((ref) => ref.line === 45)
+		expect(invalidRef).toBeUndefined()
+	})
+})
+
+describe("Rust References", () => {
+	let treeService: CodebaseTreeSitterService
+	let finder: ReferencesFinder
+
+	beforeEach(() => {
+		treeService = new CodebaseTreeSitterService()
+		finder = new ReferencesFinder(treeService)
+	})
+
+	test("Rust结构体方法引用应该被正确识别", async () => {
+		// 覆盖parseFileWithReferences方法模拟
+		treeService.parseFileWithReferences = jest.fn().mockResolvedValue({
+			definitions: [
+				{
+					name: "process_data",
+					type: "function",
+					location: { line: 8, column: 4 },
+					parent: "DataProcessor",
+					namespace: "app::services",
+				},
+			],
+			references: [
+				{
+					name: "process_data",
+					location: { line: 25, column: 12 },
+					parent: "DataProcessor",
+					namespace: "app::services",
+				},
+				{
+					name: "process_data",
+					location: { line: 40, column: 18 },
+					parent: "OtherStruct", // 不匹配的父类
+					namespace: "app::services",
+				},
+			],
+		})
+
+		const filePath = "/src/services/processor.rs"
+		const symbolInfo: SymbolInfo = {
+			name: "process_data",
+			type: "function",
+			parent: "DataProcessor",
+			namespace: "app::services",
+			location: {
+				file: filePath,
+				line: 8,
+				column: 4,
+			},
+		}
+
+		// 测试文件内引用查找
+		const references = await finder["findReferencesInFile"](symbolInfo, filePath)
+
+		// 应该只找到匹配的引用
+		expect(references.length).toBe(1) // 只有1个匹配引用 (排除了定义自身和不匹配父类的引用)
+
+		// 验证引用位置
+		const validRef = references.find((ref) => ref.line === 25)
+		expect(validRef).toBeDefined()
+		expect(validRef?.column).toBe(12)
+
+		// 不应该找到不匹配的引用
+		const invalidRef = references.find((ref) => ref.line === 40)
+		expect(invalidRef).toBeUndefined()
+	})
+})
+
+describe("Swift References", () => {
+	let treeService: CodebaseTreeSitterService
+	let finder: ReferencesFinder
+
+	beforeEach(() => {
+		treeService = new CodebaseTreeSitterService()
+		finder = new ReferencesFinder(treeService)
+	})
+
+	test("Swift类方法引用应该被正确识别", async () => {
+		// 覆盖parseFileWithReferences方法模拟
+		treeService.parseFileWithReferences = jest.fn().mockResolvedValue({
+			definitions: [
+				{
+					name: "fetchData",
+					type: "function",
+					location: { line: 12, column: 4 },
+					parent: "DataService",
+					namespace: "App",
+				},
+			],
+			references: [
+				{
+					name: "fetchData",
+					location: { line: 28, column: 15 },
+					parent: "DataService",
+					namespace: "App",
+				},
+				{
+					name: "fetchData",
+					location: { line: 42, column: 20 },
+					parent: "OtherService", // 不匹配的父类
+					namespace: "App",
+				},
+			],
+		})
+
+		const filePath = "/src/Services/DataService.swift"
+		const symbolInfo: SymbolInfo = {
+			name: "fetchData",
+			type: "function",
+			parent: "DataService",
+			namespace: "App",
+			location: {
+				file: filePath,
+				line: 12,
+				column: 4,
+			},
+		}
+
+		// 测试文件内引用查找
+		const references = await finder["findReferencesInFile"](symbolInfo, filePath)
+
+		// 应该只找到匹配的引用
+		expect(references.length).toBe(1) // 只有1个匹配引用 (排除了定义自身和不匹配父类的引用)
+
+		// 验证引用位置
+		const validRef = references.find((ref) => ref.line === 28)
+		expect(validRef).toBeDefined()
+		expect(validRef?.column).toBe(15)
+
+		// 不应该找到不匹配的引用
+		const invalidRef = references.find((ref) => ref.line === 42)
+		expect(invalidRef).toBeUndefined()
+	})
+})
+
+describe("Kotlin References", () => {
+	let treeService: CodebaseTreeSitterService
+	let finder: ReferencesFinder
+
+	beforeEach(() => {
+		treeService = new CodebaseTreeSitterService()
+		finder = new ReferencesFinder(treeService)
+	})
+
+	test("Kotlin类方法引用应该被正确识别", async () => {
+		// 覆盖parseFileWithReferences方法模拟
+		treeService.parseFileWithReferences = jest.fn().mockResolvedValue({
+			definitions: [
+				{
+					name: "processData",
+					type: "function",
+					location: { line: 15, column: 4 },
+					parent: "DataProcessor",
+					namespace: "com.app.services",
+				},
+			],
+			references: [
+				{
+					name: "processData",
+					location: { line: 32, column: 15 },
+					parent: "DataProcessor",
+					namespace: "com.app.services",
+				},
+				{
+					name: "processData",
+					location: { line: 48, column: 20 },
+					parent: "OtherClass", // 不匹配的父类
+					namespace: "com.app.services",
+				},
+			],
+		})
+
+		const filePath = "/src/main/kotlin/com/app/services/DataProcessor.kt"
+		const symbolInfo: SymbolInfo = {
+			name: "processData",
+			type: "function",
+			parent: "DataProcessor",
+			namespace: "com.app.services",
+			location: {
+				file: filePath,
+				line: 15,
+				column: 4,
+			},
+		}
+
+		// 测试文件内引用查找
+		const references = await finder["findReferencesInFile"](symbolInfo, filePath)
+
+		// 应该只找到匹配的引用
+		expect(references.length).toBe(1) // 只有1个匹配引用 (排除了定义自身和不匹配父类的引用)
+
+		// 验证引用位置
+		const validRef = references.find((ref) => ref.line === 32)
+		expect(validRef).toBeDefined()
+		expect(validRef?.column).toBe(15)
+
+		// 不应该找到不匹配的引用
+		const invalidRef = references.find((ref) => ref.line === 48)
+		expect(invalidRef).toBeUndefined()
+	})
+})

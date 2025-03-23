@@ -18,6 +18,10 @@ import { getRubyQuery } from "./languages/ruby"
 import { getPHPQuery } from "./languages/php"
 import { getCSharpQuery } from "./languages/csharp"
 import { getJavaQuery } from "./languages/java"
+import { getCPPQuery } from "./languages/cpp"
+import { getRustQuery } from "./languages/rust"
+import { getSwiftQuery } from "./languages/swift"
+import { getKotlinQuery } from "./languages/kotlin"
 
 // 导入语言工具函数
 import { getExtensionForLanguage, getLanguageIdFromFileExtension } from "./languages"
@@ -78,9 +82,20 @@ export class CodebaseTreeSitterService {
 	 */
 	private async initExtendedQueries(): Promise<void> {
 		// 初始化各种语言的解析器
-		// 这里应该加载所有支持的语言的parser
-		// 暂时先支持TypeScript/JavaScript和Python
-		const languages = ["typescript", "python", "java", "go", "csharp", "ruby", "php"]
+		const languages = [
+			"typescript",
+			"python",
+			"java",
+			"go",
+			"csharp",
+			"ruby",
+			"php",
+			"cpp",
+			"c",
+			"rust",
+			"swift",
+			"kotlin",
+		]
 
 		for (const lang of languages) {
 			try {
@@ -135,6 +150,23 @@ export class CodebaseTreeSitterService {
 					break
 				case ".php":
 					queryString = getPHPQuery()
+					break
+				case ".c":
+				case ".cpp":
+				case ".h":
+				case ".hpp":
+				case ".cc":
+					queryString = getCPPQuery()
+					break
+				case ".rs":
+					queryString = getRustQuery()
+					break
+				case ".swift":
+					queryString = getSwiftQuery()
+					break
+				case ".kt":
+				case ".kts":
+					queryString = getKotlinQuery()
 					break
 				default:
 					return null

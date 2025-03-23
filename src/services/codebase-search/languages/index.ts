@@ -24,6 +24,18 @@ export * from "./go"
 // Ruby支持
 export * from "./ruby"
 
+// C/C++支持
+export * from "./cpp"
+
+// Rust支持
+export * from "./rust"
+
+// Swift支持
+export * from "./swift"
+
+// Kotlin支持
+export * from "./kotlin"
+
 // 语言工厂和工具函数
 import { CodebaseTreeSitterService } from "../tree-sitter-service"
 import { ImportParser } from "../types"
@@ -34,6 +46,10 @@ import { CSharpImportParser } from "./csharp"
 import { PHPImportParser } from "./php"
 import { GoImportParser } from "./go"
 import { RubyImportParser } from "./ruby"
+import { CPPImportParser } from "./cpp"
+import { RustImportParser } from "./rust"
+import { SwiftImportParser } from "./swift"
+import { KotlinImportParser } from "./kotlin"
 
 /**
  * 根据语言ID创建适当的导入解析器
@@ -58,6 +74,15 @@ export function createImportParser(languageId: string, treeService: CodebaseTree
 			return new GoImportParser(treeService)
 		case "ruby":
 			return new RubyImportParser(treeService)
+		case "cpp":
+		case "c":
+			return new CPPImportParser(treeService)
+		case "rust":
+			return new RustImportParser(treeService)
+		case "swift":
+			return new SwiftImportParser(treeService)
+		case "kotlin":
+			return new KotlinImportParser(treeService)
 		default:
 			throw new Error(`不支持的语言: ${languageId}`)
 	}
@@ -89,6 +114,19 @@ export function getLanguageIdFromFileExtension(ext: string): string {
 			return "go"
 		case ".rb":
 			return "ruby"
+		case ".c":
+		case ".cpp":
+		case ".cc":
+		case ".h":
+		case ".hpp":
+			return "cpp"
+		case ".rs":
+			return "rust"
+		case ".swift":
+			return "swift"
+		case ".kt":
+		case ".kts":
+			return "kotlin"
 		default:
 			return "unknown"
 	}
@@ -118,6 +156,16 @@ export function getExtensionForLanguage(languageId: string): string {
 			return ".go"
 		case "ruby":
 			return ".rb"
+		case "cpp":
+			return ".cpp"
+		case "c":
+			return ".c"
+		case "rust":
+			return ".rs"
+		case "swift":
+			return ".swift"
+		case "kotlin":
+			return ".kt"
 		default:
 			return ""
 	}
