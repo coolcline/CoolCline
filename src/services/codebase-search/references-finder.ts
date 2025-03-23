@@ -4,18 +4,10 @@
  */
 import * as vscode from "vscode"
 import { LRUCache } from "./lru-cache"
-import { SearchResult, ResultType } from "./types"
-import {
-	CodebaseTreeSitterService,
-	SymbolReference,
-	TypeScriptImportParser,
-	PythonImportParser,
-	CSharpImportParser,
-	JavaImportParser,
-	GoImportParser,
-} from "./tree-sitter-service"
+import { SearchResult, ResultType, SymbolReference, ImportParser } from "./types"
+import { CodebaseTreeSitterService } from "./tree-sitter-service"
+import { createImportParser, getLanguageIdFromFileExtension } from "./languages"
 import { CodebaseSearchManager } from "./index"
-import type { ImportParser } from "./tree-sitter-service"
 
 /**
  * 位置信息
@@ -80,16 +72,16 @@ export class ReferencesFinder {
 	 * 注册各语言的导入解析器
 	 */
 	private registerImportParsers() {
-		// 使用显式导入确保测试环境能正确解析类
-		this.importParsers.set("typescript", new TypeScriptImportParser(this.treeService))
-		this.importParsers.set("javascript", new TypeScriptImportParser(this.treeService))
-		this.importParsers.set("python", new PythonImportParser(this.treeService))
-		// 添加C#导入解析器
-		this.importParsers.set("csharp", new CSharpImportParser(this.treeService))
-		// 恢复Java和Go解析器注册
-		this.importParsers.set("java", new JavaImportParser(this.treeService))
-		this.importParsers.set("go", new GoImportParser(this.treeService))
-		// 其他语言可以在这里添加...
+		// 使用语言工厂方法注册各语言的导入解析器
+		const supportedLanguages = ["typescript", "javascript", "python", "csharp", "java", "go", "ruby", "php"]
+
+		for (const lang of supportedLanguages) {
+			try {
+				this.importParsers.set(lang, createImportParser(lang, this.treeService))
+			} catch (error) {
+				console.error(`Error registering import parser for ${lang}:`, error)
+			}
+		}
 	}
 
 	/**
@@ -414,28 +406,8 @@ export class ReferencesFinder {
 	 * 从文件路径获取语言ID
 	 */
 	private getLanguageIdFromFile(filePath: string): string {
-		const ext = filePath.split(".").pop()?.toLowerCase() || ""
-
-		switch (ext) {
-			case "ts":
-			case "tsx":
-				return "typescript"
-			case "js":
-			case "jsx":
-				return "javascript"
-			case "py":
-				return "python"
-			case "java":
-				return "java"
-			case "go":
-				return "go"
-			case "rb":
-				return "ruby"
-			case "php":
-				return "php"
-			default:
-				return "javascript" // 默认使用 JavaScript
-		}
+		const ext = "." + (filePath.split(".").pop()?.toLowerCase() || "")
+		return getLanguageIdFromFileExtension(ext)
 	}
 
 	/**

@@ -1,16 +1,36 @@
 /**
- * 代码库专用的 Tree-sitter 服务
- * 扩展了基本的 Tree-sitter 功能，添加了对引用、导入等的支持
+ * 代码库的Tree-sitter服务
+ * 负责解析代码文件并提取符号信息
  */
 import Parser from "web-tree-sitter"
-import * as fs from "fs/promises"
-import { PathUtils } from "../checkpoints/CheckpointUtils"
-import { loadRequiredLanguageParsers, LanguageParser } from "../tree-sitter/languageParser"
-import { CodeSymbol, SymbolRelation, RelationType, ResultType } from "./types"
-import { parseSourceCodeForDefinitionsTopLevel } from "../tree-sitter/index"
-import { join, dirname, extname, isAbsolute, parse } from "../../utils/path"
+import * as path from "../../utils/path"
+import { promises as fs } from "fs"
+import { ResultType, CodeSymbol, SymbolDefinition, SymbolReference, ImportStatement, ProcessedSymbols } from "./types"
 
-// 创建一个简单的文档接口，类似于VSCode的TextDocument
+// 导入符号处理器
+import { processQueryResults } from "./symbol-processor"
+
+// 导入各语言的查询函数
+import { getTypeScriptQuery } from "./languages/typescript"
+import { getPythonQuery } from "./languages/python"
+import { getGoQuery } from "./languages/go"
+import { getRubyQuery } from "./languages/ruby"
+import { getPHPQuery } from "./languages/php"
+import { getCSharpQuery } from "./languages/csharp"
+import { getJavaQuery } from "./languages/java"
+
+// 导入语言工具函数
+import { getExtensionForLanguage } from "./languages"
+
+// 定义语言解析器类型
+type LanguageParser = {
+	[ext: string]: {
+		parser: Parser
+		language: Parser.Language
+		query?: Parser.Query
+	}
+}
+
 interface TextDocument {
 	uri: string
 	languageId: string
@@ -18,777 +38,208 @@ interface TextDocument {
 }
 
 /**
- * 符号定义接口
- */
-export interface SymbolDefinition {
-	name: string
-	type: string
-	location: {
-		file: string
-		line: number
-		column: number
-	}
-	parent?: string
-	content: string
-	documentation?: string
-}
-
-/**
- * 符号引用接口
- */
-export interface SymbolReference {
-	name: string
-	namespace?: string
-	parent?: string
-	isDefinition?: boolean
-	location: {
-		line: number
-		column: number
-	}
-}
-
-/**
- * 导入语句接口
- */
-export interface ImportStatement {
-	source: string
-	names: string[]
-	location: {
-		file: string
-		line: number
-		column: number
-	}
-}
-
-/**
- * 处理后的符号信息
- */
-export interface ProcessedSymbols {
-	definitions: SymbolDefinition[]
-	references: SymbolReference[]
-	imports: ImportStatement[]
-	docComments: Map<string, string>
-}
-
-// 注释节点类型，用于关联文档注释
-interface CommentNode {
-	node: Parser.SyntaxNode
-	distance: number
-}
-
-/**
- * 代码库树解析服务
- * 用于增强的代码分析，包括引用查找、文档提取等
+ * 代码库Tree-sitter服务类
  */
 export class CodebaseTreeSitterService {
 	private languageParsers: LanguageParser = {}
 	private extendedQueries: Map<string, Parser.Query> = new Map()
 	private initialized: boolean = false
+	private workspaceRootPath: string
 
 	/**
 	 * 构造函数
+	 * @param workspaceRootPath 工作区根路径
 	 */
-	constructor() {
-		// 初始化操作
+	constructor(workspaceRootPath?: string) {
+		this.workspaceRootPath = workspaceRootPath || process.cwd()
 	}
 
 	/**
-	 * 初始化服务
+	 * 获取项目根目录
+	 */
+	public getProjectRoot(): string {
+		return this.workspaceRootPath
+	}
+
+	/**
+	 * 初始化Tree-sitter
 	 */
 	public async initialize(): Promise<void> {
 		if (this.initialized) return
 
-		// 提前加载一些常用语言的解析器
-		const dummyFiles = ["example.ts", "example.js", "example.py", "example.java", "example.cpp", "example.go"]
-
-		this.languageParsers = await loadRequiredLanguageParsers(dummyFiles)
-		this.initialized = true
-
-		// 初始化扩展查询
+		await Parser.init()
 		await this.initExtendedQueries()
+
+		this.initialized = true
 	}
 
 	/**
 	 * 初始化扩展查询
-	 * 为各语言加载包含引用、导入等的扩展查询
 	 */
 	private async initExtendedQueries(): Promise<void> {
-		// 为已加载的语言解析器创建扩展查询
-		for (const ext in this.languageParsers) {
-			const { parser } = this.languageParsers[ext]
-			const extendedQuery = await this.createExtendedQueryForLanguage(ext, parser.getLanguage())
-			if (extendedQuery) {
-				this.extendedQueries.set(ext, extendedQuery)
+		// 初始化各种语言的解析器
+		// 这里应该加载所有支持的语言的parser
+		// 暂时先支持TypeScript/JavaScript和Python
+		const languages = ["typescript", "python", "java", "go", "csharp", "ruby", "php"]
+
+		for (const lang of languages) {
+			try {
+				const language = await this.loadLanguage(lang)
+				if (language) {
+					const ext = getExtensionForLanguage(lang)
+					this.languageParsers[ext] = { parser: new Parser(), language }
+					this.languageParsers[ext].parser.setLanguage(language)
+
+					// 创建扩展查询
+					const query = await this.createExtendedQueryForLanguage(ext, language)
+					if (query) {
+						this.extendedQueries.set(ext, query)
+						this.languageParsers[ext].query = query
+					}
+				}
+			} catch (error) {
+				console.error(`Error initializing ${lang} parser:`, error)
 			}
 		}
 	}
 
 	/**
-	 * 为特定语言创建扩展查询
+	 * 为语言创建扩展查询
 	 */
 	private async createExtendedQueryForLanguage(ext: string, language: Parser.Language): Promise<Parser.Query | null> {
-		let baseQuery = ""
-
-		// 获取基础查询
-		switch (ext) {
-			case "ts":
-			case "tsx":
-				baseQuery = await this.getExtendedTypeScriptQuery()
-				break
-			case "js":
-			case "jsx":
-				baseQuery = await this.getExtendedJavaScriptQuery()
-				break
-			case "py":
-				baseQuery = await this.getExtendedPythonQuery()
-				break
-			// 可以添加更多语言...
-			default:
-				return null
-		}
-
 		try {
-			return language.query(baseQuery)
+			// 使用导入的查询函数获取查询字符串
+			let queryString: string = ""
+
+			switch (ext) {
+				case ".ts":
+				case ".tsx":
+				case ".js":
+				case ".jsx":
+					queryString = getTypeScriptQuery()
+					break
+				case ".py":
+					queryString = getPythonQuery()
+					break
+				case ".java":
+					queryString = getJavaQuery()
+					break
+				case ".go":
+					queryString = getGoQuery()
+					break
+				case ".cs":
+					queryString = getCSharpQuery()
+					break
+				case ".rb":
+					queryString = getRubyQuery()
+					break
+				case ".php":
+					queryString = getPHPQuery()
+					break
+				default:
+					return null
+			}
+
+			// 如果获取到查询字符串，创建查询
+			if (queryString) {
+				return language.query(queryString)
+			}
+
+			return null
 		} catch (error) {
-			console.error(`Error creating extended query for ${ext}:`, error)
+			console.error(`Error creating query for extension ${ext}:`, error)
 			return null
 		}
 	}
 
 	/**
-	 * 获取 TypeScript 扩展查询
-	 */
-	private async getExtendedTypeScriptQuery(): Promise<string> {
-		// 基础 TypeScript 查询 + 引用和导入捕获
-		return `
-      ; 定义 (保持与现有查询兼容)
-      (function_signature
-        name: (identifier) @name.definition.function) @definition.function
-
-      (method_signature
-        name: (property_identifier) @name.definition.method) @definition.method
-
-      (abstract_method_signature
-        name: (property_identifier) @name.definition.method) @definition.method
-
-      (abstract_class_declaration
-        name: (type_identifier) @name.definition.class) @definition.class
-
-      (module
-        name: (identifier) @name.definition.module) @definition.module
-
-      (function_declaration
-        name: (identifier) @name.definition.function) @definition.function
-
-      (method_definition
-        name: (property_identifier) @name.definition.method) @definition.method
-
-      (class_declaration
-        name: (type_identifier) @name.definition.class) @definition.class
-        
-      ; 变量定义
-      (variable_declarator
-        name: (identifier) @name.definition.variable) @definition.variable
-        
-      ; 接口定义
-      (interface_declaration
-        name: (type_identifier) @name.definition.interface) @definition.interface
-        
-      ; 类型定义
-      (type_alias_declaration
-        name: (type_identifier) @name.definition.type) @definition.type
-
-      ; 引用捕获
-      (identifier) @name.reference
-      
-      ; 属性访问引用
-      (property_identifier) @name.reference.property
-      
-      ; 类型引用
-      (type_identifier) @name.reference.type
-      
-      ; 导入语句
-      (import_statement
-        source: (string) @import.source) @import
-      
-      ; 导入声明
-      (import_clause
-        (named_imports
-          (import_specifier
-            name: (identifier) @import.name
-            alias: (identifier)? @import.alias))) @import.clause
-            
-      ; 文档注释
-      (comment) @doc.comment
-    `
-	}
-
-	/**
-	 * 获取 JavaScript 扩展查询
-	 */
-	private async getExtendedJavaScriptQuery(): Promise<string> {
-		// 类似 TypeScript 但适用于 JavaScript 的查询
-		return `
-      ; 定义
-      (function_declaration
-        name: (identifier) @name.definition.function) @definition.function
-        
-      (method_definition
-        name: (property_identifier) @name.definition.method) @definition.method
-        
-      (class_declaration
-        name: (identifier) @name.definition.class) @definition.class
-        
-      (variable_declarator
-        name: (identifier) @name.definition.variable) @definition.variable
-        
-      ; 引用捕获
-      (identifier) @name.reference
-      
-      ; 属性访问引用
-      (property_identifier) @name.reference.property
-      
-      ; 导入语句
-      (import_statement
-        source: (string) @import.source) @import
-      
-      ; 导入声明
-      (import_clause
-        (named_imports
-          (import_specifier
-            name: (identifier) @import.name
-            alias: (identifier)? @import.alias))) @import.clause
-            
-      ; 文档注释
-      (comment) @doc.comment
-    `
-	}
-
-	/**
-	 * 获取 Python 扩展查询
-	 */
-	private async getExtendedPythonQuery(): Promise<string> {
-		return `
-      ; 定义
-      (function_definition
-        name: (identifier) @name.definition.function) @definition.function
-        
-      (class_definition
-        name: (identifier) @name.definition.class) @definition.class
-        
-      ; 变量定义
-      (assignment
-        left: (identifier) @name.definition.variable) @definition.variable
-        
-      ; 引用捕获
-      (identifier) @name.reference
-      
-      ; 属性访问引用
-      (attribute
-        attribute: (identifier) @name.reference.property) @reference.property
-        
-      ; 导入语句
-      (import_statement
-        name: (dotted_name) @import.module) @import
-        
-      (import_from_statement
-        module_name: (dotted_name) @import.source
-        name: (dotted_name) @import.name) @import.from
-        
-      ; 文档字符串
-      (expression_statement
-        (string) @doc.comment)
-    `
-	}
-
-	/**
-	 * 通过文件扩展名获取语言解析器
+	 * 获取语言解析器
 	 */
 	private getLanguageParser(filePath: string): { parser: Parser; query: Parser.Query } | null {
-		const ext = PathUtils.extname(filePath).toLowerCase().slice(1)
+		const ext = path.extname(filePath).toLowerCase()
+		const parser = this.languageParsers[ext]
 
-		if (!this.languageParsers[ext]) {
+		if (!parser || !parser.query) {
 			return null
 		}
 
-		return {
-			parser: this.languageParsers[ext].parser,
-			query: this.extendedQueries.get(ext) || this.languageParsers[ext].query,
-		}
+		return { parser: parser.parser, query: parser.query }
 	}
 
 	/**
-	 * 解析文件，提取定义、引用和导入
+	 * 解析文件并提取引用
 	 */
 	public async parseFileWithReferences(filePath: string): Promise<{
 		definitions: any[]
 		references: SymbolReference[]
 	}> {
-		// 确保服务已初始化
 		if (!this.initialized) {
 			await this.initialize()
 		}
 
 		try {
-			const content = await fs.readFile(filePath, "utf8")
-			const languageParser = this.getLanguageParser(filePath)
-
-			if (!languageParser) {
-				return {
-					definitions: [],
-					references: [],
-				}
+			const parserInfo = this.getLanguageParser(filePath)
+			if (!parserInfo) {
+				return { definitions: [], references: [] }
 			}
 
-			const { parser, query } = languageParser
+			const { parser, query } = parserInfo
+			const content = await this.readFileContent(filePath)
+			if (!content) {
+				return { definitions: [], references: [] }
+			}
 
-			// 解析文件内容
 			const tree = parser.parse(content)
-
-			// 使用查询捕获节点
 			const captures = query.captures(tree.rootNode)
 
-			// 处理查询结果
-			const result = this.processQueryResults(captures, content, filePath)
+			// 使用符号处理器处理查询结果
+			const result = processQueryResults(captures, content, filePath)
 
 			return {
 				definitions: result.definitions,
 				references: result.references,
 			}
 		} catch (error) {
-			console.error(`Error parsing file ${filePath}:`, error)
-			return {
-				definitions: [],
-				references: [],
-			}
+			console.error(`Error parsing file with references ${filePath}:`, error)
+			return { definitions: [], references: [] }
 		}
 	}
 
 	/**
-	 * 仅解析文件的顶层定义
-	 * 用于大文件的轻量级索引
+	 * 解析文件顶层符号
 	 */
 	public async parseFileTopLevelOnly(filePath: string): Promise<{
 		definitions: any[]
 	}> {
-		// 确保服务已初始化
 		if (!this.initialized) {
 			await this.initialize()
 		}
 
-		const content = await fs.readFile(filePath, "utf8")
-		const languageParser = this.getLanguageParser(filePath)
+		try {
+			const parserInfo = this.getLanguageParser(filePath)
+			if (!parserInfo) {
+				return { definitions: [] }
+			}
 
-		if (!languageParser) {
+			const { parser, query } = parserInfo
+			const content = await this.readFileContent(filePath)
+			if (!content) {
+				return { definitions: [] }
+			}
+
+			const tree = parser.parse(content)
+			const captures = query.captures(tree.rootNode)
+
+			// 使用符号处理器处理查询结果
+			const result = processQueryResults(captures, content, filePath)
+
 			return {
-				definitions: [],
+				definitions: result.definitions,
 			}
+		} catch (error) {
+			console.error(`Error parsing file top level ${filePath}:`, error)
+			return { definitions: [] }
 		}
-
-		const { parser, query } = languageParser
-
-		// 解析文件内容
-		const tree = parser.parse(content)
-
-		// 使用查询捕获节点
-		const captures = query.captures(tree.rootNode)
-
-		const result = this.processQueryResults(captures, content, filePath)
-
-		// 过滤仅保留顶层定义和导入
-		const topLevelDefinitions = result.definitions.filter((def) => {
-			// 假设没有父级的是顶层定义
-			return !def.parent
-		})
-
-		return {
-			definitions: topLevelDefinitions,
-		}
-	}
-
-	/**
-	 * 处理查询结果，提取定义、引用和文档注释
-	 */
-	private processQueryResults(captures: Parser.QueryCapture[], content: string, filePath: string): ProcessedSymbols {
-		const lines = content.split("\n")
-		const definitions: SymbolDefinition[] = []
-		const references: SymbolReference[] = []
-		const imports: ImportStatement[] = []
-		const docComments = new Map<string, string>()
-
-		// 1. 第一轮：收集文档注释和定义
-		for (const capture of captures) {
-			const { node, name } = capture
-
-			// 处理文档注释
-			if (name.includes("doc")) {
-				const docText = this.getNodeText(node, content)
-				docComments.set(this.getNodeId(node), this.formatDocComment(docText))
-				continue
-			}
-
-			// 处理定义
-			if (name.includes("definition")) {
-				try {
-					// 查找定义的名称节点
-					const parentNode = node
-					// @ts-ignore SyntaxNode has a childCount property, but TS doesn't know about it
-					if (parentNode && parentNode.childCount > 0) {
-						// 查找与capture name匹配的name节点
-						const nameMatches = captures.filter(
-							(c) => c.name.includes("name") && c.name.includes(name.split("definition")[1]),
-						)
-						const nameNode = nameMatches.find((m) => {
-							// 安全检查，确保node.parent不为null
-							const parentOfNode = m.node.parent
-							return parentOfNode && parentNode.equals(parentOfNode)
-						})?.node
-
-						if (nameNode) {
-							const definition = this.createDefinition(
-								nameNode,
-								parentNode,
-								name,
-								content,
-								lines,
-								filePath,
-							)
-							definitions.push(definition)
-						}
-					}
-				} catch (error) {
-					console.error("解析定义时出错:", error)
-				}
-			}
-		}
-
-		// 2. 第二轮：处理引用和导入，尝试关联到定义
-		for (const capture of captures) {
-			const { node, name } = capture
-
-			// 处理引用
-			if (name.includes("reference")) {
-				try {
-					const reference = this.createReference(node, name, content, filePath)
-
-					// 尝试确定引用的命名空间和父级
-					reference.namespace = this.determineNamespace(node, captures, content)
-					reference.parent = this.determineParent(node, captures, content)
-
-					// 排除已知的定义
-					const isDef = definitions.some(
-						(def) =>
-							def.name === reference.name &&
-							def.location.line === reference.location.line &&
-							def.location.column === reference.location.column,
-					)
-					if (!isDef) {
-						references.push(reference)
-					}
-				} catch (error) {
-					console.error("解析引用时出错:", error)
-				}
-			}
-
-			// 处理导入
-			if (name.includes("import")) {
-				if (name === "import.source") {
-					try {
-						const importStmt = this.createImportStatement(node, captures, content, filePath)
-						if (importStmt) {
-							imports.push(importStmt)
-						}
-					} catch (error) {
-						console.error("解析导入时出错:", error)
-					}
-				}
-			}
-		}
-
-		// 3. 建立定义和文档注释的关联
-		for (const definition of definitions) {
-			if (definition.documentation) continue // 已经有文档了
-
-			// 查找可能的文档注释
-			for (const [nodeId, docText] of docComments.entries()) {
-				const [line, col] = nodeId.split(":").map(Number)
-				// 如果文档注释在定义之前且距离不超过3行，则关联
-				if (line < definition.location.line && definition.location.line - line <= 3) {
-					definition.documentation = docText
-					break
-				}
-			}
-		}
-
-		return { definitions, references, imports, docComments }
-	}
-
-	/**
-	 * 确定节点所属的命名空间
-	 * 例如：对于 a.b.c，确定命名空间为 a.b
-	 */
-	private determineNamespace(
-		node: Parser.SyntaxNode,
-		captures: Parser.QueryCapture[],
-		content: string,
-	): string | undefined {
-		// 对于属性访问，尝试找到对象部分
-		if (node.type === "property_identifier" || node.type === "identifier") {
-			let current = node.parent
-
-			// 处理TypeScript/JavaScript的情况
-			if (current?.type === "member_expression") {
-				// 递归查找完整路径，例如 a.b.c
-				const parts: string[] = []
-				let memberExp: Parser.SyntaxNode | null = current
-
-				while (memberExp && memberExp.type === "member_expression") {
-					// 获取对象部分 (a.b中的a)
-					const objectNode = memberExp.childForFieldName("object")
-					if (objectNode && objectNode.type === "identifier") {
-						parts.unshift(this.getNodeText(objectNode, content))
-					}
-					// 安全地更新memberExp
-					memberExp = memberExp.parent
-				}
-
-				if (parts.length > 0) {
-					return parts.join(".")
-				}
-			}
-
-			// 处理Python的情况
-			if (current?.type === "attribute") {
-				const valueNode = current.childForFieldName("value")
-				if (valueNode) {
-					return this.getNodeText(valueNode, content)
-				}
-			}
-		}
-
-		return undefined
-	}
-
-	/**
-	 * 确定节点的父级（例如类名或模块名）
-	 */
-	private determineParent(
-		node: Parser.SyntaxNode,
-		captures: Parser.QueryCapture[],
-		content: string,
-	): string | undefined {
-		// 向上查找父节点
-		let current = node.parent
-		while (current) {
-			// 检查是否在类定义内
-			if (current.type === "class_declaration" || current.type === "class_definition") {
-				// 查找类名
-				const classNameNode = current.childForFieldName("name")
-				if (classNameNode) {
-					return this.getNodeText(classNameNode, content)
-				}
-			}
-
-			// 检查是否在方法定义内
-			if (
-				current.type === "method_definition" ||
-				(current.type === "function_definition" && current.parent?.parent?.type === "class_definition")
-			) {
-				// 继续向上查找类
-				let classNode = current.parent
-				while (classNode && classNode.type !== "class_declaration" && classNode.type !== "class_definition") {
-					classNode = classNode.parent
-				}
-
-				if (classNode) {
-					const classNameNode = classNode.childForFieldName("name")
-					if (classNameNode) {
-						return this.getNodeText(classNameNode, content)
-					}
-				}
-			}
-
-			current = current.parent
-		}
-
-		return undefined
-	}
-
-	/**
-	 * 创建符号定义对象
-	 */
-	private createDefinition(
-		nameNode: Parser.SyntaxNode,
-		definitionNode: Parser.SyntaxNode,
-		captureName: string,
-		content: string,
-		lines: string[],
-		filePath: string,
-	): SymbolDefinition {
-		// 提取符号类型
-		let type = "unknown"
-		if (captureName.includes("function")) {
-			type = "function"
-		} else if (captureName.includes("method")) {
-			type = "method"
-		} else if (captureName.includes("class")) {
-			type = "class"
-		} else if (captureName.includes("variable")) {
-			type = "variable"
-		} else if (captureName.includes("interface")) {
-			type = "interface"
-		} else if (captureName.includes("module")) {
-			type = "module"
-		} else if (captureName.includes("type")) {
-			type = "type"
-		}
-
-		// 获取符号名称
-		const name = this.getNodeText(nameNode, content)
-
-		// 尝试获取父级符号名称
-		const parent = this.getParentSymbol(definitionNode)
-
-		// 获取符号所在行内容
-		const lineContent = lines[nameNode.startPosition.row] || ""
-
-		return {
-			name,
-			type,
-			location: {
-				file: filePath,
-				line: nameNode.startPosition.row + 1, // 转为1-indexed
-				column: nameNode.startPosition.column,
-			},
-			parent,
-			content: lineContent,
-		}
-	}
-
-	/**
-	 * 创建符号引用对象
-	 */
-	private createReference(
-		node: Parser.SyntaxNode,
-		captureName: string,
-		content: string,
-		filePath: string,
-	): SymbolReference {
-		const name = this.getNodeText(node, content)
-
-		// 确定引用类型和命名空间
-		let namespace = undefined
-		let parent = undefined
-
-		// 尝试获取命名空间/父级信息
-		if (captureName.includes("property")) {
-			// 属性访问，如 obj.prop
-			const objNode = node.parent?.childForFieldName("object")
-			if (objNode) {
-				parent = this.getNodeText(objNode, content)
-			}
-		}
-
-		return {
-			name,
-			location: {
-				line: node.startPosition.row + 1, // 转为1-indexed
-				column: node.startPosition.column,
-			},
-			isDefinition: false,
-			namespace,
-			parent,
-		}
-	}
-
-	/**
-	 * 创建导入语句对象
-	 */
-	private createImportStatement(
-		sourceNode: Parser.SyntaxNode,
-		captures: Parser.QueryCapture[],
-		content: string,
-		filePath: string,
-	): ImportStatement | null {
-		const source = this.getNodeText(sourceNode, content)
-		if (!source) return null
-
-		// 清除引号
-		const cleanedSource = source.replace(/['"`]/g, "")
-
-		// 查找同一导入语句中的导入名称
-		const importParent = sourceNode.parent
-		const names: string[] = []
-
-		if (importParent) {
-			// 搜索所有与此导入相关的名称
-			for (const capture of captures) {
-				if (capture.name === "import.name") {
-					// 检查是否是当前导入的一部分
-					let current: Parser.SyntaxNode | null = capture.node.parent
-					while (current) {
-						if (current.id === importParent.id) {
-							const name = this.getNodeText(capture.node, content)
-							if (name) names.push(name)
-							break
-						}
-						current = current.parent
-					}
-				}
-			}
-		}
-
-		return {
-			source: cleanedSource,
-			names,
-			location: {
-				file: filePath,
-				line: sourceNode.startPosition.row + 1,
-				column: sourceNode.startPosition.column,
-			},
-		}
-	}
-
-	/**
-	 * 获取节点文本内容
-	 */
-	private getNodeText(node: Parser.SyntaxNode, content: string): string {
-		return content.substring(node.startIndex, node.endIndex)
-	}
-
-	/**
-	 * 获取节点唯一标识符
-	 */
-	private getNodeId(node: Parser.SyntaxNode): string {
-		return `${node.startIndex}-${node.endIndex}`
-	}
-
-	/**
-	 * 获取父级符号名称
-	 */
-	private getParentSymbol(node: Parser.SyntaxNode): string | undefined {
-		// 根据节点类型确定父级
-		const parent = node.parent
-		if (!parent) return undefined
-
-		// 类方法的父级是类
-		if (node.type === "method_definition" || node.type === "method_signature") {
-			// 向上查找 class_declaration
-			let current: Parser.SyntaxNode | null = parent
-			while (current) {
-				if (current.type === "class_declaration" || current.type === "class_body") {
-					// 找到类后，查找其名称
-					const classNameNode = current.childForFieldName("name")
-					if (classNameNode) {
-						return classNameNode.text
-					}
-				}
-				const nextParent: Parser.SyntaxNode | null = current.parent
-				current = nextParent
-			}
-		}
-
-		return undefined
 	}
 
 	/**
@@ -826,968 +277,26 @@ export class CodebaseTreeSitterService {
 	}
 
 	/**
-	 * 提取节点的文档注释
-	 * @param node 语法节点
-	 * @param document 文档对象
-	 * @returns 格式化后的文档注释
-	 */
-	extractDocComment(node: any, document: any): string {
-		// 基本实现，稍后需要完善
-		// 在节点之前查找注释节点，提取并格式化注释内容
-
-		return ""
-	}
-
-	/**
-	 * 格式化文档注释
-	 */
-	private formatDocComment(comment: string): string {
-		// 移除注释标记
-		return comment
-			.replace(/^\/\*\*|\*\/$/g, "") // 移除开头的 /** 和结尾的 */
-			.replace(/^\s*\*\s?/gm, "") // 移除每行开头的 *
-			.trim()
-	}
-
-	/**
 	 * 读取文件内容
 	 */
 	private async readFileContent(filePath: string): Promise<string> {
 		try {
-			const fs = require("fs/promises")
 			return await fs.readFile(filePath, "utf8")
 		} catch (error) {
 			console.error(`Error reading file ${filePath}:`, error)
 			return ""
 		}
 	}
-}
-
-/**
- * 符号定义导入解析器接口
- */
-export interface ImportParser {
-	/**
-	 * 获取文件中的直接导入
-	 * @param filePath 文件路径
-	 * @returns 被导入文件的路径数组
-	 */
-	getDirectImports(filePath: string): Promise<string[]>
-}
-
-/**
- * TypeScript导入解析器
- */
-export class TypeScriptImportParser implements ImportParser {
-	private treeService: CodebaseTreeSitterService
-
-	constructor(treeService: CodebaseTreeSitterService) {
-		this.treeService = treeService
-	}
 
 	/**
-	 * 获取TypeScript/JavaScript文件中的直接导入
-	 * @param filePath 文件路径
-	 * @returns 导入的文件路径数组
+	 * 加载特定语言
 	 */
-	async getDirectImports(filePath: string): Promise<string[]> {
+	private async loadLanguage(lang: string): Promise<Parser.Language | null> {
 		try {
-			// 解析文件获取导入语句
-			const { references } = await this.treeService.parseFileWithReferences(filePath)
-
-			// 提取导入路径
-			const imports: string[] = []
-			const result = await this.treeService.parseFileWithReferences(filePath)
-
-			// 目前我们不能直接获取导入语句，所以需要增强TreeSitterService
-			// 这是一个临时实现，稍后需要改进
-			const content = await this.readFileContent(filePath)
-			const importStatements = this.extractImportPaths(content)
-
-			// 解析所有导入路径
-			const resolvedPaths: string[] = []
-			for (const importPath of importStatements) {
-				const resolvedPath = await this.resolveImportPath(importPath, filePath)
-				if (resolvedPath) {
-					resolvedPaths.push(resolvedPath)
-				}
-			}
-
-			return resolvedPaths
+			return await Parser.Language.load(`${__dirname}/../tree-sitter/tree-sitter-${lang}.wasm`)
 		} catch (error) {
-			console.error(`Error parsing imports for ${filePath}:`, error)
-			return []
-		}
-	}
-
-	/**
-	 * 从文件内容中提取导入路径
-	 */
-	private extractImportPaths(content: string): string[] {
-		const importPaths: string[] = []
-
-		// 简单正则匹配import语句
-		// 注意: 这只是临时方案，最终应该使用Tree-sitter查询
-		const importRegex = /import\s+(?:[\w\s{},*]*\s+from\s+)?['"]([^'"]+)['"]/g
-		let match
-
-		while ((match = importRegex.exec(content)) !== null) {
-			if (match[1]) {
-				importPaths.push(match[1])
-			}
-		}
-
-		// 也匹配require语句
-		const requireRegex = /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g
-
-		while ((match = requireRegex.exec(content)) !== null) {
-			if (match[1]) {
-				importPaths.push(match[1])
-			}
-		}
-
-		return importPaths
-	}
-
-	/**
-	 * 解析导入路径为绝对文件路径
-	 */
-	private async resolveImportPath(importPath: string, sourceFile: string): Promise<string | null> {
-		// 忽略非相对路径导入 (如 node_modules 包)
-		if (!importPath.startsWith(".") && !importPath.startsWith("/")) {
+			console.error(`Error loading language ${lang}:`, error)
 			return null
-		}
-
-		try {
-			const fs = require("fs/promises")
-			const path = require("path")
-
-			const sourceDir = path.dirname(sourceFile)
-			let resolvedPath = path.join(sourceDir, importPath)
-
-			// 如果没有扩展名，尝试添加扩展名
-			if (!path.extname(resolvedPath)) {
-				// 尝试常见扩展名
-				for (const ext of [".ts", ".tsx", ".js", ".jsx"]) {
-					const withExt = `${resolvedPath}${ext}`
-					try {
-						const stats = await fs.stat(withExt)
-						if (stats.isFile()) {
-							return withExt
-						}
-					} catch (e) {
-						// 文件不存在，继续尝试
-					}
-				}
-
-				// 尝试 index 文件
-				for (const ext of [".ts", ".tsx", ".js", ".jsx"]) {
-					const indexFile = path.join(resolvedPath, `index${ext}`)
-					try {
-						const stats = await fs.stat(indexFile)
-						if (stats.isFile()) {
-							return indexFile
-						}
-					} catch (e) {
-						// 文件不存在，继续尝试
-					}
-				}
-			} else {
-				// 已有扩展名，直接验证文件是否存在
-				try {
-					const stats = await fs.stat(resolvedPath)
-					if (stats.isFile()) {
-						return resolvedPath
-					}
-				} catch (e) {
-					// 文件不存在
-				}
-			}
-		} catch (error) {
-			console.error(`Error resolving import path ${importPath} from ${sourceFile}:`, error)
-		}
-
-		return null
-	}
-
-	/**
-	 * 读取文件内容
-	 */
-	private async readFileContent(filePath: string): Promise<string> {
-		try {
-			const fs = require("fs/promises")
-			return await fs.readFile(filePath, "utf8")
-		} catch (error) {
-			console.error(`Error reading file ${filePath}:`, error)
-			return ""
-		}
-	}
-}
-
-/**
- * Python导入解析器
- */
-export class PythonImportParser implements ImportParser {
-	private treeService: CodebaseTreeSitterService
-
-	constructor(treeService: CodebaseTreeSitterService) {
-		this.treeService = treeService
-	}
-
-	/**
-	 * 获取Python文件中的直接导入
-	 * @param filePath 文件路径
-	 * @returns 导入的文件路径数组
-	 */
-	async getDirectImports(filePath: string): Promise<string[]> {
-		try {
-			// 读取文件内容
-			const content = await this.readFileContent(filePath)
-
-			// 提取导入语句
-			const importPaths = this.extractImportPaths(content)
-
-			// 解析所有导入路径
-			const resolvedPaths: string[] = []
-			for (const importPath of importPaths) {
-				const resolvedPath = await this.resolvePythonImport(importPath, filePath)
-				if (resolvedPath) {
-					resolvedPaths.push(resolvedPath)
-				}
-			}
-
-			return resolvedPaths
-		} catch (error) {
-			console.error(`Error parsing Python imports for ${filePath}:`, error)
-			return []
-		}
-	}
-
-	/**
-	 * 从Python文件内容中提取导入路径
-	 */
-	private extractImportPaths(content: string): string[] {
-		const importPaths: string[] = []
-
-		// 匹配import语句: import foo, import foo.bar
-		const importRegex = /import\s+([\w.]+)(?:\s*,\s*([\w.]+))*/g
-		let match
-
-		let contentLines = content.split("\n")
-		for (let i = 0; i < contentLines.length; i++) {
-			const line = contentLines[i].trim()
-			// 忽略注释行
-			if (line.startsWith("#")) continue
-
-			// 匹配import语句
-			while ((match = importRegex.exec(line)) !== null) {
-				if (match[1]) {
-					importPaths.push(match[1])
-				}
-				// 处理多个导入: import foo, bar
-				if (match[2]) {
-					importPaths.push(match[2])
-				}
-			}
-
-			// 匹配from语句: from foo import bar
-			const fromRegex = /from\s+([\w.]+)\s+import\s+/
-			const fromMatch = line.match(fromRegex)
-			if (fromMatch && fromMatch[1]) {
-				importPaths.push(fromMatch[1])
-			}
-		}
-
-		return importPaths
-	}
-
-	/**
-	 * 解析Python导入路径为绝对文件路径
-	 */
-	private async resolvePythonImport(importModule: string, sourceFile: string): Promise<string | null> {
-		try {
-			const fs = require("fs/promises")
-			const path = require("path")
-
-			const sourceDir = path.dirname(sourceFile)
-
-			// 将模块名称转换为路径，例如 'foo.bar' -> 'foo/bar.py'
-			const modulePath = importModule.replace(/\./g, "/") + ".py"
-
-			// 首先尝试相对于源文件的路径
-			let resolvedPath = path.join(sourceDir, modulePath)
-
-			try {
-				const stats = await fs.stat(resolvedPath)
-				if (stats.isFile()) {
-					return resolvedPath
-				}
-			} catch (e) {
-				// 文件不存在，继续尝试
-			}
-
-			// 尝试包路径 - 查找__init__.py
-			const packageDir = path.join(sourceDir, importModule.split(".")[0])
-			const initFile = path.join(packageDir, "__init__.py")
-
-			try {
-				const stats = await fs.stat(initFile)
-				if (stats.isFile()) {
-					// 找到了包, 尝试解析完整的模块路径
-					const submodulePath = importModule.split(".").slice(1).join("/")
-					if (submodulePath) {
-						const submoduleFile = path.join(packageDir, submodulePath + ".py")
-						try {
-							const subStats = await fs.stat(submoduleFile)
-							if (subStats.isFile()) {
-								return submoduleFile
-							}
-						} catch (e) {
-							// 子模块文件不存在
-						}
-					}
-					// 如果只找到包但没找到具体模块，返回__init__.py
-					return initFile
-				}
-			} catch (e) {
-				// 包不存在
-			}
-
-			// 还可以添加对Python环境路径的搜索，但这需要更复杂的实现
-
-			return null
-		} catch (error) {
-			console.error(`Error resolving Python import ${importModule} from ${sourceFile}:`, error)
-			return null
-		}
-	}
-
-	/**
-	 * 读取文件内容
-	 */
-	private async readFileContent(filePath: string): Promise<string> {
-		try {
-			const fs = require("fs/promises")
-			return await fs.readFile(filePath, "utf8")
-		} catch (error) {
-			console.error(`Error reading file ${filePath}:`, error)
-			return ""
-		}
-	}
-}
-
-/**
- * Java导入解析器
- */
-export class JavaImportParser implements ImportParser {
-	private treeService: CodebaseTreeSitterService
-
-	constructor(treeService: CodebaseTreeSitterService) {
-		this.treeService = treeService
-	}
-
-	/**
-	 * 获取Java文件中的直接导入
-	 * @param filePath 文件路径
-	 * @returns 导入的文件路径数组
-	 */
-	async getDirectImports(filePath: string): Promise<string[]> {
-		try {
-			// 读取文件内容
-			const content = await this.readFileContent(filePath)
-
-			// 提取导入语句
-			const importPaths = this.extractImportPaths(content)
-
-			// 解析所有导入路径
-			const resolvedPaths: string[] = []
-			for (const importPath of importPaths) {
-				const resolvedPath = await this.resolveJavaImport(importPath, filePath)
-				if (resolvedPath) {
-					resolvedPaths.push(resolvedPath)
-				}
-			}
-
-			return resolvedPaths
-		} catch (error) {
-			console.error(`Error parsing Java imports for ${filePath}:`, error)
-			return []
-		}
-	}
-
-	/**
-	 * 从Java文件内容中提取导入路径
-	 */
-	private extractImportPaths(content: string): string[] {
-		const importPaths: string[] = []
-
-		// 匹配import语句: import java.util.List;
-		const importRegex = /import\s+([\w.]+);/g
-		let match
-
-		const contentLines = content.split("\n")
-		for (let i = 0; i < contentLines.length; i++) {
-			const line = contentLines[i].trim()
-			// 忽略注释行
-			if (line.startsWith("//") || line.startsWith("/*") || line.startsWith("*")) {
-				continue
-			}
-
-			// 匹配导入语句
-			if ((match = importRegex.exec(line)) !== null) {
-				if (match[1]) {
-					importPaths.push(match[1])
-				}
-			}
-
-			// 匹配静态导入: import static com.example.Utils.helper;
-			const staticImportRegex = /import\s+static\s+([\w.]+);/
-			const staticMatch = line.match(staticImportRegex)
-			if (staticMatch && staticMatch[1]) {
-				importPaths.push(staticMatch[1])
-			}
-
-			// 匹配星号导入: import java.util.*;
-			const wildcardImportRegex = /import\s+([\w.]+)\.\*;/
-			const wildcardMatch = line.match(wildcardImportRegex)
-			if (wildcardMatch && wildcardMatch[1]) {
-				importPaths.push(wildcardMatch[1] + ".*")
-			}
-		}
-
-		return importPaths
-	}
-
-	/**
-	 * 解析Java导入路径为绝对文件路径
-	 */
-	private async resolveJavaImport(importPath: string, sourceFile: string): Promise<string | null> {
-		try {
-			const fs = require("fs/promises")
-			const path = require("path")
-
-			const sourceDir = path.dirname(sourceFile)
-			const projectRoot = this.findProjectRoot(sourceDir)
-
-			// 移除星号通配符
-			const normalizedImport = importPath.replace(/\.\*$/, "")
-
-			// 将包路径转换为文件路径 (com.example.Class -> com/example/Class.java)
-			const relativeFilePath = normalizedImport.replace(/\./g, "/") + ".java"
-
-			// 尝试在项目源代码目录中查找
-			// 常见的Java源码目录结构
-			const sourceRoots = ["src/main/java", "src", "java"]
-
-			for (const srcRoot of sourceRoots) {
-				const candidatePath = path.join(projectRoot || sourceDir, srcRoot, relativeFilePath)
-				try {
-					const stats = await fs.stat(candidatePath)
-					if (stats.isFile()) {
-						return candidatePath
-					}
-				} catch (e) {
-					// 文件不存在，继续尝试
-				}
-			}
-
-			// 无法解析为具体文件
-			return null
-		} catch (error) {
-			console.error(`Error resolving Java import ${importPath} from ${sourceFile}:`, error)
-			return null
-		}
-	}
-
-	/**
-	 * 查找Java项目根目录
-	 * 通常是包含pom.xml, build.gradle等文件的目录
-	 */
-	private findProjectRoot(startDir: string): string | null {
-		const fs = require("fs")
-		const path = require("path")
-
-		let currentDir = startDir
-		// 向上搜索最多10层目录
-		for (let i = 0; i < 10; i++) {
-			// 检查是否存在项目标志文件
-			if (
-				fs.existsSync(path.join(currentDir, "pom.xml")) ||
-				fs.existsSync(path.join(currentDir, "build.gradle")) ||
-				fs.existsSync(path.join(currentDir, ".git"))
-			) {
-				return currentDir
-			}
-
-			const parentDir = path.dirname(currentDir)
-			// 已到达文件系统根目录
-			if (parentDir === currentDir) {
-				break
-			}
-			currentDir = parentDir
-		}
-
-		return null
-	}
-
-	/**
-	 * 读取文件内容
-	 */
-	private async readFileContent(filePath: string): Promise<string> {
-		try {
-			const fs = require("fs/promises")
-			return await fs.readFile(filePath, "utf8")
-		} catch (error) {
-			console.error(`Error reading file ${filePath}:`, error)
-			return ""
-		}
-	}
-}
-
-/**
- * Go语言导入解析器
- */
-export class GoImportParser implements ImportParser {
-	private treeService: CodebaseTreeSitterService
-
-	constructor(treeService: CodebaseTreeSitterService) {
-		this.treeService = treeService
-	}
-
-	/**
-	 * 获取Go文件中的直接导入
-	 * @param filePath 文件路径
-	 * @returns 导入的文件路径数组
-	 */
-	async getDirectImports(filePath: string): Promise<string[]> {
-		try {
-			// 读取文件内容
-			const content = await this.readFileContent(filePath)
-
-			// 提取导入语句
-			const importPaths = this.extractImportPaths(content)
-
-			// 解析所有导入路径
-			const resolvedPaths: string[] = []
-			for (const importPath of importPaths) {
-				const resolvedPath = await this.resolveGoImport(importPath, filePath)
-				if (resolvedPath) {
-					resolvedPaths.push(resolvedPath)
-				}
-			}
-
-			return resolvedPaths
-		} catch (error) {
-			console.error(`Error parsing Go imports for ${filePath}:`, error)
-			return []
-		}
-	}
-
-	/**
-	 * 从Go文件内容中提取导入路径
-	 */
-	private extractImportPaths(content: string): string[] {
-		const importPaths: string[] = []
-
-		// 提取单行导入 - import "fmt"
-		const singleImportRegex = /import\s+["']([^"']+)["']/g
-		let match
-		while ((match = singleImportRegex.exec(content)) !== null) {
-			if (match[1]) {
-				importPaths.push(match[1])
-			}
-		}
-
-		// 提取导入块 - import ( ... )
-		const importBlockRegex = /import\s+\(([\s\S]*?)\)/g
-		while ((match = importBlockRegex.exec(content)) !== null) {
-			if (match[1]) {
-				const blockContent = match[1]
-				// 在块内匹配每一行导入
-				const blockImportRegex = /["']([^"']+)["']/g
-				let blockMatch
-				while ((blockMatch = blockImportRegex.exec(blockContent)) !== null) {
-					if (blockMatch[1]) {
-						importPaths.push(blockMatch[1])
-					}
-				}
-
-				// 匹配带别名的导入
-				const aliasedImportRegex = /(\w+)\s+["']([^"']+)["']/g
-				while ((blockMatch = aliasedImportRegex.exec(blockContent)) !== null) {
-					if (blockMatch[2]) {
-						importPaths.push(blockMatch[2])
-					}
-				}
-			}
-		}
-
-		return importPaths
-	}
-
-	/**
-	 * 解析Go导入路径为绝对文件路径
-	 */
-	private async resolveGoImport(importPath: string, sourceFile: string): Promise<string | null> {
-		try {
-			const fs = require("fs/promises")
-			const path = require("path")
-
-			const sourceDir = path.dirname(sourceFile)
-			const projectRoot = this.findGoModDir(sourceDir)
-
-			// 标准库不处理
-			if (!importPath.includes(".") && !importPath.includes("/")) {
-				return null
-			}
-
-			// Go模块导入解析
-			if (projectRoot) {
-				// 查找GOPATH
-				const gopath = process.env.GOPATH || path.join(process.env.HOME || "", "go")
-
-				// 尝试在本地项目中查找
-				const localModulePath = path.join(projectRoot, importPath)
-				try {
-					const stats = await fs.stat(localModulePath)
-					if (stats.isDirectory()) {
-						// 找到包目录，查找Go源文件
-						const files = await fs.readdir(localModulePath)
-						const goFiles = files.filter((f: string) => f.endsWith(".go"))
-						if (goFiles.length > 0) {
-							return path.join(localModulePath, goFiles[0])
-						}
-					}
-				} catch (e) {
-					// 本地不存在，继续尝试
-				}
-
-				// 尝试在GOPATH中查找
-				const gopathSrc = path.join(gopath, "src")
-				const gopathModulePath = path.join(gopathSrc, importPath)
-				try {
-					const stats = await fs.stat(gopathModulePath)
-					if (stats.isDirectory()) {
-						// 找到包目录，查找Go源文件
-						const files = await fs.readdir(gopathModulePath)
-						const goFiles = files.filter((f: string) => f.endsWith(".go"))
-						if (goFiles.length > 0) {
-							return path.join(gopathModulePath, goFiles[0])
-						}
-					}
-				} catch (e) {
-					// GOPATH中不存在
-				}
-
-				// 尝试在vendor目录中查找
-				const vendorPath = path.join(projectRoot, "vendor", importPath)
-				try {
-					const stats = await fs.stat(vendorPath)
-					if (stats.isDirectory()) {
-						// 找到包目录，查找Go源文件
-						const files = await fs.readdir(vendorPath)
-						const goFiles = files.filter((f: string) => f.endsWith(".go"))
-						if (goFiles.length > 0) {
-							return path.join(vendorPath, goFiles[0])
-						}
-					}
-				} catch (e) {
-					// vendor中不存在
-				}
-			}
-
-			// 无法解析
-			return null
-		} catch (error) {
-			console.error(`Error resolving Go import ${importPath} from ${sourceFile}:`, error)
-			return null
-		}
-	}
-
-	/**
-	 * 查找Go项目根目录 (包含go.mod的目录)
-	 */
-	private findGoModDir(startDir: string): string | null {
-		const fs = require("fs")
-		const path = require("path")
-
-		let currentDir = startDir
-		// 向上搜索最多10层目录
-		for (let i = 0; i < 10; i++) {
-			// 检查是否存在go.mod文件
-			if (fs.existsSync(path.join(currentDir, "go.mod"))) {
-				return currentDir
-			}
-
-			const parentDir = path.dirname(currentDir)
-			// 已到达文件系统根目录
-			if (parentDir === currentDir) {
-				break
-			}
-			currentDir = parentDir
-		}
-
-		return null
-	}
-
-	/**
-	 * 读取文件内容
-	 */
-	private async readFileContent(filePath: string): Promise<string> {
-		try {
-			const fs = require("fs/promises")
-			return await fs.readFile(filePath, "utf8")
-		} catch (error) {
-			console.error(`Error reading file ${filePath}:`, error)
-			return ""
-		}
-	}
-}
-
-/**
- * C#导入解析器
- */
-export class CSharpImportParser implements ImportParser {
-	private treeService: CodebaseTreeSitterService
-	private fs = require("fs").promises
-	private glob = require("glob")
-
-	constructor(treeService: CodebaseTreeSitterService) {
-		this.treeService = treeService
-	}
-
-	/**
-	 * 获取C#文件中的直接导入
-	 * @param filePath 文件路径
-	 * @returns 导入的文件路径数组
-	 */
-	async getDirectImports(filePath: string): Promise<string[]> {
-		try {
-			// 读取文件内容
-			const content = await this.readFileContent(filePath)
-
-			// 提取导入语句
-			const importPaths = this.extractImportPaths(content)
-
-			// 解析所有导入路径
-			const resolvedPaths: string[] = []
-			for (const importPath of importPaths) {
-				const resolvedPath = await this.resolveCSharpImport(importPath, filePath)
-				if (resolvedPath) {
-					resolvedPaths.push(resolvedPath)
-				}
-			}
-
-			return resolvedPaths
-		} catch (error) {
-			console.error(`Error parsing C# imports for ${filePath}:`, error)
-			return []
-		}
-	}
-
-	/**
-	 * 从C#文件内容中提取导入路径
-	 */
-	private extractImportPaths(content: string): string[] {
-		const importPaths: string[] = []
-
-		// 匹配基本using语句: using System.Collections.Generic;
-		const usingRegex = /using\s+([\w.]+);/g
-		let match
-
-		// 匹配带别名的using语句: using Project = MyCompany.Project;
-		const aliasedUsingRegex = /using\s+(\w+)\s*=\s*([\w.]+);/g
-
-		const contentLines = content.split("\n")
-		for (let i = 0; i < contentLines.length; i++) {
-			const line = contentLines[i].trim()
-
-			// 忽略注释行
-			if (line.startsWith("//") || line.startsWith("/*") || line.startsWith("*")) {
-				continue
-			}
-
-			// 匹配基本using语句
-			const usingRegex = /using\s+([\w.]+);/g
-			while ((match = usingRegex.exec(line)) !== null) {
-				if (match[1]) {
-					importPaths.push(match[1])
-				}
-			}
-
-			// 匹配别名using语句
-			const aliasRegex = /using\s+(\w+)\s*=\s*([\w.]+);/g
-			while ((match = aliasRegex.exec(line)) !== null) {
-				if (match[2]) {
-					// 保存原始命名空间路径
-					importPaths.push(match[2])
-				}
-			}
-
-			// 匹配静态using语句: using static System.Math;
-			const staticUsingRegex = /using\s+static\s+([\w.]+);/g
-			while ((match = staticUsingRegex.exec(line)) !== null) {
-				if (match[1]) {
-					importPaths.push(match[1])
-				}
-			}
-		}
-
-		return importPaths
-	}
-
-	/**
-	 * 解析C#导入路径为实际文件路径
-	 * @param importPath 导入路径（命名空间路径）
-	 * @param sourceFilePath 源文件路径
-	 */
-	private async resolveCSharpImport(importPath: string, sourceFilePath: string): Promise<string | null> {
-		try {
-			// 获取项目根目录
-			const projectRoot = await this.findProjectRoot(sourceFilePath)
-			if (!projectRoot) {
-				return null
-			}
-
-			// 将命名空间路径转换为可能的文件路径
-			const namespaceParts = importPath.split(".")
-
-			// 尝试查找可能的.cs文件
-			// 考虑多种可能性:
-			// 1. 完整路径匹配: System.Collections.Generic -> System/Collections/Generic.cs
-			// 2. 最后一个部分作为文件名: System.Collections.Generic -> */Generic.cs
-
-			// 方法1: 尝试完整路径匹配
-			const possiblePath = join(projectRoot, ...namespaceParts) + ".cs"
-			if (await this.fileExists(possiblePath)) {
-				return possiblePath
-			}
-
-			// 方法2: 在src目录下查找
-			const srcDirPath = join(projectRoot, "src")
-			if (await this.directoryExists(srcDirPath)) {
-				const possibleSrcPath = join(srcDirPath, ...namespaceParts) + ".cs"
-				if (await this.fileExists(possibleSrcPath)) {
-					return possibleSrcPath
-				}
-			}
-
-			// 方法3: 在项目中使用glob搜索最后一个部分作为文件名
-			const fileName = namespaceParts[namespaceParts.length - 1] + ".cs"
-			const globPattern = join(projectRoot, "**", fileName)
-
-			const globResults = await this.globSearch(globPattern)
-			if (globResults && globResults.length > 0) {
-				// 选择最可能的匹配结果
-				// 简单策略: 选择路径中含有较多命名空间部分的文件
-				let bestMatch = globResults[0]
-				let bestMatchScore = 0
-
-				for (const result of globResults) {
-					let score = 0
-					for (const part of namespaceParts) {
-						if (result.includes(part)) {
-							score++
-						}
-					}
-
-					if (score > bestMatchScore) {
-						bestMatchScore = score
-						bestMatch = result
-					}
-				}
-
-				return bestMatch
-			}
-
-			return null
-		} catch (error) {
-			console.error(`Error resolving C# import ${importPath}:`, error)
-			return null
-		}
-	}
-
-	/**
-	 * 查找包含给定文件的项目根目录
-	 * 通过查找.csproj, .sln等文件判断
-	 */
-	private async findProjectRoot(filePath: string): Promise<string | null> {
-		try {
-			let currentDir = dirname(filePath)
-			const root = parse(currentDir).root
-
-			// 向上遍历目录直到找到项目文件或到达文件系统根目录
-			while (currentDir !== root) {
-				// 查找.csproj或.sln文件
-				const hasCsproj = await this.globSearch(join(currentDir, "*.csproj"))
-				const hasSln = await this.globSearch(join(currentDir, "*.sln"))
-
-				if ((hasCsproj && hasCsproj.length > 0) || (hasSln && hasSln.length > 0)) {
-					return currentDir
-				}
-
-				// 移动到父目录
-				currentDir = dirname(currentDir)
-			}
-
-			// 没有找到项目文件，返回文件所在目录作为备选
-			return dirname(filePath)
-		} catch (error) {
-			console.error(`Error finding C# project root:`, error)
-			return dirname(filePath)
-		}
-	}
-
-	/**
-	 * 读取文件内容的辅助方法
-	 */
-	private async readFileContent(filePath: string): Promise<string> {
-		try {
-			return await this.fs.readFile(filePath, "utf8")
-		} catch (error) {
-			console.error(`Error reading file ${filePath}:`, error)
-			return ""
-		}
-	}
-
-	/**
-	 * 检查文件是否存在
-	 */
-	private async fileExists(filePath: string): Promise<boolean> {
-		try {
-			await this.fs.access(filePath)
-			return true
-		} catch (error) {
-			return false
-		}
-	}
-
-	/**
-	 * 检查目录是否存在
-	 */
-	private async directoryExists(dirPath: string): Promise<boolean> {
-		try {
-			const stats = await this.fs.stat(dirPath)
-			return stats.isDirectory()
-		} catch (error) {
-			return false
-		}
-	}
-
-	/**
-	 * 执行glob搜索
-	 */
-	private async globSearch(pattern: string): Promise<string[]> {
-		try {
-			return new Promise((resolve, reject) => {
-				this.glob(pattern, (err: any, files: string[]) => {
-					if (err) reject(err)
-					else resolve(files)
-				})
-			})
-		} catch (error) {
-			console.error(`Error performing glob search with pattern ${pattern}:`, error)
-			return []
 		}
 	}
 }

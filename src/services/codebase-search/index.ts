@@ -706,14 +706,15 @@ function getWorkspacePath(): string {
  * 获取引用查找服务实例
  * 懒加载方式，避免不必要的资源消耗
  */
-let referenceServices: { codebaseTSService: any; referencesFinder: any } | null = null
+let referenceServices: { codebaseTSService: CodebaseTreeSitterService; referencesFinder: ReferencesFinder } | null =
+	null
+
+// 预先导入需要的类，避免使用require
+import { CodebaseTreeSitterService } from "./tree-sitter-service"
+import { ReferencesFinder } from "./references-finder"
 
 function getReferenceServices() {
 	if (!referenceServices) {
-		// 动态引入服务，避免循环依赖
-		const { CodebaseTreeSitterService } = require("./tree-sitter-service")
-		const { ReferencesFinder } = require("./references-finder")
-
 		// 创建服务实例
 		const codebaseTSService = new CodebaseTreeSitterService()
 
@@ -773,11 +774,13 @@ export * from "./types"
 export { CodebaseIndexService } from "./index-service"
 export { CodebaseSearchService } from "./search-service"
 export { SemanticAnalysisService } from "./semantic-analysis"
-export {
-	CodebaseTreeSitterService,
-	TypeScriptImportParser,
-	PythonImportParser,
-	JavaImportParser,
-	GoImportParser,
-} from "./tree-sitter-service"
-export type { ImportParser } from "./tree-sitter-service"
+export { CodebaseTreeSitterService } from "./tree-sitter-service"
+
+// 从languages目录导出语言解析器
+export { TypeScriptImportParser } from "./languages/typescript"
+export { PythonImportParser } from "./languages/python"
+export { GoImportParser } from "./languages/go"
+export { JavaImportParser } from "./languages/java"
+export { CSharpImportParser } from "./languages/csharp"
+export { RubyImportParser } from "./languages/ruby"
+export { PHPImportParser } from "./languages/php"

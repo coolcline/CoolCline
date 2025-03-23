@@ -2,6 +2,8 @@
 - method definitions (including singleton methods and aliases, with associated comments)
 - class definitions (including singleton classes, with associated comments)
 - module definitions
+- 变量和方法引用
+- require和require_relative导入语句
 */
 export default `
 (
@@ -49,4 +51,24 @@ export default `
         name: (_) @name.definition.module)
     ]) @definition.module
 )
+
+; 变量引用
+(identifier) @name.reference
+(constant) @name.reference.constant
+
+; 方法调用引用
+(call
+  method: [(identifier) @name.reference.method (constant) @name.reference.method]) 
+
+; 作用域解析引用
+(scope_resolution
+  name: (constant) @name.reference.class
+  scope: (constant) @name.reference.namespace)
+
+; Ruby 的导入语句
+(call
+  method: (identifier) @require
+  arguments: (argument_list 
+    (string (string_content) @import.source)))
+  (#match? @require "^(require|require_relative)$")
 `

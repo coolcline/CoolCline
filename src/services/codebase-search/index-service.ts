@@ -13,7 +13,6 @@ import { IndexOptions, IndexProgress, IndexStats, IndexTask, ResultType } from "
 import { toPosixPath, arePathsEqual, extname, join, relative } from "../../utils/path"
 import { createDatabase, Database } from "./database"
 import { SemanticAnalysisService, createSemanticAnalysisService } from "./semantic-analysis"
-import * as minimatch from "minimatch"
 
 // 定义索引状态接口
 export interface IndexStatus {
@@ -416,7 +415,12 @@ export class CodebaseIndexService {
 						// 保存符号关系
 						for (const relation of relations) {
 							// 检查源和目标ID是否有效
-							if (relation.sourceId > 0 && relation.targetId > 0) {
+							if (
+								relation.sourceId !== undefined &&
+								relation.targetId !== undefined &&
+								relation.sourceId > 0 &&
+								relation.targetId > 0
+							) {
 								await this.db!.run(
 									"INSERT INTO symbol_relations (source_id, target_id, relation_type) VALUES (?, ?, ?)",
 									[relation.sourceId, relation.targetId, relation.relationType],

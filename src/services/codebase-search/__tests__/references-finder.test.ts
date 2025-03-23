@@ -2,7 +2,13 @@
  * 引用查找器单元测试
  */
 import { ReferencesFinder, SymbolInfo, Location } from "../references-finder"
-import { CodebaseTreeSitterService, SymbolReference, CSharpImportParser } from "../tree-sitter-service"
+import { CodebaseTreeSitterService } from "../tree-sitter-service"
+import type { SymbolReference } from "../types"
+import { JavaImportParser } from "../languages/java"
+import { CSharpImportParser } from "../languages/csharp"
+import { GoImportParser } from "../languages/go"
+import { RubyImportParser } from "../languages/ruby"
+import { PHPImportParser } from "../languages/php"
 
 // 模拟TreeSitterService
 jest.mock("../tree-sitter-service", () => {
@@ -345,7 +351,7 @@ describe("ReferencesFinder", () => {
 		// 测试基本名称不匹配
 		expect(
 			finder["isReferenceToSymbol"](
-				{ name: "differentName", location: { line: 1, column: 1 } },
+				{ name: "differentName", location: { file: "test.ts", line: 1, column: 1 } },
 				{ name: "targetName", location: { file: "", line: 0, column: 0 } },
 			),
 		).toBe(false)
@@ -353,7 +359,7 @@ describe("ReferencesFinder", () => {
 		// 测试自身定义
 		expect(
 			finder["isReferenceToSymbol"](
-				{ name: "targetName", isDefinition: true, location: { line: 1, column: 1 } },
+				{ name: "targetName", isDefinition: true, location: { file: "test.ts", line: 1, column: 1 } },
 				{ name: "targetName", location: { file: "", line: 0, column: 0 } },
 			),
 		).toBe(false)
@@ -361,7 +367,7 @@ describe("ReferencesFinder", () => {
 		// 测试命名空间匹配
 		expect(
 			finder["isReferenceToSymbol"](
-				{ name: "targetName", namespace: "Utils", location: { line: 1, column: 1 } },
+				{ name: "targetName", namespace: "Utils", location: { file: "test.ts", line: 1, column: 1 } },
 				{ name: "targetName", namespace: "Utils", location: { file: "", line: 0, column: 0 } },
 			),
 		).toBe(true)
@@ -369,7 +375,7 @@ describe("ReferencesFinder", () => {
 		// 测试命名空间不匹配
 		expect(
 			finder["isReferenceToSymbol"](
-				{ name: "targetName", namespace: "Format", location: { line: 1, column: 1 } },
+				{ name: "targetName", namespace: "Format", location: { file: "test.ts", line: 1, column: 1 } },
 				{ name: "targetName", namespace: "Utils", location: { file: "", line: 0, column: 0 } },
 			),
 		).toBe(false)
@@ -377,7 +383,7 @@ describe("ReferencesFinder", () => {
 		// 测试子命名空间
 		expect(
 			finder["isReferenceToSymbol"](
-				{ name: "targetName", namespace: "Utils.Format", location: { line: 1, column: 1 } },
+				{ name: "targetName", namespace: "Utils.Format", location: { file: "test.ts", line: 1, column: 1 } },
 				{ name: "targetName", namespace: "Utils", location: { file: "", line: 0, column: 0 } },
 			),
 		).toBe(true)
@@ -385,7 +391,7 @@ describe("ReferencesFinder", () => {
 		// 测试父类匹配
 		expect(
 			finder["isReferenceToSymbol"](
-				{ name: "targetName", parent: "User", location: { line: 1, column: 1 } },
+				{ name: "targetName", parent: "User", location: { file: "test.ts", line: 1, column: 1 } },
 				{ name: "targetName", parent: "User", location: { file: "", line: 0, column: 0 } },
 			),
 		).toBe(true)
@@ -393,7 +399,7 @@ describe("ReferencesFinder", () => {
 		// 测试父类不匹配
 		expect(
 			finder["isReferenceToSymbol"](
-				{ name: "targetName", parent: "Admin", location: { line: 1, column: 1 } },
+				{ name: "targetName", parent: "Admin", location: { file: "test.ts", line: 1, column: 1 } },
 				{ name: "targetName", parent: "User", location: { file: "", line: 0, column: 0 } },
 			),
 		).toBe(false)
@@ -606,5 +612,231 @@ describe("Go References", () => {
 			expect(callReference.line).toBe(12)
 			expect(callReference.column).toBe(15)
 		}
+	})
+})
+
+// 添加Ruby和PHP引用查找测试
+describe("Ruby References", () => {
+	let treeService: CodebaseTreeSitterService
+	let finder: ReferencesFinder
+
+	beforeEach(() => {
+		treeService = new CodebaseTreeSitterService()
+		finder = new ReferencesFinder(treeService)
+	})
+
+	test("Ruby方法引用应该被正确识别", async () => {
+		// 覆盖parseFileWithReferences方法模拟
+		treeService.parseFileWithReferences = jest.fn().mockResolvedValue({
+			definitions: [
+				{
+					name: "process_data",
+					type: "method",
+					location: { line: 5, column: 4 },
+					parent: "DataProcessor",
+				},
+			],
+			references: [
+				{
+					name: "process_data",
+					location: { line: 15, column: 8 },
+					parent: "DataProcessor",
+				},
+				{
+					name: "process_data",
+					location: { line: 25, column: 10 },
+					parent: "DataProcessor",
+				},
+			],
+		})
+
+		const filePath = "/src/ruby-test.rb"
+		const symbolInfo: SymbolInfo = {
+			name: "process_data",
+			type: "method",
+			parent: "DataProcessor",
+			location: {
+				file: filePath,
+				line: 5,
+				column: 4,
+			},
+		}
+
+		// 测试文件内引用查找
+		const references = await finder["findReferencesInFile"](symbolInfo, filePath)
+
+		// 应该找到所有引用
+		expect(references.length).toBe(3) // 定义自身 + 2个引用
+
+		// 验证引用位置
+		const firstRef = references.find((ref) => ref.line === 15)
+		expect(firstRef).toBeDefined()
+		expect(firstRef?.column).toBe(8)
+
+		const secondRef = references.find((ref) => ref.line === 25)
+		expect(secondRef).toBeDefined()
+		expect(secondRef?.column).toBe(10)
+	})
+
+	test("Ruby导入解析器应该处理require和require_relative", () => {
+		const rubyImportParser = new RubyImportParser(treeService)
+
+		// 模拟readFileContent
+		const mockReadFileContent = jest.spyOn(rubyImportParser as any, "readFileContent").mockImplementation(() => {
+			return Promise.resolve(`
+				# Test file with imports
+				require 'json'
+				require_relative '../lib/helper'
+				
+				class TestClass
+				  def initialize
+				    # Some code
+				  end
+				end
+				`)
+		})
+
+		// 模拟resolveRubyImport
+		const mockResolveImport = jest
+			.spyOn(rubyImportParser as any, "resolveRubyImport")
+			.mockImplementation((importPath) => {
+				if (importPath === "json") {
+					return Promise.resolve("/usr/lib/ruby/json.rb")
+				} else if (importPath === "relative:../lib/helper") {
+					return Promise.resolve("/src/lib/helper.rb")
+				}
+				return Promise.resolve(null)
+			})
+
+		// 测试getDirectImports方法
+		return rubyImportParser.getDirectImports("/src/test.rb").then((imports: string[]) => {
+			expect(imports.length).toBe(2)
+			expect(imports).toContain("/usr/lib/ruby/json.rb")
+			expect(imports).toContain("/src/lib/helper.rb")
+
+			// 清理mock
+			mockReadFileContent.mockRestore()
+			mockResolveImport.mockRestore()
+		})
+	})
+})
+
+describe("PHP References", () => {
+	let treeService: CodebaseTreeSitterService
+	let finder: ReferencesFinder
+
+	beforeEach(() => {
+		treeService = new CodebaseTreeSitterService()
+		finder = new ReferencesFinder(treeService)
+	})
+
+	test("PHP类方法引用应该被正确识别", async () => {
+		// 覆盖parseFileWithReferences方法模拟
+		treeService.parseFileWithReferences = jest.fn().mockResolvedValue({
+			definitions: [
+				{
+					name: "getData",
+					type: "function",
+					location: { line: 10, column: 4 },
+					parent: "DataService",
+					namespace: "App\\Services",
+				},
+			],
+			references: [
+				{
+					name: "getData",
+					location: { line: 30, column: 15 },
+					parent: "DataService",
+					namespace: "App\\Services",
+				},
+				{
+					name: "getData",
+					location: { line: 45, column: 20 },
+					parent: "OtherService", // 不匹配的父类
+					namespace: "App\\Services",
+				},
+			],
+		})
+
+		const filePath = "/src/php-test.php"
+		const symbolInfo: SymbolInfo = {
+			name: "getData",
+			type: "function",
+			parent: "DataService",
+			namespace: "App\\Services",
+			location: {
+				file: filePath,
+				line: 10,
+				column: 4,
+			},
+		}
+
+		// 测试文件内引用查找
+		const references = await finder["findReferencesInFile"](symbolInfo, filePath)
+
+		// 应该只找到匹配的引用
+		expect(references.length).toBe(2) // 定义自身 + 1个匹配引用 (排除了不匹配父类的引用)
+
+		// 验证引用位置
+		const validRef = references.find((ref) => ref.line === 30)
+		expect(validRef).toBeDefined()
+		expect(validRef?.column).toBe(15)
+
+		// 不应该找到不匹配的引用
+		const invalidRef = references.find((ref) => ref.line === 45)
+		expect(invalidRef).toBeUndefined()
+	})
+
+	test("PHP导入解析器应该处理require和use语句", () => {
+		const phpImportParser = new PHPImportParser(treeService)
+
+		// 模拟readFileContent
+		const mockReadFileContent = jest.spyOn(phpImportParser as any, "readFileContent").mockImplementation(() => {
+			return Promise.resolve(`
+				<?php
+				// Test file with imports
+				require_once 'vendor/autoload.php';
+				include('./config/database.php');
+				
+				use App\\Models\\User;
+				use App\\Services\\UserService as Service;
+				
+				class UserController {
+				  // Some code
+				}
+				?>
+				`)
+		})
+
+		// 模拟resolvePHPImport
+		const mockResolveImport = jest
+			.spyOn(phpImportParser as any, "resolvePHPImport")
+			.mockImplementation((importPath) => {
+				if (importPath === "vendor/autoload.php") {
+					return Promise.resolve("/var/www/html/vendor/autoload.php")
+				} else if (importPath === "./config/database.php") {
+					return Promise.resolve("/var/www/html/config/database.php")
+				} else if (importPath === "namespace:App\\Models\\User") {
+					return Promise.resolve("/var/www/html/app/Models/User.php")
+				} else if (importPath === "namespace:App\\Services\\UserService") {
+					return Promise.resolve("/var/www/html/app/Services/UserService.php")
+				}
+				return Promise.resolve(null)
+			})
+
+		// 测试getDirectImports方法
+		return phpImportParser
+			.getDirectImports("/var/www/html/app/Controllers/UserController.php")
+			.then((imports: string[]) => {
+				expect(imports.length).toBe(4)
+				expect(imports).toContain("/var/www/html/vendor/autoload.php")
+				expect(imports).toContain("/var/www/html/config/database.php")
+				expect(imports).toContain("/var/www/html/app/Models/User.php")
+				expect(imports).toContain("/var/www/html/app/Services/UserService.php")
+
+				// 清理mock
+				mockReadFileContent.mockRestore()
+				mockResolveImport.mockRestore()
+			})
 	})
 })

@@ -13,6 +13,7 @@ export enum ResultType {
 	Comment = "comment",
 	Import = "import",
 	Pattern = "pattern",
+	File = "file",
 }
 
 /**
@@ -107,15 +108,22 @@ export enum RelationType {
 	Extends = "extends", // 继承关系
 	Uses = "uses", // 使用关系
 	Defines = "defines", // 定义关系
+	Imports = "imports", // 导入关系
+	References = "references", // 引用关系
+	DependsOn = "depends_on", // 依赖关系
+	Contains = "contains", // 包含关系
 }
 
 /**
  * 符号关系接口
  */
 export interface SymbolRelation {
-	sourceId: number // 源符号ID
-	targetId: number // 目标符号ID
-	relationType: RelationType // 关系类型
+	sourceId?: number // 源符号ID
+	targetId?: number // 目标符号ID
+	sourceSymbol?: string // 源符号名称
+	targetSymbol?: string // 目标符号名称
+	type?: RelationType // 关系类型
+	relationType?: RelationType // 兼容旧版本
 }
 
 /**
@@ -145,4 +153,76 @@ export interface WorkspaceSearchResult {
 	workspacePath: string
 	results: SearchResult[]
 	error?: string
+}
+
+/**
+ * Tree-sitter符号处理相关类型
+ */
+
+import Parser from "web-tree-sitter"
+
+/**
+ * 符号定义接口
+ */
+export interface SymbolDefinition {
+	name: string
+	type: string
+	location: {
+		file: string
+		line: number
+		column: number
+	}
+	parent?: string
+	content: string
+	documentation?: string
+}
+
+/**
+ * 符号引用接口
+ */
+export interface SymbolReference {
+	name: string
+	namespace?: string
+	parent?: string
+	isDefinition?: boolean
+	location: {
+		file: string
+		line: number
+		column: number
+	}
+}
+
+/**
+ * 导入语句接口
+ */
+export interface ImportStatement {
+	source: string
+	names: string[]
+	location: {
+		file: string
+		line: number
+		column: number
+	}
+}
+
+/**
+ * 符号定义导入解析器接口
+ */
+export interface ImportParser {
+	/**
+	 * 获取文件中的直接导入
+	 * @param filePath 文件路径
+	 * @returns 被导入文件的路径数组
+	 */
+	getDirectImports(filePath: string): Promise<string[]>
+}
+
+/**
+ * 处理后的符号信息
+ */
+export interface ProcessedSymbols {
+	definitions: SymbolDefinition[]
+	references: SymbolReference[]
+	imports: ImportStatement[]
+	docComments: Map<string, string>
 }

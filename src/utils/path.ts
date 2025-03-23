@@ -254,29 +254,42 @@ export function isAbsolute(filePath: string): boolean {
 }
 
 /**
- * 获取路径中的文件名部分
+ * 获取文件名
  * @param filePath 文件路径
  * @returns 文件名
  */
-export function basename(filePath: string): string {
-	return path.basename(toPosixPath(filePath))
+export function basename(filePath: string, ext?: string): string {
+	return path.basename(toPosixPath(filePath), ext)
 }
 
 /**
- * 解析路径为对象，包含根目录、目录、基本名称和扩展名
- * @param filePath 需要解析的路径
- * @returns 解析后的路径对象，包含root、dir、base、name和ext属性
+ * 解析路径为绝对路径
+ * @param ...paths 要解析的路径片段
+ * @returns 绝对路径
  */
-export function parse(filePath: string): path.ParsedPath {
-	// 先使用Node.js原生parse方法解析
-	const parsed = path.parse(filePath)
-
-	// 将Windows反斜杠转换为正斜杠
-	return {
-		root: toPosixPath(parsed.root),
-		dir: toPosixPath(parsed.dir),
-		base: parsed.base,
-		name: parsed.name,
-		ext: parsed.ext,
-	}
+export function resolve(...paths: string[]): string {
+	const resolvedPath = path.resolve(...paths)
+	return toPosixPath(resolvedPath)
 }
+
+/**
+ * 路径解析对象，包含路径的各个部分
+ */
+export function parse(pathString: string): {
+	root: string
+	dir: string
+	base: string
+	ext: string
+	name: string
+} {
+	const result = path.parse(toPosixPath(pathString))
+	// 确保root属性使用正斜杠
+	result.root = toPosixPath(result.root)
+	result.dir = toPosixPath(result.dir)
+	return result
+}
+
+/**
+ * 跨平台路径分隔符
+ */
+export const sep = "/"
