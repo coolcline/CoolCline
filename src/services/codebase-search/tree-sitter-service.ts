@@ -20,7 +20,7 @@ import { getCSharpQuery } from "./languages/csharp"
 import { getJavaQuery } from "./languages/java"
 
 // 导入语言工具函数
-import { getExtensionForLanguage } from "./languages"
+import { getExtensionForLanguage, getLanguageIdFromFileExtension } from "./languages"
 
 // 定义语言解析器类型
 type LanguageParser = {
@@ -298,5 +298,15 @@ export class CodebaseTreeSitterService {
 			console.error(`Error loading language ${lang}:`, error)
 			return null
 		}
+	}
+
+	/**
+	 * 获取文件的语言ID
+	 * @param filePath 文件路径
+	 * @returns 语言ID
+	 */
+	public getLanguageIdForFile(filePath: string): string {
+		// 使用语言工具函数获取语言ID
+		return getLanguageIdFromFileExtension(filePath)
 	}
 }

@@ -28,6 +28,9 @@ export interface SymbolInfo {
 	parent?: string
 	location: Location
 	type?: string
+	isNested?: boolean // 新增：是否是嵌套结构中的符号
+	nestingContext?: string // 新增：嵌套上下文信息（如类名、模块名）
+	nestingType?: string // 新增：嵌套类型（如class、module、namespace）
 }
 
 /**
@@ -38,6 +41,7 @@ export interface FindReferencesOptions {
 	maxResults?: number // 最大结果数
 	includeImports?: boolean // 是否包含导入文件中的引用
 	maxDepth?: number // 导入搜索最大深度
+	includeNested?: boolean // 新增：是否包含嵌套结构中的引用
 }
 
 /**
@@ -99,6 +103,7 @@ export class ReferencesFinder {
 			maxResults: 100,
 			includeImports: true,
 			maxDepth: 1,
+			includeNested: true, // 默认包含嵌套结构中的引用
 		}
 
 		const mergedOptions = { ...defaultOptions, ...options }
@@ -250,39 +255,74 @@ export class ReferencesFinder {
 	 * 在单个文件中查找引用
 	 */
 	private async findReferencesInFile(symbolInfo: SymbolInfo, filePath: string): Promise<Location[]> {
-		// 使用带缓存的文件解析
-		const { references, definitions } = await this.parseFile(filePath)
+		const references: Location[] = []
+		const { definitions, references: fileReferences } = await this.parseFile(filePath)
 
-		const result: Location[] = []
+		// 判断是否需要考虑嵌套上下文
+		const shouldCheckNesting = !!symbolInfo.isNested || !!symbolInfo.nestingContext
 
-		// 添加定义位置（如果在当前文件中）
-		const matchingDefs = definitions.filter(
-			(def) => def.name === symbolInfo.name && (!symbolInfo.parent || def.parent === symbolInfo.parent),
-		)
+		for (const ref of fileReferences) {
+			// 基本名称匹配
+			const basicMatches = this.isReferenceToSymbol(ref, symbolInfo)
 
-		for (const def of matchingDefs) {
-			result.push({
-				file: filePath,
-				line: def.location.line,
-				column: def.location.column,
-				content: def.content,
-			})
+			// 检查嵌套上下文匹配
+			const nestingMatches = shouldCheckNesting ? this.isNestedReferenceMatch(ref, symbolInfo) : true
+
+			if (basicMatches && nestingMatches) {
+				references.push({
+					file: filePath,
+					line: ref.location.line,
+					column: ref.location.column,
+					content: ref.content,
+				})
+			}
 		}
 
-		// 添加引用位置
-		const matchingRefs = references.filter(
-			(ref) => ref.name === symbolInfo.name && this.isReferenceToSymbol(ref, symbolInfo),
-		)
+		return references
+	}
 
-		for (const ref of matchingRefs) {
-			result.push({
-				file: filePath,
-				line: ref.location.line,
-				column: ref.location.column,
-			})
+	/**
+	 * 检查嵌套引用是否匹配
+	 * 新增方法：处理嵌套结构中的引用匹配逻辑
+	 */
+	private isNestedReferenceMatch(reference: SymbolReference, symbol: SymbolInfo): boolean {
+		// 如果符号有嵌套上下文，但引用没有，可能不匹配
+		if (symbol.nestingContext && !reference.parent && !reference.namespace) {
+			return false
 		}
 
-		return result
+		// 如果引用是通过嵌套访问（例如Class::method 或 Module.method）
+		if (reference.type && (reference.type.includes("nested") || reference.type.includes("namespaced"))) {
+			// 检查嵌套上下文是否匹配
+			if (symbol.nestingContext) {
+				// 匹配引用的父级/命名空间与符号的嵌套上下文
+				const parentMatches = Boolean(reference.parent && reference.parent === symbol.nestingContext)
+				const namespaceMatches = Boolean(reference.namespace && reference.namespace === symbol.nestingContext)
+				return parentMatches || namespaceMatches
+			}
+		}
+
+		// 对于Ruby特有的作用域解析操作符（::）和PHP的命名空间分隔符（\）
+		if (
+			symbol.type === "nested.method" ||
+			symbol.type === "nested.class" ||
+			symbol.type === "namespaced.class" ||
+			symbol.type === "namespaced.function"
+		) {
+			// 处理特定语言的嵌套引用
+			const lang = this.getLanguageIdFromFile(symbol.location.file)
+
+			if (lang === "ruby" && reference.type && reference.type.includes("scope_resolution")) {
+				return reference.namespace === symbol.nestingContext
+			}
+
+			if (lang === "php" && reference.type && reference.type.includes("qualified_name")) {
+				return reference.namespace === symbol.nestingContext
+			}
+		}
+
+		// 如果没有特殊条件，默认匹配
+		return true
 	}
 
 	/**
@@ -358,48 +398,35 @@ export class ReferencesFinder {
 	}
 
 	/**
-	 * 判断一个引用是否指向给定符号
+	 * 判断引用是否指向特定符号
 	 */
 	private isReferenceToSymbol(reference: SymbolReference, symbol: SymbolInfo): boolean {
-		// 基本名称匹配
-		if (reference.name !== symbol.name) {
-			return false
+		// 基本的名称匹配
+		const nameMatches = reference.name === symbol.name
+
+		// 检查命名空间/父级上下文
+		const contextMatches =
+			// 匹配命名空间 (对PHP特别重要)
+			(symbol.namespace && reference.namespace ? reference.namespace === symbol.namespace : true) &&
+			// 匹配父级元素 (对类内部的方法、属性等重要)
+			(symbol.parent && reference.parent ? reference.parent === symbol.parent : true)
+
+		// 如果是Ruby常量引用，需要特别处理
+		if (symbol.type === "constant" && this.getLanguageIdFromFile(symbol.location.file) === "ruby") {
+			// Ruby中常量以大写字母开头，需确保匹配的也是常量引用
+			const isConstantRef = reference.type ? reference.type.includes("constant") : false
+			return nameMatches && contextMatches && isConstantRef
 		}
 
-		// 排除自身定义
-		if (reference.isDefinition) {
-			return false
-		}
-
-		// 增强的命名空间检查
-		if (symbol.namespace && reference.namespace) {
-			// 完整匹配命名空间
-			if (symbol.namespace !== reference.namespace) {
-				// 检查是否为子命名空间
-				if (!reference.namespace.startsWith(symbol.namespace + ".")) {
-					return false
-				}
+		// 如果是PHP命名空间中的元素，特别处理
+		if (symbol.namespace && this.getLanguageIdFromFile(symbol.location.file) === "php") {
+			// 对于完全限定名称的引用，检查命名空间和名称都匹配
+			if (reference.type && reference.type.includes("qualified")) {
+				return nameMatches && contextMatches
 			}
 		}
 
-		// 增强的类成员检查
-		if (symbol.parent && reference.parent) {
-			// 如果类名不同，则不匹配
-			if (symbol.parent !== reference.parent) {
-				// 还需考虑继承关系，但这需要更复杂的分析
-				// 目前只做精确匹配
-				return false
-			}
-		}
-
-		// 特别处理方法调用引用
-		if (symbol.type === "method" && reference.name.endsWith(".method")) {
-			// 确保方法名匹配（去掉.method后缀）
-			const methodName = reference.name.replace(/\.method$/, "")
-			return methodName === symbol.name
-		}
-
-		return true
+		return nameMatches && contextMatches
 	}
 
 	/**

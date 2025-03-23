@@ -1,0 +1,199 @@
+/**
+ * 嵌套结构引用查找测试
+ * 测试Ruby和PHP的嵌套结构支持
+ */
+import { ReferencesFinder, Location } from "../references-finder"
+import { CodebaseTreeSitterService } from "../tree-sitter-service"
+import * as path from "../../../utils/path"
+import { SymbolDefinition, SymbolReference } from "../types"
+
+// 模拟Tree-sitter服务
+jest.mock("../tree-sitter-service")
+
+describe("嵌套结构引用查找测试", () => {
+	let finder: ReferencesFinder
+	let mockTreeService: jest.Mocked<CodebaseTreeSitterService>
+
+	// 使用固定的模拟路径
+	const rubyFilePath = "/mock/path/test.rb"
+	const phpFilePath = "/mock/path/test.php"
+
+	beforeEach(() => {
+		// 初始化依赖
+		mockTreeService = new CodebaseTreeSitterService() as jest.Mocked<CodebaseTreeSitterService>
+		mockTreeService.getLanguageIdForFile = jest.fn()
+		finder = new ReferencesFinder(mockTreeService)
+	})
+
+	describe("Ruby嵌套类和模块支持", () => {
+		it("应该能找到Ruby嵌套类中的方法引用", async () => {
+			// 模拟Tree-sitter服务返回的解析结果
+			const processDataDef: SymbolDefinition = {
+				name: "process_data",
+				type: "nested.method",
+				parent: "DataProcessor",
+				location: {
+					file: rubyFilePath,
+					line: 3,
+					column: 4,
+				},
+				content: "def process_data",
+			}
+
+			const processDataRef: SymbolReference = {
+				name: "process_data",
+				parent: "DataProcessor",
+				type: "reference.nested.method",
+				location: {
+					file: rubyFilePath,
+					line: 10,
+					column: 20,
+				},
+			}
+
+			mockTreeService.parseFileWithReferences.mockResolvedValue({
+				definitions: [processDataDef],
+				references: [processDataRef],
+			})
+
+			// 模拟语言检测为Ruby
+			mockTreeService.getLanguageIdForFile.mockReturnValue("ruby")
+
+			// 执行引用查找
+			const refs = await finder.findReferences("process_data", rubyFilePath, { line: 3, column: 4 })
+
+			// 验证结果
+			expect(refs).toHaveLength(1)
+			expect(refs[0].line).toBe(10)
+			expect(refs[0].column).toBe(20)
+		})
+
+		it("应该能找到Ruby模块嵌套常量引用", async () => {
+			// 模拟Tree-sitter服务返回的解析结果
+			const maxSizeDef: SymbolDefinition = {
+				name: "MAX_SIZE",
+				type: "constant",
+				parent: "Utilities",
+				location: {
+					file: rubyFilePath,
+					line: 5,
+					column: 2,
+				},
+				content: "MAX_SIZE = 100",
+			}
+
+			const maxSizeRef: SymbolReference = {
+				name: "MAX_SIZE",
+				namespace: "Utilities",
+				type: "reference.nested.constant",
+				location: {
+					file: rubyFilePath,
+					line: 15,
+					column: 12,
+				},
+			}
+
+			mockTreeService.parseFileWithReferences.mockResolvedValue({
+				definitions: [maxSizeDef],
+				references: [maxSizeRef],
+			})
+
+			// 模拟语言检测为Ruby
+			mockTreeService.getLanguageIdForFile.mockReturnValue("ruby")
+
+			// 执行引用查找
+			const refs = await finder.findReferences("MAX_SIZE", rubyFilePath, { line: 5, column: 2 })
+
+			// 验证结果
+			expect(refs).toHaveLength(1)
+			expect(refs[0].line).toBe(15)
+			expect(refs[0].column).toBe(12)
+		})
+	})
+
+	describe("PHP命名空间和类嵌套支持", () => {
+		it("应该能找到PHP命名空间中类的引用", async () => {
+			// 模拟Tree-sitter服务返回的解析结果
+			const userControllerDef: SymbolDefinition = {
+				name: "UserController",
+				type: "namespaced.class",
+				namespace: "App\\Controllers",
+				location: {
+					file: phpFilePath,
+					line: 5,
+					column: 6,
+				},
+				content: "class UserController",
+			}
+
+			const userControllerRef: SymbolReference = {
+				name: "UserController",
+				namespace: "App\\Controllers",
+				type: "qualified_name",
+				location: {
+					file: phpFilePath,
+					line: 20,
+					column: 10,
+				},
+			}
+
+			mockTreeService.parseFileWithReferences.mockResolvedValue({
+				definitions: [userControllerDef],
+				references: [userControllerRef],
+			})
+
+			// 模拟语言检测为PHP
+			mockTreeService.getLanguageIdForFile.mockReturnValue("php")
+
+			// 执行引用查找
+			const refs = await finder.findReferences("UserController", phpFilePath, { line: 5, column: 6 })
+
+			// 验证结果
+			expect(refs).toHaveLength(1)
+			expect(refs[0].line).toBe(20)
+			expect(refs[0].column).toBe(10)
+		})
+
+		it("应该能找到PHP类中的方法引用", async () => {
+			// 模拟Tree-sitter服务返回的解析结果
+			const getDataDef: SymbolDefinition = {
+				name: "getData",
+				type: "nested.method",
+				parent: "DataService",
+				location: {
+					file: phpFilePath,
+					line: 8,
+					column: 4,
+				},
+				content: "public function getData()",
+			}
+
+			const getDataRef: SymbolReference = {
+				name: "getData",
+				parent: "DataService",
+				type: "reference.nested.method",
+				location: {
+					file: phpFilePath,
+					line: 25,
+					column: 15,
+				},
+			}
+
+			mockTreeService.parseFileWithReferences.mockResolvedValue({
+				definitions: [getDataDef],
+				references: [getDataRef],
+			})
+
+			// 模拟语言检测为PHP
+			mockTreeService.getLanguageIdForFile.mockReturnValue("php")
+
+			// 执行引用查找
+			const refs = await finder.findReferences("getData", phpFilePath, { line: 8, column: 4 })
+
+			// 验证结果
+			expect(refs).toHaveLength(1)
+			expect(refs[0].line).toBe(25)
+			expect(refs[0].column).toBe(15)
+		})
+	})
+})

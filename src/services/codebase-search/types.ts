@@ -173,6 +173,7 @@ export interface SymbolDefinition {
 		column: number
 	}
 	parent?: string
+	namespace?: string // 添加命名空间字段，用于支持PHP等语言
 	content: string
 	documentation?: string
 }
@@ -185,11 +186,13 @@ export interface SymbolReference {
 	namespace?: string
 	parent?: string
 	isDefinition?: boolean
+	type?: string // 添加类型字段，用于区分不同类型的引用（如nested.method, namespaced.class等）
 	location: {
 		file: string
 		line: number
 		column: number
 	}
+	content?: string // 添加内容字段，便于调试和显示
 }
 
 /**

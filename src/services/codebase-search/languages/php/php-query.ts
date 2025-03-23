@@ -49,6 +49,62 @@ export function getPHPQuery(): string {
       ; 方法调用引用
       (method_invocation
         name: (name) @name.reference.method) @reference.method
+      
+      ; 嵌套类中的方法定义
+      (class_declaration
+        body: (declaration_list
+          (method_declaration
+            name: (name) @name.definition.nested.method))) @nested.class.method
+      
+      ; 嵌套类中的属性定义
+      (class_declaration
+        body: (declaration_list
+          (property_declaration
+            (property_element
+              name: (variable_name) @name.definition.nested.property)))) @nested.class.property
+      
+      ; 命名空间中的类定义
+      (namespace_definition
+        body: (namespace_body
+          (class_declaration
+            name: (name) @name.definition.namespaced.class))) @namespaced.class
+      
+      ; 命名空间中的接口定义
+      (namespace_definition
+        body: (namespace_body
+          (interface_declaration
+            name: (name) @name.definition.namespaced.interface))) @namespaced.interface
+      
+      ; 命名空间中的特征(trait)定义
+      (namespace_definition
+        body: (namespace_body
+          (trait_declaration
+            name: (name) @name.definition.namespaced.trait))) @namespaced.trait
+      
+      ; 命名空间中的函数定义
+      (namespace_definition
+        body: (namespace_body
+          (function_definition
+            name: (name) @name.definition.namespaced.function))) @namespaced.function
+      
+      ; 类继承关系
+      (class_declaration
+        (base_clause
+          (name) @extends.class)) @inherits
+      
+      ; 接口实现关系
+      (class_declaration
+        (implements_clause
+          (name) @implements.interface)) @implements
+      
+      ; 嵌套上下文中的方法调用
+      (member_access_expression
+        object: (name) @name.reference.object
+        name: (name) @name.reference.nested.method) @reference.nested.method
+      
+      ; 完全限定名称引用
+      (qualified_name
+        (name) @name.reference.namespace) @reference.qualified.name
         
       ; use语句 (导入)
       (namespace_use_declaration
