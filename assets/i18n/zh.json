@@ -759,7 +759,8 @@
 			"actions": {
 				"start": "开始索引",
 				"refresh": "刷新索引",
-				"clear": "清除索引"
+				"clear": "清除索引",
+				"stop": "停止索引"
 			},
 			"autoStart": {
 				"title": "启动时自动索引",

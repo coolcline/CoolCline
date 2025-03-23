@@ -737,6 +737,7 @@
 		},
 		"codebaseIndex": {
 			"title": "코드베이스 인덱스",
+			"deleteConfirmTitle": "인덱스 삭제 확인",
 			"deleteConfirm": "인덱스를 삭제하시겠습니까? 이렇게 하면 모든 인덱스 데이터가 제거됩니다.",
 			"enable": {
 				"title": "코드 인덱스 활성화",
@@ -758,7 +759,8 @@
 			"actions": {
 				"start": "인덱싱 시작",
 				"refresh": "인덱스 새로고침",
-				"clear": "인덱스 지우기"
+				"clear": "인덱스 지우기",
+				"stop": "인덱싱 중지"
 			},
 			"autoStart": {
 				"title": "시작 시 자동 인덱스",

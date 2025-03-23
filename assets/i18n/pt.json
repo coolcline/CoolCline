@@ -736,7 +736,8 @@
 			"resetStateDescription": "Isso redefinirá todo o estado global e armazenamento secreto da extensão."
 		},
 		"codebaseIndex": {
-			"title": "Índice da Base de Código",
+			"title": "Índice de Base de Código",
+			"deleteConfirmTitle": "Confirmar Exclusão de Índice",
 			"deleteConfirm": "Tem certeza que deseja excluir o índice? Isso removerá todos os dados indexados.",
 			"enable": {
 				"title": "Ativar Índice de Código",
@@ -758,7 +759,8 @@
 			"actions": {
 				"start": "Iniciar Indexação",
 				"refresh": "Atualizar Índice",
-				"clear": "Limpar Índice"
+				"clear": "Limpar Índice",
+				"stop": "Parar Indexação"
 			},
 			"autoStart": {
 				"title": "Auto-indexação na Inicialização",

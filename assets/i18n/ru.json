@@ -737,6 +737,7 @@
 		},
 		"codebaseIndex": {
 			"title": "Codebase Index",
+			"deleteConfirmTitle": "Подтвердите удаление индекса",
 			"deleteConfirm": "Are you sure you want to delete the index? This will remove all indexed data.",
 			"enable": {
 				"title": "Enable Code Index",
@@ -758,7 +759,8 @@
 			"actions": {
 				"start": "Start Indexing",
 				"refresh": "Refresh Index",
-				"clear": "Clear Index"
+				"clear": "Clear Index",
+				"stop": "Остановить Индексацию"
 			},
 			"autoStart": {
 				"title": "Auto-index on Startup",

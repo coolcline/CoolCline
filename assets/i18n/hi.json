@@ -736,7 +736,8 @@
 			"resetStateDescription": "यह एक्सटेंशन में सभी वैश्विक स्थिति और गुप्त भंडारण को रीसेट करेगा।"
 		},
 		"codebaseIndex": {
-			"title": "Codebase Index",
+			"title": "कोडबेस इंडेक्स",
+			"deleteConfirmTitle": "इंडेक्स हटाने की पुष्टि करें",
 			"deleteConfirm": "Are you sure you want to delete the index? This will remove all indexed data.",
 			"enable": {
 				"title": "Enable Code Index",
@@ -758,7 +759,8 @@
 			"actions": {
 				"start": "Start Indexing",
 				"refresh": "Refresh Index",
-				"clear": "Clear Index"
+				"clear": "Clear Index",
+				"stop": "इंडेक्सिंग रोकें"
 			},
 			"autoStart": {
 				"title": "Auto-index on Startup",

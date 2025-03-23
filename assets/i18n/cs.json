@@ -737,6 +737,7 @@
 		},
 		"codebaseIndex": {
 			"title": "Index Kódové Základny",
+			"deleteConfirmTitle": "Potvrdit Smazání Indexu",
 			"deleteConfirm": "Opravdu chcete smazat index? Tím se odstraní všechna indexovaná data.",
 			"enable": {
 				"title": "Povolit Index Kódu",
@@ -758,7 +759,8 @@
 			"actions": {
 				"start": "Spustit Indexování",
 				"refresh": "Obnovit Index",
-				"clear": "Vymazat Index"
+				"clear": "Vymazat Index",
+				"stop": "Zastavit Indexování"
 			},
 			"autoStart": {
 				"title": "Automatické Indexování při Spuštění",

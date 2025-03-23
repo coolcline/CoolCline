@@ -737,6 +737,7 @@
 		},
 		"codebaseIndex": {
 			"title": "Indice Base di Codice",
+			"deleteConfirmTitle": "Conferma Eliminazione Indice",
 			"deleteConfirm": "Sei sicuro di voler eliminare l'indice? Questo rimuoverà tutti i dati indicizzati.",
 			"enable": {
 				"title": "Abilita Indice Codice",
@@ -758,7 +759,8 @@
 			"actions": {
 				"start": "Avvia Indicizzazione",
 				"refresh": "Aggiorna Indice",
-				"clear": "Cancella Indice"
+				"clear": "Cancella Indice",
+				"stop": "Interrompi Indicizzazione"
 			},
 			"autoStart": {
 				"title": "Auto-indicizzazione all'Avvio",

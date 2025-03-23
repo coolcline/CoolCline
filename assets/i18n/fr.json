@@ -737,6 +737,7 @@
 		},
 		"codebaseIndex": {
 			"title": "Index de la base de code",
+			"deleteConfirmTitle": "Confirmer la Suppression de l'Index",
 			"deleteConfirm": "Êtes-vous sûr de vouloir supprimer l'index ? Cela supprimera toutes les données indexées.",
 			"enable": {
 				"title": "Activer l'index de code",
@@ -758,7 +759,8 @@
 			"actions": {
 				"start": "Démarrer l'indexation",
 				"refresh": "Actualiser l'index",
-				"clear": "Effacer l'index"
+				"clear": "Effacer l'index",
+				"stop": "Arrêter l'Indexation"
 			},
 			"autoStart": {
 				"title": "Auto-indexation au démarrage",

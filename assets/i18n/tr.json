@@ -736,7 +736,8 @@
 			"resetStateDescription": "Bu, uzantının tüm global durumunu ve gizli deposunu sıfırlayacaktır."
 		},
 		"codebaseIndex": {
-			"title": "Kod tabanı indeksi",
+			"title": "Kod Tabanı İndeksi",
+			"deleteConfirmTitle": "İndeks Silmeyi Onaylayın",
 			"deleteConfirm": "İndeksi silmek istediğinizden emin misiniz? Bu, tüm indekslenmiş verileri kaldıracaktır.",
 			"enable": {
 				"title": "Kod indekslemeyi etkinleştir",
@@ -756,9 +757,10 @@
 				"error": "Hata"
 			},
 			"actions": {
-				"start": "İndekslemeyi başlat",
+				"start": "İndekslemeyi Başlat",
 				"refresh": "İndeksi yenile",
-				"clear": "İndeksi temizle"
+				"clear": "İndeksi Temizle",
+				"stop": "İndekslemeyi Durdur"
 			},
 			"autoStart": {
 				"title": "Auto-index on Startup",

@@ -736,7 +736,8 @@
 			"resetStateDescription": "سيؤدي هذا إلى إعادة تعيين جميع الحالة العالمية والتخزين السري في الامتداد."
 		},
 		"codebaseIndex": {
-			"title": "Codebase Index",
+			"title": "فهرس قاعدة الشفرة",
+			"deleteConfirmTitle": "تأكيد حذف الفهرس",
 			"deleteConfirm": "Are you sure you want to delete the index? This will remove all indexed data.",
 			"enable": {
 				"title": "Enable Code Index",
@@ -758,7 +759,8 @@
 			"actions": {
 				"start": "Start Indexing",
 				"refresh": "Refresh Index",
-				"clear": "Clear Index"
+				"clear": "Clear Index",
+				"stop": "إيقاف الفهرسة"
 			},
 			"autoStart": {
 				"title": "Auto-index on Startup",

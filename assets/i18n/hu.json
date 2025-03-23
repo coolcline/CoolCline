@@ -736,7 +736,8 @@
 			"resetStateDescription": "Ez visszaállítja a bővítmény összes globális állapotát és titkos tárolóját."
 		},
 		"codebaseIndex": {
-			"title": "Kódbázis index",
+			"title": "Kódbázis Index",
+			"deleteConfirmTitle": "Index Törlés Megerősítése",
 			"deleteConfirm": "Biztosan törölni szeretné az indexet? Ez eltávolítja az összes indexelt adatot.",
 			"enable": {
 				"title": "Kód index engedélyezése",
@@ -756,9 +757,10 @@
 				"error": "Hiba"
 			},
 			"actions": {
-				"start": "Indexelés indítása",
+				"start": "Indexelés Indítása",
 				"refresh": "Index frissítése",
-				"clear": "Index törlése"
+				"clear": "Index Törlése",
+				"stop": "Indexelés Leállítása"
 			},
 			"autoStart": {
 				"title": "Automatikus indexelés indításkor",

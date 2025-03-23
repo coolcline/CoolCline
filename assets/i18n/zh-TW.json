@@ -737,6 +737,7 @@
 		},
 		"codebaseIndex": {
 			"title": "程式碼庫索引",
+			"deleteConfirmTitle": "確認刪除索引",
 			"deleteConfirm": "確定要刪除索引嗎？這將移除所有索引資料。",
 			"enable": {
 				"title": "啟用程式碼索引",
@@ -758,7 +759,8 @@
 			"actions": {
 				"start": "開始索引",
 				"refresh": "重新整理索引",
-				"clear": "清除索引"
+				"clear": "清除索引",
+				"stop": "停止索引"
 			},
 			"autoStart": {
 				"title": "啟動時自動索引",
