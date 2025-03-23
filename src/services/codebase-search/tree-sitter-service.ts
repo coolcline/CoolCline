@@ -415,71 +415,106 @@ export class CodebaseTreeSitterService {
 		const imports: ImportStatement[] = []
 		const docComments = new Map<string, string>()
 
-		// 第一轮：收集所有文档注释
+		// 1. 第一轮：收集文档注释和定义
 		for (const capture of captures) {
 			const { node, name } = capture
 
-			if (name.includes("doc.comment")) {
-				const comment = this.getNodeText(node, content)
-				// 存储注释，后续会将它们关联到相关的定义
-				docComments.set(this.getNodeId(node), comment)
+			// 处理文档注释
+			if (name.includes("doc")) {
+				const docText = this.getNodeText(node, content)
+				docComments.set(this.getNodeId(node), this.formatDocComment(docText))
+				continue
+			}
+
+			// 处理定义
+			if (name.includes("definition")) {
+				try {
+					// 查找定义的名称节点
+					const parentNode = node
+					// @ts-ignore SyntaxNode has a childCount property, but TS doesn't know about it
+					if (parentNode && parentNode.childCount > 0) {
+						// 查找与capture name匹配的name节点
+						const nameMatches = captures.filter(
+							(c) => c.name.includes("name") && c.name.includes(name.split("definition")[1]),
+						)
+						const nameNode = nameMatches.find((m) => {
+							// 安全检查，确保node.parent不为null
+							const parentOfNode = m.node.parent
+							return parentOfNode && parentNode.equals(parentOfNode)
+						})?.node
+
+						if (nameNode) {
+							const definition = this.createDefinition(
+								nameNode,
+								parentNode,
+								name,
+								content,
+								lines,
+								filePath,
+							)
+							definitions.push(definition)
+						}
+					}
+				} catch (error) {
+					console.error("解析定义时出错:", error)
+				}
 			}
 		}
 
-		// 第二轮：处理定义
+		// 2. 第二轮：处理引用和导入，尝试关联到定义
 		for (const capture of captures) {
 			const { node, name } = capture
 
-			if (name.includes("definition")) {
-				let definitionNode = node
-				let nameNode: Parser.SyntaxNode | null = null
+			// 处理引用
+			if (name.includes("reference")) {
+				try {
+					const reference = this.createReference(node, name, content, filePath)
 
-				// 查找名称节点和内容
-				if (name.includes("name.definition")) {
-					nameNode = node
-					// 定义名称节点的父节点通常是定义节点
-					definitionNode = node.parent || node
-				} else {
-					// 查找子节点中的名称节点
-					nameNode = this.findNameNodeInCaptures(captures, node)
-				}
+					// 尝试确定引用的命名空间和父级
+					reference.namespace = this.determineNamespace(node, captures, content)
+					reference.parent = this.determineParent(node, captures, content)
 
-				// 只有当找到有效的名称节点时才创建定义
-				if (nameNode) {
-					const definition = this.createDefinition(nameNode, definitionNode, name, content, lines, filePath)
-
-					// 尝试关联文档注释
-					this.associateDocComment(definition, docComments, captures, definitionNode)
-
-					definitions.push(definition)
+					// 排除已知的定义
+					const isDef = definitions.some(
+						(def) =>
+							def.name === reference.name &&
+							def.location.line === reference.location.line &&
+							def.location.column === reference.location.column,
+					)
+					if (!isDef) {
+						references.push(reference)
+					}
+				} catch (error) {
+					console.error("解析引用时出错:", error)
 				}
 			}
-			// 处理导入语句
-			else if (name.includes("import")) {
+
+			// 处理导入
+			if (name.includes("import")) {
 				if (name === "import.source") {
-					const importStatement = this.createImportStatement(node, captures, content, filePath)
-					if (importStatement) {
-						imports.push(importStatement)
+					try {
+						const importStmt = this.createImportStatement(node, captures, content, filePath)
+						if (importStmt) {
+							imports.push(importStmt)
+						}
+					} catch (error) {
+						console.error("解析导入时出错:", error)
 					}
 				}
 			}
 		}
 
-		// 第三轮：处理引用
-		for (const capture of captures) {
-			const { node, name } = capture
+		// 3. 建立定义和文档注释的关联
+		for (const definition of definitions) {
+			if (definition.documentation) continue // 已经有文档了
 
-			if (name.includes("reference")) {
-				// 过滤已经处理为定义的节点
-				const isAlreadyDefinition = definitions.some(
-					(def) =>
-						def.location.line === node.startPosition.row + 1 &&
-						def.location.column === node.startPosition.column,
-				)
-
-				if (!isAlreadyDefinition) {
-					const reference = this.createReference(node, name, content, filePath)
-					references.push(reference)
+			// 查找可能的文档注释
+			for (const [nodeId, docText] of docComments.entries()) {
+				const [line, col] = nodeId.split(":").map(Number)
+				// 如果文档注释在定义之前且距离不超过3行，则关联
+				if (line < definition.location.line && definition.location.line - line <= 3) {
+					definition.documentation = docText
+					break
 				}
 			}
 		}
@@ -488,29 +523,94 @@ export class CodebaseTreeSitterService {
 	}
 
 	/**
-	 * 在捕获中查找名称节点
-	 * 安全版本，避免潜在的类型错误
+	 * 确定节点所属的命名空间
+	 * 例如：对于 a.b.c，确定命名空间为 a.b
 	 */
-	private findNameNodeInCaptures(
+	private determineNamespace(
+		node: Parser.SyntaxNode,
 		captures: Parser.QueryCapture[],
-		parentNode: Parser.SyntaxNode,
-	): Parser.SyntaxNode | null {
-		for (const capture of captures) {
-			if (capture.name.includes("name.definition")) {
-				let current: Parser.SyntaxNode | null = capture.node.parent
+		content: string,
+	): string | undefined {
+		// 对于属性访问，尝试找到对象部分
+		if (node.type === "property_identifier" || node.type === "identifier") {
+			let current = node.parent
 
-				// 向上查找祖先节点，检查是否与parentNode匹配
-				while (current) {
-					if (current.id === parentNode.id) {
-						return capture.node
+			// 处理TypeScript/JavaScript的情况
+			if (current?.type === "member_expression") {
+				// 递归查找完整路径，例如 a.b.c
+				const parts: string[] = []
+				let memberExp: Parser.SyntaxNode | null = current
+
+				while (memberExp && memberExp.type === "member_expression") {
+					// 获取对象部分 (a.b中的a)
+					const objectNode = memberExp.childForFieldName("object")
+					if (objectNode && objectNode.type === "identifier") {
+						parts.unshift(this.getNodeText(objectNode, content))
 					}
-					// 安全地更新current
-					const nextParent: Parser.SyntaxNode | null = current.parent
-					current = nextParent
+					// 安全地更新memberExp
+					memberExp = memberExp.parent
+				}
+
+				if (parts.length > 0) {
+					return parts.join(".")
+				}
+			}
+
+			// 处理Python的情况
+			if (current?.type === "attribute") {
+				const valueNode = current.childForFieldName("value")
+				if (valueNode) {
+					return this.getNodeText(valueNode, content)
 				}
 			}
 		}
-		return null
+
+		return undefined
+	}
+
+	/**
+	 * 确定节点的父级（例如类名或模块名）
+	 */
+	private determineParent(
+		node: Parser.SyntaxNode,
+		captures: Parser.QueryCapture[],
+		content: string,
+	): string | undefined {
+		// 向上查找父节点
+		let current = node.parent
+		while (current) {
+			// 检查是否在类定义内
+			if (current.type === "class_declaration" || current.type === "class_definition") {
+				// 查找类名
+				const classNameNode = current.childForFieldName("name")
+				if (classNameNode) {
+					return this.getNodeText(classNameNode, content)
+				}
+			}
+
+			// 检查是否在方法定义内
+			if (
+				current.type === "method_definition" ||
+				(current.type === "function_definition" && current.parent?.parent?.type === "class_definition")
+			) {
+				// 继续向上查找类
+				let classNode = current.parent
+				while (classNode && classNode.type !== "class_declaration" && classNode.type !== "class_definition") {
+					classNode = classNode.parent
+				}
+
+				if (classNode) {
+					const classNameNode = classNode.childForFieldName("name")
+					if (classNameNode) {
+						return this.getNodeText(classNameNode, content)
+					}
+				}
+			}
+
+			current = current.parent
+		}
+
+		return undefined
 	}
 
 	/**
@@ -649,60 +749,6 @@ export class CodebaseTreeSitterService {
 	}
 
 	/**
-	 * 将文档注释关联到定义
-	 */
-	private associateDocComment(
-		definition: SymbolDefinition,
-		docComments: Map<string, string>,
-		captures: Parser.QueryCapture[],
-		definitionNode: Parser.SyntaxNode,
-	): void {
-		// 查找紧邻定义之前的注释
-		const definitionLine = definitionNode.startPosition.row
-
-		let closestComment: CommentNode | null = null
-
-		for (const capture of captures) {
-			if (capture.name.includes("doc.comment")) {
-				const commentLine = capture.node.startPosition.row
-
-				// 只考虑在定义之前的注释
-				if (commentLine < definitionLine) {
-					const distance = definitionLine - commentLine
-
-					// 最近的注释（距离不超过2行）
-					if (distance <= 2 && (!closestComment || distance < closestComment.distance)) {
-						closestComment = {
-							node: capture.node,
-							distance,
-						}
-					}
-				}
-			}
-		}
-
-		if (closestComment) {
-			const commentId = this.getNodeId(closestComment.node)
-			const comment = docComments.get(commentId)
-
-			if (comment) {
-				definition.documentation = this.formatDocComment(comment)
-			}
-		}
-	}
-
-	/**
-	 * 格式化文档注释
-	 */
-	private formatDocComment(comment: string): string {
-		// 移除注释标记
-		return comment
-			.replace(/^\/\*\*|\*\/$/g, "") // 移除开头的 /** 和结尾的 */
-			.replace(/^\s*\*\s?/gm, "") // 移除每行开头的 *
-			.trim()
-	}
-
-	/**
 	 * 获取节点文本内容
 	 */
 	private getNodeText(node: Parser.SyntaxNode, content: string): string {
@@ -789,6 +835,30 @@ export class CodebaseTreeSitterService {
 		// 在节点之前查找注释节点，提取并格式化注释内容
 
 		return ""
+	}
+
+	/**
+	 * 格式化文档注释
+	 */
+	private formatDocComment(comment: string): string {
+		// 移除注释标记
+		return comment
+			.replace(/^\/\*\*|\*\/$/g, "") // 移除开头的 /** 和结尾的 */
+			.replace(/^\s*\*\s?/gm, "") // 移除每行开头的 *
+			.trim()
+	}
+
+	/**
+	 * 读取文件内容
+	 */
+	private async readFileContent(filePath: string): Promise<string> {
+		try {
+			const fs = require("fs/promises")
+			return await fs.readFile(filePath, "utf8")
+		} catch (error) {
+			console.error(`Error reading file ${filePath}:`, error)
+			return ""
+		}
 	}
 }
 

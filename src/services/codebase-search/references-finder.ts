@@ -74,6 +74,7 @@ export class ReferencesFinder {
 	 * 注册各语言的导入解析器
 	 */
 	private registerImportParsers() {
+		// 使用显式导入确保测试环境能正确解析类
 		this.importParsers.set("typescript", new TypeScriptImportParser(this.treeService))
 		this.importParsers.set("javascript", new TypeScriptImportParser(this.treeService))
 		this.importParsers.set("python", new PythonImportParser(this.treeService))
@@ -354,27 +355,45 @@ export class ReferencesFinder {
 	}
 
 	/**
-	 * 判断引用是否指向特定符号
+	 * 判断一个引用是否指向给定符号
 	 */
 	private isReferenceToSymbol(reference: SymbolReference, symbol: SymbolInfo): boolean {
-		// 1. 排除自身定义
+		// 基本名称匹配
+		if (reference.name !== symbol.name) {
+			return false
+		}
+
+		// 排除自身定义
 		if (reference.isDefinition) {
 			return false
 		}
 
-		// 2. 检查命名空间，避免同名但不同命名空间的符号
-		if (symbol.namespace && reference.namespace && symbol.namespace !== reference.namespace) {
-			return false
+		// 增强的命名空间检查
+		if (symbol.namespace && reference.namespace) {
+			// 完整匹配命名空间
+			if (symbol.namespace !== reference.namespace) {
+				// 检查是否为子命名空间
+				if (!reference.namespace.startsWith(symbol.namespace + ".")) {
+					return false
+				}
+			}
 		}
 
-		// 3. 对于类成员，检查所属类
+		// 增强的类成员检查
 		if (symbol.parent && reference.parent) {
-			return reference.parent === symbol.parent
+			// 如果类名不同，则不匹配
+			if (symbol.parent !== reference.parent) {
+				// 还需考虑继承关系，但这需要更复杂的分析
+				// 目前只做精确匹配
+				return false
+			}
 		}
 
-		// 4. 对于类成员引用，如果引用有父级但符号没有，可能不是同一个符号
-		if (!symbol.parent && reference.parent) {
-			return false
+		// 特别处理方法调用引用
+		if (symbol.type === "method" && reference.name.endsWith(".method")) {
+			// 确保方法名匹配（去掉.method后缀）
+			const methodName = reference.name.replace(/\.method$/, "")
+			return methodName === symbol.name
 		}
 
 		return true
