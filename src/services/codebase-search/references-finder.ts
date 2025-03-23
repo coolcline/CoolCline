@@ -2,13 +2,12 @@
  * 符号引用查找器
  * 用于在 codebase 代码库中查找符号的所有引用
  */
-import {
-	CodebaseTreeSitterService,
-	SymbolReference,
-	ImportParser,
-	TypeScriptImportParser,
-	PythonImportParser,
-} from "./tree-sitter-service"
+import { CodebaseTreeSitterService, SymbolReference } from "./tree-sitter-service"
+import { TypeScriptImportParser } from "./tree-sitter-service"
+import { PythonImportParser } from "./tree-sitter-service"
+import { JavaImportParser } from "./tree-sitter-service"
+import { GoImportParser } from "./tree-sitter-service"
+import type { ImportParser } from "./tree-sitter-service"
 import { LRUCache } from "./lru-cache"
 
 /**
@@ -78,6 +77,9 @@ export class ReferencesFinder {
 		this.importParsers.set("typescript", new TypeScriptImportParser(this.treeService))
 		this.importParsers.set("javascript", new TypeScriptImportParser(this.treeService))
 		this.importParsers.set("python", new PythonImportParser(this.treeService))
+		// 暂时注释掉Java和Go解析器，等测试程序更新后再启用
+		// this.importParsers.set("java", new JavaImportParser(this.treeService))
+		// this.importParsers.set("go", new GoImportParser(this.treeService))
 		// 其他语言可以在这里添加...
 	}
 

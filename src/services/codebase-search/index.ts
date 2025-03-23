@@ -773,3 +773,11 @@ export * from "./types"
 export { CodebaseIndexService } from "./index-service"
 export { CodebaseSearchService } from "./search-service"
 export { SemanticAnalysisService } from "./semantic-analysis"
+export {
+	CodebaseTreeSitterService,
+	TypeScriptImportParser,
+	PythonImportParser,
+	JavaImportParser,
+	GoImportParser,
+} from "./tree-sitter-service"
+export type { ImportParser } from "./tree-sitter-service"
