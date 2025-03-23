@@ -27,13 +27,29 @@ export class GoImportParser implements ImportParser {
 			// 提取导入语句
 			const importPaths = this.extractImportPaths(content)
 
+			// 提取当前包名，用于解析同包引用
+			const packageName = this.extractPackageName(content)
+
 			// 解析所有导入路径
 			const resolvedPaths: string[] = []
 			for (const importPath of importPaths) {
-				const resolvedPath = await this.resolveGoImport(importPath, filePath)
+				const resolvedPath = await this.resolveGoImport(importPath, filePath, packageName)
 				if (resolvedPath) {
 					resolvedPaths.push(resolvedPath)
 				}
+			}
+
+			// 添加当前文件所在目录的其他Go文件（同包文件），用于处理结构体方法和嵌入
+			const currentDir = dirname(filePath)
+			try {
+				const files = await fs.readdir(currentDir)
+				const goFiles = files
+					.filter((f: string) => f.endsWith(".go") && join(currentDir, f) !== filePath)
+					.map((f: string) => join(currentDir, f))
+
+				resolvedPaths.push(...goFiles)
+			} catch (e) {
+				// 读取目录失败，忽略
 			}
 
 			return resolvedPaths
@@ -86,9 +102,23 @@ export class GoImportParser implements ImportParser {
 	}
 
 	/**
+	 * 从Go文件中提取包名
+	 */
+	private extractPackageName(content: string): string {
+		// 匹配包声明: package main
+		const packageRegex = /package\s+(\w+)/
+		const match = content.match(packageRegex)
+		return match ? match[1] : ""
+	}
+
+	/**
 	 * 解析Go导入路径为绝对文件路径
 	 */
-	private async resolveGoImport(importPath: string, sourceFile: string): Promise<string | null> {
+	private async resolveGoImport(
+		importPath: string,
+		sourceFile: string,
+		currentPackage: string = "",
+	): Promise<string | null> {
 		try {
 			const sourceDir = dirname(sourceFile)
 			const projectRoot = this.findGoModDir(sourceDir)

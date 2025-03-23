@@ -1,6 +1,6 @@
 /**
  * 嵌套结构引用查找测试
- * 测试Ruby、PHP和Java的嵌套结构支持
+ * 测试Ruby、PHP、Java和Go的嵌套结构支持
  */
 import { ReferencesFinder, Location } from "../references-finder"
 import { CodebaseTreeSitterService } from "../tree-sitter-service"
@@ -18,6 +18,7 @@ describe("嵌套结构引用查找测试", () => {
 	const rubyFilePath = "/mock/path/test.rb"
 	const phpFilePath = "/mock/path/test.php"
 	const javaFilePath = "/mock/path/test.java"
+	const goFilePath = "/mock/path/test.go"
 
 	beforeEach(() => {
 		// 初始化依赖
@@ -323,6 +324,134 @@ describe("嵌套结构引用查找测试", () => {
 			expect(refs).toHaveLength(1)
 			expect(refs[0].line).toBe(20)
 			expect(refs[0].column).toBe(10)
+		})
+	})
+
+	describe("Go结构体方法和嵌套支持", () => {
+		it("应该能找到Go结构体方法的引用", async () => {
+			// 模拟Tree-sitter服务返回的解析结果
+			const processDataDef: SymbolDefinition = {
+				name: "Process",
+				type: "struct.method",
+				parent: "DataHandler",
+				location: {
+					file: goFilePath,
+					line: 8,
+					column: 1,
+				},
+				content: "func (d *DataHandler) Process() error",
+			}
+
+			const processDataRef: SymbolReference = {
+				name: "Process",
+				parent: "DataHandler",
+				type: "reference.struct.method",
+				location: {
+					file: goFilePath,
+					line: 20,
+					column: 15,
+				},
+			}
+
+			mockTreeService.parseFileWithReferences.mockResolvedValue({
+				definitions: [processDataDef],
+				references: [processDataRef],
+			})
+
+			// 模拟语言检测为Go
+			mockTreeService.getLanguageIdForFile.mockReturnValue("go")
+
+			// 执行引用查找
+			const refs = await finder.findReferences("Process", goFilePath, { line: 8, column: 1 })
+
+			// 验证结果
+			expect(refs).toHaveLength(1)
+			expect(refs[0].line).toBe(20)
+			expect(refs[0].column).toBe(15)
+		})
+
+		it("应该能找到Go嵌入式结构体的字段引用", async () => {
+			// 模拟Tree-sitter服务返回的解析结果
+			const nameDef: SymbolDefinition = {
+				name: "Name",
+				type: "field",
+				parent: "Person",
+				location: {
+					file: goFilePath,
+					line: 5,
+					column: 2,
+				},
+				content: "Name string",
+			}
+
+			const nameRef: SymbolReference = {
+				name: "Name",
+				parent: "Employee", // 在Employee结构体中引用了嵌入的Person结构体的Name字段
+				type: "reference.embedded.field",
+				location: {
+					file: goFilePath,
+					line: 25,
+					column: 10,
+				},
+			}
+
+			mockTreeService.parseFileWithReferences.mockResolvedValue({
+				definitions: [nameDef],
+				references: [nameRef],
+			})
+
+			// 模拟语言检测为Go
+			mockTreeService.getLanguageIdForFile.mockReturnValue("go")
+
+			// 执行引用查找
+			const refs = await finder.findReferences("Name", goFilePath, { line: 5, column: 2 })
+
+			// 验证结果
+			expect(refs).toHaveLength(1)
+			expect(refs[0].line).toBe(25)
+			expect(refs[0].column).toBe(10)
+		})
+
+		it("应该能找到Go接口实现的方法引用", async () => {
+			// 模拟Tree-sitter服务返回的解析结果
+			const stringerDef: SymbolDefinition = {
+				name: "String",
+				type: "interface.method",
+				parent: "Stringer",
+				location: {
+					file: goFilePath,
+					line: 12,
+					column: 2,
+				},
+				content: "String() string",
+			}
+
+			const stringerRef: SymbolReference = {
+				name: "String",
+				parent: "User", // User类型实现了Stringer接口
+				type: "reference.interface.method",
+				location: {
+					file: goFilePath,
+					line: 30,
+					column: 1,
+				},
+			}
+
+			mockTreeService.parseFileWithReferences.mockResolvedValue({
+				definitions: [stringerDef],
+				references: [stringerRef],
+			})
+
+			// 模拟语言检测为Go
+			mockTreeService.getLanguageIdForFile.mockReturnValue("go")
+
+			// 执行引用查找
+			const refs = await finder.findReferences("String", goFilePath, { line: 12, column: 2 })
+
+			// 验证结果
+			expect(refs).toHaveLength(1)
+			expect(refs[0].line).toBe(30)
+			expect(refs[0].column).toBe(1)
 		})
 	})
 })

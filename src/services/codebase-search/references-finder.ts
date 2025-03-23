@@ -426,6 +426,28 @@ export class ReferencesFinder {
 			}
 		}
 
+		// Go语言的嵌入结构体和接口方法特别处理
+		const isGoLang = this.getLanguageIdFromFile(symbol.location.file) === "go"
+		if (isGoLang) {
+			// 嵌入式结构体字段引用 - 允许父级不同但名称匹配
+			if (
+				(symbol.type === "field" || symbol.type?.includes("field")) &&
+				(reference.type?.includes("field") || reference.type?.includes("embedded"))
+			) {
+				return nameMatches // Go的嵌入式结构体允许不同结构体访问相同名称的字段
+			}
+
+			// 接口方法实现 - 允许父级不同
+			if ((symbol.type?.includes("interface") || symbol.parent) && reference.type?.includes("method")) {
+				return nameMatches // Go的接口实现允许不同类型实现同名方法
+			}
+
+			// 方法接收器 - 匹配方法名和接收器类型
+			if (reference.type?.includes("struct.method") && symbol.type?.includes("method")) {
+				return nameMatches
+			}
+		}
+
 		return nameMatches && contextMatches
 	}
 
