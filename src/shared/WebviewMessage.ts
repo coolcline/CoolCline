@@ -90,6 +90,7 @@ export interface WebviewMessage {
 		| "checkpointDiff"
 		| "checkpointRestore"
 		| "deleteAllProjectsAllHistory"
+		| "checkpointRestoreComplete"
 		| "deleteThisProjectAllHistory"
 		| "codebaseSearch"
 		| "editorType"

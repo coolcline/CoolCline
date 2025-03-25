@@ -3886,6 +3886,11 @@ export class CoolCline {
 				await this.providerRef.deref()?.postStateToWebview()
 			}
 
+			// 如果没有传入 commitHash，则只用清理前面的信息，不要 Restore checkpoint
+			if (!commitHash) {
+				return
+			}
+
 			// 处理文件恢复
 			const service = await this.getCheckpointService()
 			if (mode === "restore_this_change") {

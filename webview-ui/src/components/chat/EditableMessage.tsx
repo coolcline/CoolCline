@@ -17,6 +17,7 @@ interface EditableMessageProps {
 
 export const EditableMessage: React.FC<EditableMessageProps> = ({ message, isStreaming, commitHash }) => {
 	const [isEditing, setIsEditing] = useState(false)
+	const [pendingMessage, setPendingMessage] = useState<{ text: string; images: string[] } | null>(null)
 	const [editedText, setEditedText] = useState(message.text || "")
 	const [showRestoreDialog, setShowRestoreDialog] = useState(false)
 	const [selectedImages, setSelectedImages] = useState<string[]>(message.images || [])
@@ -68,32 +69,45 @@ export const EditableMessage: React.FC<EditableMessageProps> = ({ message, isStr
 		vscode.postMessage({ type: "selectImages" })
 	}
 
+	// 监听restore完成消息
+	useEffect(() => {
+		const listener = (event: MessageEvent) => {
+			if (event.data.type === "checkpointRestoreComplete" && pendingMessage) {
+				// 发送待处理的消息
+				vscode.postMessage({
+					type: "askResponse",
+					askResponse: "messageResponse",
+					text: pendingMessage.text,
+					images: pendingMessage.images,
+				})
+				setPendingMessage(null)
+			}
+		}
+		window.addEventListener("message", listener)
+		return () => window.removeEventListener("message", listener)
+	}, [pendingMessage])
+
 	// 重新发送消息并尝试恢复checkpoint
 	const handleSend = () => {
 		if (editedText.trim() || selectedImages.length > 0) {
-			// 1. 先发送新任务消息
-			// vscode.postMessage({
-			//   type: "askResponse",
-			//   askResponse: "messageResponse",
-			//   text: editedText.trim(),
-			//   images: selectedImages
-			// });
+			// 保存待发送的消息
+			setPendingMessage({
+				text: editedText.trim(),
+				images: selectedImages,
+			})
 
-			// 2. 然后再发送恢复消息
+			// 发送恢复消息
 			vscode.postMessage({
 				type: "checkpointRestore",
 				payload: {
 					ts: message.ts,
-					commitHash: commitHash || "", // 使用传入的commitHash，如果没有则使用空字符串
+					commitHash: commitHash || "",
 					mode: "restore_this_and_after_change",
-					newUserMessage: {
-						text: editedText.trim(),
-						images: selectedImages,
-					},
 				},
 			})
 		}
 		setIsEditing(false)
+		setEditedText("")
 		setShowRestoreDialog(false)
 	}
 

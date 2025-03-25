@@ -7,6 +7,7 @@ import { GitCommit } from "../utils/git"
 import { Mode, CustomModePrompts, ModeConfig } from "./modes"
 import { CustomSupportPrompts } from "./support-prompt"
 import { ExperimentId } from "./experiments"
+import { WebViewMessagePayload } from "./WebviewMessage"
 
 export interface LanguageModelChatSelector {
 	vendor?: string
@@ -46,6 +47,7 @@ export interface ExtensionMessage {
 		| "deleteCustomMode"
 		| "currentCheckpointUpdated"
 		| "refreshRequestyModels"
+		| "checkpointRestoreComplete"
 		| "extensionState"
 		| "editorType"
 	text?: string
@@ -80,6 +82,7 @@ export interface ExtensionMessage {
 	slug?: string
 	unboundModels?: Record<string, ModelInfo>
 	requestyModels?: Record<string, ModelInfo>
+	payload?: WebViewMessagePayload
 }
 
 export interface ApiConfigMeta {

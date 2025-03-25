@@ -858,6 +858,12 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
 									commitHash: message.payload.commitHash as string,
 									mode: message.payload.mode as CheckpointRestoreMode,
 								})
+
+								// 添加restore完成通知
+								await this.postMessageToWebview({
+									type: "checkpointRestoreComplete",
+									payload: message.payload,
+								})
 							} catch (error) {
 								const errorMessage = error instanceof Error ? error.message : "未知错误"
 								vscode.window.showErrorMessage(`Failed to restore checkpoint: ${errorMessage}`)
