@@ -565,7 +565,7 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 			// 将第一条消息添加到结果中，不管它是什么类型
 			result.push(messages[0])
 		} else {
-			console.log("没有消息")
+			// console.log("没有消息")
 		}
 
 		// 添加其他可见消息

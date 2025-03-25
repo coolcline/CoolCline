@@ -9,6 +9,7 @@ import { CodebaseSearchOptions, IndexOptions, IndexProgress, IndexStats, SearchR
 import { toPosixPath, toRelativePath } from "../../utils/path"
 import { CodeSymbol, RelationType, ResultType, WorkspaceSearchResult } from "./types"
 import { IndexStatus } from "./index-service"
+import { getExtensionContext } from "./extension-context"
 
 /**
  * 代码库搜索管理器
@@ -258,6 +259,16 @@ export async function initializeCodebaseSearch(): Promise<void> {
 		} catch (error) {
 			console.error(`初始化工作区失败:`, error)
 		}
+	}
+
+	// 检查globalStorage中的自动扫描配置
+	const extensionContext = getExtensionContext()! // 需要从extension.ts中获取context
+	const IndexEnabled = extensionContext.globalState.get<boolean>("codebaseIndexEnabled") ?? true
+	const autoIndexEnabled = extensionContext.globalState.get<boolean>("codebaseIndexAutoStart") ?? true
+
+	if (!IndexEnabled || !autoIndexEnabled) {
+		// console.log("自动扫描已禁用，跳过索引过程")
+		return
 	}
 
 	// 使用setImmediate将索引过程移到下一个事件循环，不阻塞扩展激活
@@ -582,38 +593,26 @@ export async function handleCodebaseSearchWebviewMessage(webview: vscode.Webview
 							.map((folder: string) => folder.trim())
 							.filter(Boolean)
 						indexOptions.excludePaths = excludePaths
-
-						// 保存到配置
-						await vscode.workspace
-							.getConfiguration("codebaseSearch")
-							.update("excludePaths", message.settings.excludePaths, vscode.ConfigurationTarget.Global)
 					}
 
 					if (message.settings.includeTests !== undefined) {
 						indexOptions.includeTests = message.settings.includeTests
-
-						// 保存到配置
-						await vscode.workspace
-							.getConfiguration("codebaseSearch")
-							.update("includeTests", message.settings.includeTests, vscode.ConfigurationTarget.Global)
 					}
 
 					if (message.settings.autoIndexOnStartup !== undefined) {
-						// 保存到全局设置
-						await vscode.workspace
-							.getConfiguration("codebaseSearch")
-							.update(
-								"autoIndexOnStartup",
-								message.settings.autoIndexOnStartup,
-								vscode.ConfigurationTarget.Global,
-							)
+						// 保存到globalStorage
+						await getExtensionContext()!.globalState.update(
+							"codebaseIndexAutoStart",
+							message.settings.autoIndexOnStartup,
+						)
 					}
 
 					if (message.settings.enabled !== undefined) {
 						// 保存到全局设置
-						await vscode.workspace
-							.getConfiguration("codebaseSearch")
-							.update("enabled", message.settings.enabled, vscode.ConfigurationTarget.Global)
+						await getExtensionContext()!.globalState.update(
+							"codebaseIndexEnabled",
+							message.settings.enabled,
+						)
 					}
 
 					// 应用索引设置
