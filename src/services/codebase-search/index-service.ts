@@ -322,7 +322,7 @@ export class CodebaseIndexService {
 			await this.initDatabase()
 
 			// 检查文件是否存在
-			if (!fs.existsSync(filePath)) {
+			if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
 				console.warn(`File does not exist: ${filePath}`)
 				return
 			}
@@ -1028,6 +1028,11 @@ export class CodebaseIndexService {
 	private shouldIndexFile(filePath: string): boolean {
 		const ext = extname(filePath).toLowerCase()
 		const relativePath = toPosixPath(relative(this.workspacePath, filePath))
+
+		// 首先检查是否是目录
+		if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+			return false
+		}
 
 		// 检查是否在排除目录中
 		const excludeDirs = [
