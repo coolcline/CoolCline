@@ -94,6 +94,8 @@ export interface ExtensionStateContextType extends ExtensionState {
 	setCodebaseIndexExcludePaths: (value: string) => void
 	codebaseIndexIncludeTests: boolean
 	setCodebaseIndexIncludeTests: (value: boolean) => void
+	// 代码库索引加载状态
+	codebaseIndexLoading: boolean
 }
 
 export const ExtensionStateContext = createContext<ExtensionStateContextType | undefined>(undefined)
@@ -155,10 +157,18 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 	const [unboundModels, setUnboundModels] = useState<Record<string, ModelInfo>>({})
 
 	// 代码库索引相关状态
-	const [codebaseIndexEnabled, setCodebaseIndexEnabled] = useState<boolean>(true)
-	const [codebaseIndexAutoStart, setCodebaseIndexAutoStart] = useState<boolean>(true)
+	const [codebaseIndexEnabled, setCodebaseIndexEnabled] = useState<boolean>(() => {
+		// console.log("初始化codebaseIndexEnabled状态，默认值为true")
+		return true
+	})
+	const [codebaseIndexAutoStart, setCodebaseIndexAutoStart] = useState<boolean>(() => {
+		// console.log("初始化codebaseIndexAutoStart状态，默认值为true")
+		return true
+	})
 	const [codebaseIndexExcludePaths, setCodebaseIndexExcludePaths] = useState<string>("node_modules,dist,build")
 	const [codebaseIndexIncludeTests, setCodebaseIndexIncludeTests] = useState<boolean>(false)
+	// 代码库索引加载状态 - 初始为true表示正在等待后端消息
+	const [codebaseIndexLoading, setCodebaseIndexLoading] = useState<boolean>(true)
 
 	const setListApiConfigMeta = useCallback(
 		(value: ApiConfigMeta[]) => setState((prevState) => ({ ...prevState, listApiConfigMeta: value })),
@@ -215,10 +225,15 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 	const handleMessage = useCallback(
 		(event: MessageEvent) => {
 			const message: ExtensionMessage = event.data
+			// console.log("收到消息类型:", message.type)
 			switch (message.type) {
 				case "state": {
 					const newState = message.state!
+					// 收到后端消息后，将loading状态设置为false
+					setCodebaseIndexLoading(false)
+
 					setState((prevState) => {
+						// console.log("更新全局state状态")
 						return {
 							...prevState,
 							...newState,
@@ -232,6 +247,28 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 					// 初始化语言设置
 					if (newState.preferredLanguage) {
 						initializeLanguage(newState.preferredLanguage)
+					}
+
+					// 更新代码库索引相关状态
+					if (newState.codebaseIndexEnabled !== undefined) {
+						// console.log("从state消息更新codebaseIndexEnabled:", newState.codebaseIndexEnabled)
+						setCodebaseIndexEnabled(newState.codebaseIndexEnabled)
+					} else {
+						// console.log("state消息中没有codebaseIndexEnabled，使用默认值true")
+						setCodebaseIndexEnabled(true) // 默认启用
+					}
+					if (newState.codebaseIndexAutoStart !== undefined) {
+						// console.log("从state消息更新codebaseIndexAutoStart:", newState.codebaseIndexAutoStart)
+						setCodebaseIndexAutoStart(newState.codebaseIndexAutoStart)
+					} else {
+						// console.log("state消息中没有codebaseIndexAutoStart，使用默认值true")
+						setCodebaseIndexAutoStart(true)
+					}
+					if (newState.codebaseIndexExcludePaths !== undefined) {
+						setCodebaseIndexExcludePaths(newState.codebaseIndexExcludePaths)
+					}
+					if (newState.codebaseIndexIncludeTests !== undefined) {
+						setCodebaseIndexIncludeTests(newState.codebaseIndexIncludeTests)
 					}
 					break
 				}
@@ -312,15 +349,20 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 					break
 				}
 				case "extensionState": {
+					// console.log("收到extensionState消息:", message.state)
 					if (message.state) {
 						if (message.state.codebaseIndexEnabled !== undefined) {
+							// console.log("从extensionState更新codebaseIndexEnabled:", message.state.codebaseIndexEnabled)
 							setCodebaseIndexEnabled(message.state.codebaseIndexEnabled)
 						} else {
+							// console.log("extensionState消息中没有codebaseIndexEnabled，使用默认值true")
 							setCodebaseIndexEnabled(true) // 默认启用
 						}
 						if (message.state.codebaseIndexAutoStart !== undefined) {
+							// console.log("从extensionState更新codebaseIndexAutoStart:", message.state.codebaseIndexAutoStart)
 							setCodebaseIndexAutoStart(message.state.codebaseIndexAutoStart)
 						} else {
+							// console.log("extensionState消息中没有codebaseIndexAutoStart，使用默认值true")
 							setCodebaseIndexAutoStart(true)
 						}
 						if (message.state.codebaseIndexExcludePaths !== undefined) {
@@ -341,6 +383,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 
 	useEffect(() => {
 		vscode.postMessage({ type: "webviewDidLaunch" })
+		// console.log("webviewDidLaunch消息已发送")
 	}, [])
 
 	const contextValue: ExtensionStateContextType = {
@@ -359,6 +402,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		fuzzyMatchThreshold: state.fuzzyMatchThreshold,
 		writeDelayMs: state.writeDelayMs,
 		screenshotQuality: state.screenshotQuality,
+		codebaseIndexLoading,
 		setExperimentEnabled: (id, enabled) =>
 			setState((prevState) => ({ ...prevState, experiments: { ...prevState.experiments, [id]: enabled } })),
 		setApiConfiguration: (value) =>

@@ -41,6 +41,7 @@ const CodebaseIndexSettings = () => {
 		setCodebaseIndexExcludePaths,
 		codebaseIndexIncludeTests,
 		setCodebaseIndexIncludeTests,
+		codebaseIndexLoading, // 添加loading状态
 	} = useExtensionState()
 
 	// 初始状态
@@ -207,6 +208,21 @@ const CodebaseIndexSettings = () => {
 				enabled: enabled,
 			},
 		})
+	}
+
+	// 如果正在加载中，显示加载提示
+	if (codebaseIndexLoading) {
+		return (
+			<div>
+				<h2 style={{ margin: "0 0 15px 0", fontWeight: "500" }}>
+					{t("settings.codebaseIndex.title").toString() || "代码库搜索索引"}
+				</h2>
+				<div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+					<div className="codicon codicon-loading codicon-modifier-spin" style={{ marginRight: "8px" }}></div>
+					<span>loading...</span>
+				</div>
+			</div>
+		)
 	}
 
 	return (
