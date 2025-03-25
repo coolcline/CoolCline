@@ -3866,9 +3866,11 @@ export class CoolCline {
 					// }
 				} else if (mode === "restore_this_and_after_change" || mode === "undo_restore") {
 					// 删除之后的所有消息
-					newCoolClineMessages = this.coolclineMessages.slice(0, taskStartIndex) // 移除 -1
 					if (taskStartIndex === 0) {
-						newCoolClineMessages.push(message)
+						// slice 从数组中提取一部分元素并返回一个新数组，两个参数：起始索引和结束索引（不包括结束索引）
+						newCoolClineMessages = this.coolclineMessages.slice(0, 1)
+					} else {
+						newCoolClineMessages = this.coolclineMessages.slice(0, taskStartIndex + 1)
 					}
 				}
 
