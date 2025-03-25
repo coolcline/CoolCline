@@ -30,3 +30,6 @@ re/
 # Logs
 logs/
 mcpmarketplace/
+
+# IDEA
+.idea/
