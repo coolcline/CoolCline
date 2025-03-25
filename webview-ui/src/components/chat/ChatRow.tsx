@@ -23,6 +23,7 @@ import { highlightMentions } from "./TaskHeader"
 import { useTranslation } from "react-i18next"
 import { useCopyToClipboard } from "../../utils/clipboard"
 import { CheckpointSaved } from "./checkpoints/CheckpointSaved"
+import { EditableMessage } from "./EditableMessage"
 
 interface ChatRowProps {
 	message: CoolClineMessage
@@ -83,7 +84,7 @@ export const ChatRowContent = ({
 	isStreaming,
 }: ChatRowContentProps) => {
 	const { t } = useTranslation()
-	const { mcpServers, alwaysAllowMcp, currentCheckpoint } = useExtensionState()
+	const { mcpServers, alwaysAllowMcp, currentCheckpoint, coolclineMessages } = useExtensionState()
 	const [reasoningCollapsed, setReasoningCollapsed] = useState(false)
 
 	// Auto-collapse reasoning when new messages arrive
@@ -242,6 +243,8 @@ export const ChatRowContent = ({
 					</span>,
 				]
 			case "checkpoint_saved":
+				return [null, null]
+			case "task":
 				return [null, null]
 			default:
 				return [null, null]
@@ -523,6 +526,24 @@ export const ChatRowContent = ({
 		}
 	}
 
+	// 统一的查找checkpoint方法
+	const findRelatedCheckpoint = (currentMessage: CoolClineMessage): string => {
+		const messages = coolclineMessages || []
+		const currentIndex = messages.findIndex((m: CoolClineMessage) => m.ts === currentMessage.ts)
+
+		if (currentIndex !== -1) {
+			// 先查找当前消息后面的checkpoint
+			for (let i = currentIndex; i < messages.length; i++) {
+				const msg = messages[i]
+				if (msg.type === "say" && msg.say === "checkpoint_saved" && msg.text) {
+					return msg.text
+				}
+			}
+		}
+
+		return ""
+	}
+
 	switch (message.type) {
 		case "say":
 			switch (message.say) {
@@ -634,56 +655,44 @@ export const ChatRowContent = ({
 				case "api_req_finished":
 					return null // we should never see this message type
 				case "text":
+					switch (Array.isArray(message.images)) {
+						case true:
+							const relatedCommitHash = findRelatedCheckpoint(message)
+
+							return (
+								<div style={{ marginTop: "0px" }}>
+									<EditableMessage
+										message={message}
+										isStreaming={isStreaming}
+										commitHash={relatedCommitHash}
+									/>
+								</div>
+							)
+						default:
+							return (
+								<div>
+									<Markdown markdown={message.text} partial={message.partial} />
+								</div>
+							)
+					}
+				case "user_feedback":
+					const userFeedbackCommitHash = findRelatedCheckpoint(message)
+
 					return (
-						<div>
-							<Markdown markdown={message.text} partial={message.partial} />
+						<div style={{ marginTop: "0px" }}>
+							<EditableMessage
+								message={message}
+								isStreaming={isStreaming}
+								commitHash={userFeedbackCommitHash}
+							/>
 						</div>
 					)
-				case "user_feedback":
+				case "task":
+					const taskCommitHash = findRelatedCheckpoint(message)
+
 					return (
-						<div
-							style={{
-								backgroundColor: "var(--vscode-badge-background)",
-								color: "var(--vscode-badge-foreground)",
-								borderRadius: "3px",
-								padding: "9px",
-								whiteSpace: "pre-line",
-								wordWrap: "break-word",
-							}}>
-							<div
-								style={{
-									display: "flex",
-									justifyContent: "space-between",
-									alignItems: "flex-start",
-									gap: "10px",
-								}}>
-								<span style={{ display: "block", flexGrow: 1, padding: "4px" }}>
-									{highlightMentions(message.text)}
-								</span>
-								<VSCodeButton
-									appearance="icon"
-									style={{
-										padding: "3px",
-										flexShrink: 0,
-										height: "24px",
-										marginTop: "-3px",
-										marginBottom: "-3px",
-										marginRight: "-6px",
-									}}
-									disabled={isStreaming}
-									onClick={(e) => {
-										e.stopPropagation()
-										vscode.postMessage({
-											type: "deleteMessage",
-											value: message.ts,
-										})
-									}}>
-									<span className="codicon codicon-trash"></span>
-								</VSCodeButton>
-							</div>
-							{message.images && message.images.length > 0 && (
-								<Thumbnails images={message.images} style={{ marginTop: "8px" }} />
-							)}
+						<div style={{ marginTop: "0px" }}>
+							<EditableMessage message={message} isStreaming={isStreaming} commitHash={taskCommitHash} />
 						</div>
 					)
 				case "user_feedback_diff":

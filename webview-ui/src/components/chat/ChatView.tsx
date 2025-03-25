@@ -559,38 +559,52 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 	}, [isHidden, textAreaDisabled, enableButtons])
 
 	const visibleMessages = useMemo(() => {
-		return modifiedMessages.filter((message) => {
-			switch (message.ask) {
-				case "completion_result":
-					// don't show a chat row for a completion_result ask without text. This specific type of message only occurs if coolcline wants to execute a command as part of its completion result, in which case we interject the completion_result tool with the execute_command tool.
-					if (message.text === "") {
+		// 添加第一条消息（任务消息）
+		const result: CoolClineMessage[] = []
+		if (messages.length > 0) {
+			// 将第一条消息添加到结果中，不管它是什么类型
+			result.push(messages[0])
+		} else {
+			console.log("没有消息")
+		}
+
+		// 添加其他可见消息
+		result.push(
+			...modifiedMessages.filter((message) => {
+				switch (message.ask) {
+					case "completion_result":
+						// don't show a chat row for a completion_result ask without text. This specific type of message only occurs if coolcline wants to execute a command as part of its completion result, in which case we interject the completion_result tool with the execute_command tool.
+						if (message.text === "") {
+							return false
+						}
+						break
+					case "api_req_failed": // this message is used to update the latest api_req_started that the request failed
+					case "resume_task":
+					case "resume_completed_task":
 						return false
-					}
-					break
-				case "api_req_failed": // this message is used to update the latest api_req_started that the request failed
-				case "resume_task":
-				case "resume_completed_task":
-					return false
-			}
-			switch (message.say) {
-				case "api_req_finished": // combineApiRequests removes this from modifiedMessages anyways
-				case "api_req_retried": // this message is used to update the latest api_req_started that the request was retried
-					return false
-				case "api_req_retry_delayed":
-					// Only show the retry message if it's the last message
-					return message === modifiedMessages.at(-1)
-				case "text":
-					// Sometimes coolcline returns an empty text message, we don't want to render these. (We also use a say text for user messages, so in case they just sent images we still render that)
-					if ((message.text ?? "") === "" && (message.images?.length ?? 0) === 0) {
+				}
+				switch (message.say) {
+					case "api_req_finished": // combineApiRequests removes this from modifiedMessages anyways
+					case "api_req_retried": // this message is used to update the latest api_req_started that the request was retried
 						return false
-					}
-					break
-				case "mcp_server_request_started":
-					return false
-			}
-			return true
-		})
-	}, [modifiedMessages])
+					case "api_req_retry_delayed":
+						// Only show the retry message if it's the last message
+						return message === modifiedMessages.at(-1)
+					case "text":
+						// Sometimes coolcline returns an empty text message, we don't want to render these. (We also use a say text for user messages, so in case they just sent images we still render that)
+						if ((message.text ?? "") === "" && (message.images?.length ?? 0) === 0) {
+							return false
+						}
+						break
+					case "mcp_server_request_started":
+						return false
+				}
+				return true
+			}),
+		)
+
+		return result
+	}, [modifiedMessages, messages])
 
 	const isReadOnlyToolAction = useCallback((message: CoolClineMessage | undefined) => {
 		if (message?.type === "ask") {
