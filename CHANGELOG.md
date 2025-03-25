@@ -3,6 +3,11 @@
 >
 > Detailed Documentation: [English](docs/user-docs/en/index.md) | [简体中文](https://gitee.com/coolcline/coolcline/blob/main/docs/user-docs/zh/index.md)
 
+## [4.5.7] 2023-03-25
+
+- Added message area editor
+- Optimized codebase
+
 ## [4.5.6] 2023-03-23
 
 - Optimized codebase
