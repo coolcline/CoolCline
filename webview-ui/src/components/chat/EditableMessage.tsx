@@ -325,6 +325,7 @@ export const EditableMessage: React.FC<EditableMessageProps> = ({ message, isStr
 								flexWrap: "wrap",
 								gap: "4px",
 								padding: "4px 4px 0 4px",
+								width: "100%",
 							}}>
 							{extractedMentions.map((mention, index) => (
 								<div
@@ -340,6 +341,8 @@ export const EditableMessage: React.FC<EditableMessageProps> = ({ message, isStr
 										position: "relative",
 										transition: "all 0.2s ease",
 										cursor: "pointer",
+										maxWidth: "100%",
+										overflow: "hidden",
 									}}
 									title={`点击打开: ${mention.value}`}
 									onClick={(e) => {
@@ -363,9 +366,18 @@ export const EditableMessage: React.FC<EditableMessageProps> = ({ message, isStr
 										style={{
 											marginRight: "4px",
 											fontSize: "12px",
+											flexShrink: 0,
 										}}
 									/>
-									<span>{mention.value}</span>
+									<span
+										style={{
+											overflow: "hidden",
+											textOverflow: "ellipsis",
+											whiteSpace: "nowrap",
+											maxWidth: "calc(100% - 20px)",
+										}}>
+										{mention.value}
+									</span>
 								</div>
 							))}
 						</div>

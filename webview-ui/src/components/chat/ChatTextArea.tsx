@@ -767,9 +767,11 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 					<div
 						style={{
 							display: "flex",
-							alignItems: "center",
+							alignItems: "flex-start",
+							flexWrap: "wrap",
 							gap: "8px",
 							fontSize: "12px",
+							width: "100%",
 						}}>
 						<button
 							className="mention-context-button"
@@ -786,6 +788,7 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 								backgroundColor: "transparent",
 								cursor: "pointer",
 								flexShrink: 0,
+								marginTop: "2px",
 							}}
 							onClick={handleAddContextClick}>
 							{activeMentions.length > 0 ? "@" : "@ Add Context"}
@@ -798,6 +801,8 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 									flexWrap: "wrap",
 									gap: "4px",
 									flex: "1 1 auto",
+									width: "100%",
+									minWidth: 0,
 								}}>
 								{activeMentions.map((mention, index) => (
 									<div
@@ -813,6 +818,9 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 											position: "relative",
 											transition: "all 0.2s ease",
 											cursor: "pointer",
+											maxWidth: "100%",
+											overflow: "hidden",
+											flex: "0 1 auto",
 										}}
 										title={`点击打开: ${mention.value}`}
 										onClick={() => handleOpenMention(mention)}
@@ -836,9 +844,18 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 											style={{
 												marginRight: "4px",
 												fontSize: "12px",
+												flexShrink: 0,
 											}}
 										/>
-										<span>{mention.value}</span>
+										<span
+											style={{
+												overflow: "hidden",
+												textOverflow: "ellipsis",
+												whiteSpace: "nowrap",
+												maxWidth: "calc(100% - 32px)",
+											}}>
+											{mention.value}
+										</span>
 										<span
 											className="codicon codicon-close"
 											style={{
@@ -848,6 +865,7 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 												opacity: 0.7,
 												color: "var(--vscode-errorForeground)",
 												transition: "opacity 0.2s ease",
+												flexShrink: 0,
 											}}
 											title="删除此上下文"
 											onMouseEnter={(e) => {
