@@ -753,12 +753,15 @@
 				"idle": "대기 중",
 				"scanning": "스캔 중",
 				"indexing": "인덱싱 중",
+				"paused": "일시 중지됨",
 				"completed": "완료",
 				"error": "오류"
 			},
 			"actions": {
 				"start": "인덱싱 시작",
 				"refresh": "인덱스 새로고침",
+				"resume": "인덱싱 재개",
+				"pause": "인덱싱 일시 중지",
 				"clear": "인덱스 지우기",
 				"stop": "인덱싱 중지"
 			},

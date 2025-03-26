@@ -753,12 +753,15 @@
 				"idle": "Idle",
 				"scanning": "Scanning",
 				"indexing": "Indexing",
+				"paused": "Paused",
 				"completed": "Completed",
 				"error": "Error"
 			},
 			"actions": {
 				"start": "Start Indexing",
 				"refresh": "Refresh Index",
+				"resume": "Resume Indexing",
+				"pause": "Pause Indexing",
 				"clear": "Clear Index",
 				"stop": "Stop Indexing"
 			},

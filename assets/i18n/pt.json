@@ -753,12 +753,15 @@
 				"idle": "Inativo",
 				"scanning": "Escaneando",
 				"indexing": "Indexando",
+				"paused": "Pausado",
 				"completed": "Concluído",
 				"error": "Erro"
 			},
 			"actions": {
 				"start": "Iniciar Indexação",
 				"refresh": "Atualizar Índice",
+				"resume": "Retomar Indexação",
+				"pause": "Pausar Indexação",
 				"clear": "Limpar Índice",
 				"stop": "Parar Indexação"
 			},

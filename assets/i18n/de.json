@@ -738,41 +738,44 @@
 		"codebaseIndex": {
 			"title": "Codebase Index",
 			"deleteConfirmTitle": "Indexlöschung Bestätigen",
-			"deleteConfirm": "Are you sure you want to delete the index? This will remove all indexed data.",
+			"deleteConfirm": "Sind Sie sicher, dass Sie den Index löschen möchten? Dies entfernt alle indizierten Daten.",
 			"enable": {
-				"title": "Enable Code Index",
-				"description": "When enabled, builds an index for your workspace code to provide smarter code search capabilities"
+				"title": "Code-Index aktivieren",
+				"description": "Wenn aktiviert, erstellt einen Index für Ihren Workspace-Code, um intelligentere Codesuchfunktionen bereitzustellen"
 			},
 			"status": {
-				"title": "Index Status",
-				"filesCount": "Indexed Files",
-				"symbolsCount": "Indexed Symbols",
-				"lastIndexed": "Last Indexed",
-				"current": "Current Status",
-				"progress": "Progress",
-				"idle": "Idle",
-				"scanning": "Scanning",
-				"indexing": "Indexing",
-				"completed": "Completed",
-				"error": "Error"
+				"title": "Index-Status",
+				"filesCount": "Indizierte Dateien",
+				"symbolsCount": "Indizierte Symbole",
+				"lastIndexed": "Zuletzt indiziert",
+				"current": "Aktueller Status",
+				"progress": "Fortschritt",
+				"idle": "Inaktiv",
+				"scanning": "Scannen",
+				"indexing": "Indizieren",
+				"paused": "Pausiert",
+				"completed": "Abgeschlossen",
+				"error": "Fehler"
 			},
 			"actions": {
-				"start": "Start Indexing",
-				"refresh": "Refresh Index",
-				"clear": "Clear Index",
-				"stop": "Indexierung Stoppen"
+				"start": "Indizierung starten",
+				"refresh": "Index aktualisieren",
+				"resume": "Indizierung fortsetzen",
+				"pause": "Indizierung pausieren",
+				"clear": "Index löschen",
+				"stop": "Indexierung stoppen"
 			},
 			"autoStart": {
-				"title": "Auto-index on Startup",
-				"description": "Automatically start indexing when the editor launches"
+				"title": "Automatische Indizierung beim Start",
+				"description": "Indizierung automatisch starten, wenn der Editor gestartet wird"
 			},
 			"includeTests": {
-				"title": "Include Test Files",
-				"description": "Whether to include test files in the index"
+				"title": "Testdateien einbeziehen",
+				"description": "Ob Testdateien in den Index aufgenommen werden sollen"
 			},
 			"excludePaths": {
-				"title": "Exclude Paths",
-				"description": "Paths to exclude from indexing, separated by commas"
+				"title": "Pfade ausschließen",
+				"description": "Von der Indizierung auszuschließende Pfade, durch Kommas getrennt"
 			}
 		}
 	}

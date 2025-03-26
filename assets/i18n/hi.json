@@ -738,41 +738,44 @@
 		"codebaseIndex": {
 			"title": "कोडबेस इंडेक्स",
 			"deleteConfirmTitle": "इंडेक्स हटाने की पुष्टि करें",
-			"deleteConfirm": "Are you sure you want to delete the index? This will remove all indexed data.",
+			"deleteConfirm": "क्या आप वाकई इंडेक्स हटाना चाहते हैं? इससे सभी इंडेक्स्ड डेटा हट जाएगा।",
 			"enable": {
-				"title": "Enable Code Index",
-				"description": "When enabled, builds an index for your workspace code to provide smarter code search capabilities"
+				"title": "कोड इंडेक्स सक्षम करें",
+				"description": "जब सक्षम किया जाता है, तो स्मार्टर कोड खोज क्षमताओं प्रदान करने के लिए आपके वर्कस्पेस कोड के लिए एक इंडेक्स बनाता है"
 			},
 			"status": {
-				"title": "Index Status",
-				"filesCount": "Indexed Files",
-				"symbolsCount": "Indexed Symbols",
-				"lastIndexed": "Last Indexed",
-				"current": "Current Status",
-				"progress": "Progress",
-				"idle": "Idle",
-				"scanning": "Scanning",
-				"indexing": "Indexing",
-				"completed": "Completed",
-				"error": "Error"
+				"title": "इंडेक्स स्थिति",
+				"filesCount": "इंडेक्स्ड फाइलें",
+				"symbolsCount": "इंडेक्स्ड प्रतीक",
+				"lastIndexed": "अंतिम इंडेक्स्ड",
+				"current": "वर्तमान स्थिति",
+				"progress": "प्रगति",
+				"idle": "निष्क्रिय",
+				"scanning": "स्कैनिंग",
+				"indexing": "इंडेक्सिंग",
+				"paused": "रोका गया",
+				"completed": "पूर्ण",
+				"error": "त्रुटि"
 			},
 			"actions": {
-				"start": "Start Indexing",
-				"refresh": "Refresh Index",
-				"clear": "Clear Index",
+				"start": "इंडेक्सिंग शुरू करें",
+				"refresh": "इंडेक्स रिफ्रेश करें",
+				"resume": "इंडेक्सिंग फिर से शुरू करें",
+				"pause": "इंडेक्सिंग रोकें",
+				"clear": "इंडेक्स साफ़ करें",
 				"stop": "इंडेक्सिंग रोकें"
 			},
 			"autoStart": {
-				"title": "Auto-index on Startup",
-				"description": "Automatically start indexing when the editor launches"
+				"title": "स्टार्टअप पर ऑटो-इंडेक्स",
+				"description": "एडिटर लॉन्च होने पर स्वचालित रूप से इंडेक्सिंग शुरू करें"
 			},
 			"includeTests": {
-				"title": "Include Test Files",
-				"description": "Whether to include test files in the index"
+				"title": "टेस्ट फाइलें शामिल करें",
+				"description": "क्या इंडेक्स में टेस्ट फाइलें शामिल करें"
 			},
 			"excludePaths": {
-				"title": "Exclude Paths",
-				"description": "Paths to exclude from indexing, separated by commas"
+				"title": "पाथ बाहर रखें",
+				"description": "इंडेक्सिंग से बाहर रखने के लिए पाथ, अल्पविराम से अलग किए गए"
 			}
 		}
 	}

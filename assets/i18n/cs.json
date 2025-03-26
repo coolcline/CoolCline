@@ -753,12 +753,15 @@
 				"idle": "Nečinný",
 				"scanning": "Skenování",
 				"indexing": "Indexování",
+				"paused": "Pozastaveno",
 				"completed": "Dokončeno",
 				"error": "Chyba"
 			},
 			"actions": {
 				"start": "Spustit Indexování",
 				"refresh": "Obnovit Index",
+				"resume": "Pokračovat v Indexování",
+				"pause": "Pozastavit Indexování",
 				"clear": "Vymazat Index",
 				"stop": "Zastavit Indexování"
 			},

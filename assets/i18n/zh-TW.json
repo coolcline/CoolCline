@@ -753,12 +753,15 @@
 				"idle": "閒置",
 				"scanning": "掃描中",
 				"indexing": "索引中",
+				"paused": "已暫停",
 				"completed": "已完成",
 				"error": "錯誤"
 			},
 			"actions": {
 				"start": "開始索引",
 				"refresh": "重新整理索引",
+				"resume": "繼續索引",
+				"pause": "暫停索引",
 				"clear": "清除索引",
 				"stop": "停止索引"
 			},

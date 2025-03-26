@@ -738,41 +738,44 @@
 		"codebaseIndex": {
 			"title": "فهرس قاعدة الشفرة",
 			"deleteConfirmTitle": "تأكيد حذف الفهرس",
-			"deleteConfirm": "Are you sure you want to delete the index? This will remove all indexed data.",
+			"deleteConfirm": "هل أنت متأكد من رغبتك في حذف الفهرس؟ سيؤدي هذا إلى إزالة جميع البيانات المفهرسة.",
 			"enable": {
-				"title": "Enable Code Index",
-				"description": "When enabled, builds an index for your workspace code to provide smarter code search capabilities"
+				"title": "تمكين فهرس الشفرة",
+				"description": "عند التمكين، يبني فهرسًا لشفرة مساحة العمل الخاصة بك لتوفير قدرات بحث أكثر ذكاءً عن الشفرة"
 			},
 			"status": {
-				"title": "Index Status",
-				"filesCount": "Indexed Files",
-				"symbolsCount": "Indexed Symbols",
-				"lastIndexed": "Last Indexed",
-				"current": "Current Status",
-				"progress": "Progress",
-				"idle": "Idle",
-				"scanning": "Scanning",
-				"indexing": "Indexing",
-				"completed": "Completed",
-				"error": "Error"
+				"title": "حالة الفهرس",
+				"filesCount": "الملفات المفهرسة",
+				"symbolsCount": "الرموز المفهرسة",
+				"lastIndexed": "آخر فهرسة",
+				"current": "الحالة الحالية",
+				"progress": "التقدم",
+				"idle": "خامل",
+				"scanning": "جاري المسح",
+				"indexing": "جاري الفهرسة",
+				"paused": "متوقف مؤقتًا",
+				"completed": "مكتمل",
+				"error": "خطأ"
 			},
 			"actions": {
-				"start": "Start Indexing",
-				"refresh": "Refresh Index",
-				"clear": "Clear Index",
+				"start": "بدء الفهرسة",
+				"refresh": "تحديث الفهرس",
+				"resume": "استئناف الفهرسة",
+				"pause": "إيقاف الفهرسة مؤقتًا",
+				"clear": "مسح الفهرس",
 				"stop": "إيقاف الفهرسة"
 			},
 			"autoStart": {
-				"title": "Auto-index on Startup",
-				"description": "Automatically start indexing when the editor launches"
+				"title": "فهرسة تلقائية عند بدء التشغيل",
+				"description": "بدء الفهرسة تلقائيًا عند تشغيل المحرر"
 			},
 			"includeTests": {
-				"title": "Include Test Files",
-				"description": "Whether to include test files in the index"
+				"title": "تضمين ملفات الاختبار",
+				"description": "ما إذا كان يتم تضمين ملفات الاختبار في الفهرس"
 			},
 			"excludePaths": {
-				"title": "Exclude Paths",
-				"description": "Paths to exclude from indexing, separated by commas"
+				"title": "استبعاد المسارات",
+				"description": "المسارات المستبعدة من الفهرسة، مفصولة بفواصل"
 			}
 		}
 	}

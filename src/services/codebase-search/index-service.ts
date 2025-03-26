@@ -29,8 +29,8 @@ export class CodebaseIndexService {
 	private indexQueue: IndexTask[] = []
 	private isIndexing: boolean = false
 	private _progress: IndexProgress = { total: 0, completed: 0, status: "idle" }
-	private batchSize: number = 10
-	private processingDelay: number = 0
+	private batchSize: number = 5
+	private processingDelay: number = 20
 	private priorityFolders: string[] = ["src", "lib", "app", "core"]
 	private db: Database | null = null
 	private semanticAnalyzer: SemanticAnalysisService
@@ -38,6 +38,13 @@ export class CodebaseIndexService {
 	private debounceTimer: NodeJS.Timeout | null = null
 	private _onIndexStatusChange: vscode.EventEmitter<IndexStatus>
 	public readonly onIndexStatusChange: vscode.Event<IndexStatus>
+
+	// 保存扫描状态以支持恢复
+	private _scanState: {
+		dirQueue: { path: string; isIncluded: boolean }[]
+		files: string[]
+		excludeDirs: string[]
+	} | null = null
 
 	/**
 	 * 事务管理包装器 - 在事务中执行操作
@@ -154,18 +161,98 @@ export class CodebaseIndexService {
 	/**
 	 * 停止当前索引
 	 * 可以被用户手动触发停止当前索引过程
+	 * @deprecated 使用 pauseIndexing 代替
 	 */
 	public async stopIndexing(): Promise<void> {
+		// 为向后兼容，调用 pauseIndexing
+		await this.pauseIndexing()
+	}
+
+	/**
+	 * 暂停当前索引
+	 * 暂停当前索引过程，但保留进度和状态，以便后续恢复
+	 */
+	public async pauseIndexing(): Promise<void> {
 		if (this.isIndexing) {
-			// 清空索引队列
-			this.indexQueue = []
-			// 更新状态
+			// 标记暂停状态，但保持索引队列
+			this._progress.status = "paused"
+
+			// 重要：暂时设置isIndexing为false来停止当前处理循环
+			// 但不要清空索引队列，以便恢复时继续处理
 			this.isIndexing = false
-			this._progress.status = "stopped"
+
+			// 强制暂停所有当前处理
+			await new Promise((resolve) => setTimeout(resolve, 100))
+
 			// 通知前端状态变化
 			this.notifyStatusChange()
 
 			console.log("索引过程已暂停")
+		}
+	}
+
+	/**
+	 * 恢复索引
+	 * 恢复之前暂停的索引过程
+	 */
+	public async resumeIndexing(): Promise<void> {
+		// 检查是否处于暂停状态
+		if (this._progress.status !== "paused") {
+			return
+		}
+
+		// 重新激活索引过程
+		this.isIndexing = true
+
+		try {
+			// 根据当前阶段选择恢复方式
+			if (this._scanState) {
+				// 恢复扫描过程
+				this._progress.status = "scanning"
+				this.notifyStatusChange()
+
+				// 恢复扫描并获取文件列表
+				const files = await this.resumeScan()
+
+				if (files.length > 0) {
+					this._progress.total = files.length
+					this._progress.status = "indexing"
+
+					// 将文件添加到索引队列
+					this.indexQueue = files.map((file) => ({
+						filePath: file,
+						priority: this.calculatePriority(file),
+					}))
+
+					// 按优先级排序
+					this.indexQueue.sort((a, b) => b.priority - a.priority)
+
+					// 启动处理队列
+					this.processQueue()
+				} else {
+					// 没有文件需要处理
+					this._progress.status = "completed"
+					this.isIndexing = false
+					this.notifyStatusChange()
+				}
+			} else if (this.indexQueue.length > 0) {
+				// 恢复索引过程
+				this._progress.status = "indexing"
+				this.notifyStatusChange()
+
+				// 重启处理队列
+				this.processQueue()
+			} else {
+				// 没有可恢复的内容，标记为完成
+				this._progress.status = "completed"
+				this.isIndexing = false
+				this.notifyStatusChange()
+			}
+		} catch (error) {
+			console.error("恢复索引失败:", error)
+			this._progress.status = "error"
+			this.isIndexing = false
+			this.notifyStatusChange()
 		}
 	}
 
@@ -612,6 +699,15 @@ export class CodebaseIndexService {
 	private async processQueue(): Promise<void> {
 		// 如果队列为空或已停止索引，则退出
 		if (this.indexQueue.length === 0 || !this.isIndexing) {
+			// 如果是由于暂停索引导致的，保持暂停状态
+			if (this._progress.status === "paused") {
+				// 确保isIndexing为false
+				this.isIndexing = false
+				// 通知监听器索引已暂停
+				this.notifyStatusChange()
+				return
+			}
+
 			// 如果是由于停止索引导致的，保持停止状态
 			if (this._progress.status === "stopped") {
 				this.isIndexing = false
@@ -633,14 +729,35 @@ export class CodebaseIndexService {
 			return
 		}
 
+		// 再次检查状态是否为暂停
+		if (this._progress.status === "paused") {
+			this.isIndexing = false
+			this.notifyStatusChange()
+			return
+		}
+
+		// 自适应批处理大小，初始较小，处理顺利时逐渐增加
+		const currentBatchSize = Math.min(this.batchSize, Math.max(5, Math.floor(this.indexQueue.length / 10)))
+
 		// 取出一批任务
-		const batch = this.indexQueue.splice(0, this.batchSize)
+		const batch = this.indexQueue.splice(0, currentBatchSize)
+		// 设置状态为indexing
 		this._progress.status = "indexing"
+
+		// 记录批处理开始时间，用于自适应调整延迟
+		const batchStartTime = Date.now()
 
 		try {
 			// 处理批次，使用事务包装器
 			await this.executeInTransaction(async () => {
 				for (const task of batch) {
+					// 检查是否应该暂停处理
+					if (!this.isIndexing || this._progress.status !== "indexing") {
+						// 将未处理的任务放回队列前面
+						this.indexQueue.unshift(task)
+						return
+					}
+
 					await this.indexFile(task.filePath)
 					this._progress.completed++
 
@@ -648,13 +765,50 @@ export class CodebaseIndexService {
 					if (this._progress.completed % 5 === 0 || this._progress.completed === this._progress.total) {
 						this.notifyStatusChange()
 					}
+
+					// 每处理一个文件后让出控制权，避免长时间阻塞
+					if (this._progress.completed % 3 === 0) {
+						await new Promise((resolve) => setTimeout(resolve, 0))
+
+						// 在让出控制权后，再次检查是否应该暂停
+						if (!this.isIndexing || this._progress.status !== "indexing") {
+							// 将剩余未处理的任务放回队列前面
+							for (let i = batch.indexOf(task) + 1; i < batch.length; i++) {
+								this.indexQueue.unshift(batch[i])
+							}
+							return
+						}
+					}
 				}
 			})
+
+			// 最后一次检查是否应该暂停
+			if (!this.isIndexing || this._progress.status !== "indexing") {
+				this.notifyStatusChange()
+				return
+			}
+
+			// 计算批处理耗时
+			const batchProcessTime = Date.now() - batchStartTime
+
+			// 自适应调整处理延迟
+			// 如果处理速度太快，减少延迟；如果处理速度慢，增加延迟
+			if (batchProcessTime > 500) {
+				// 处理耗时较长，可能系统负载较高，增加延迟
+				this.processingDelay = Math.min(200, this.processingDelay + 20)
+				// 同时减小批处理大小
+				this.batchSize = Math.max(5, this.batchSize - 1)
+			} else if (batchProcessTime < 100 && this.processingDelay > 0) {
+				// 处理较快，减少延迟
+				this.processingDelay = Math.max(0, this.processingDelay - 5)
+				// 尝试增加批处理大小，但不超过初始设定
+				this.batchSize = Math.min(20, this.batchSize + 1)
+			}
 
 			// 添加延迟以避免阻塞主线程
 			await new Promise((resolve) => setTimeout(resolve, this.processingDelay))
 
-			// 继续处理下一批
+			// 继续处理下一批，使用setTimeout避免递归调用导致的栈溢出
 			setTimeout(() => this.processQueue(), 0)
 		} catch (error) {
 			console.error("索引过程错误:", error)
@@ -682,9 +836,6 @@ export class CodebaseIndexService {
 		if (!fs.existsSync(this.workspacePath)) {
 			return []
 		}
-
-		// 使用简单的文件系统扫描来获取文件
-		const results: string[] = []
 
 		// 如果没有指定包含路径，使用默认值
 		const includes = includePaths && includePaths.length > 0 ? includePaths : ["src", "lib", "app"]
@@ -730,71 +881,157 @@ export class CodebaseIndexService {
 						"__pycache__",
 					]
 
-		// 实现一个简单的扫描逻辑
-		// 首先检查指定的包含目录
-		let foundFiles = false
+		// 准备要扫描的目录队列
+		const dirQueue: { path: string; isIncluded: boolean }[] = []
+
+		// 首先添加包含目录
 		for (const dir of includes) {
 			const dirPath = join(this.workspacePath, dir)
+			if (fs.existsSync(dirPath)) {
+				dirQueue.push({ path: dirPath, isIncluded: true })
+			}
+		}
 
-			// 检查目录是否存在
-			if (!fs.existsSync(dirPath)) {
-				continue
+		// 如果没有找到包含目录，添加工作区根目录
+		if (dirQueue.length === 0) {
+			dirQueue.push({ path: this.workspacePath, isIncluded: false })
+		}
+
+		let hasYieldedControl = false
+
+		// 异步批处理扫描目录
+		while (dirQueue.length > 0 && this.isIndexing) {
+			// 定期让出控制权，避免阻塞主线程
+			if (!hasYieldedControl || dirQueue.length % 10 === 0) {
+				await new Promise((resolve) => setTimeout(resolve, 0))
+				hasYieldedControl = true
+
+				// 通知进度变化
+				this.notifyStatusChange()
+
+				// 如果扫描过程被暂停，保存当前状态并返回
+				if (this._progress.status === "paused") {
+					// 保存扫描状态，将来可以恢复
+					this._scanState = {
+						dirQueue,
+						files,
+						excludeDirs,
+					}
+					return files
+				}
 			}
 
-			await this.scanDirectory(dirPath, results, excludeDirs, options)
-			foundFiles = foundFiles || results.length > 0
+			// 处理当前目录
+			const { path: currentDir, isIncluded } = dirQueue.shift()!
+
+			try {
+				// 分批读取目录内容
+				const entries = fs.readdirSync(currentDir, { withFileTypes: true })
+
+				// 处理当前目录中的每个条目
+				for (const entry of entries) {
+					const fullPath = join(currentDir, entry.name)
+
+					// 检查是否应该排除
+					const relativePath = toPosixPath(relative(this.workspacePath, fullPath))
+					const shouldExclude = excludeDirs.some(
+						(exclude) =>
+							relativePath === exclude ||
+							relativePath.startsWith(`${exclude}/`) ||
+							relativePath.includes(`/${exclude}/`),
+					)
+
+					if (shouldExclude) {
+						continue
+					}
+
+					if (entry.isDirectory()) {
+						// 将子目录添加到队列
+						dirQueue.push({ path: fullPath, isIncluded })
+					} else if (entry.isFile() && this.shouldIndexFile(fullPath)) {
+						files.push(toPosixPath(fullPath))
+					}
+				}
+			} catch (error) {
+				console.warn(`无法读取目录 ${currentDir}:`, error)
+			}
 		}
 
-		// 如果在指定目录中没有找到文件，则扫描根目录
-		if (!foundFiles) {
-			await this.scanDirectory(this.workspacePath, results, excludeDirs, options)
-		}
-
-		return results
+		return files
 	}
 
 	/**
-	 * 递归扫描目录
-	 * @param directory 要扫描的目录
-	 * @param results 结果数组
-	 * @param excludes 排除的路径
+	 * 恢复之前暂停的扫描
 	 */
-	private async scanDirectory(
-		directory: string,
-		results: string[],
-		excludes: string[],
-		options?: IndexOptions,
-	): Promise<void> {
-		// 读取目录内容
-		const entries = fs.readdirSync(directory, { withFileTypes: true })
+	private async resumeScan(): Promise<string[]> {
+		if (!this._scanState) {
+			return []
+		}
 
-		for (const entry of entries) {
-			const fullPath = join(directory, entry.name)
+		const { dirQueue, files, excludeDirs } = this._scanState
+		this._scanState = null
 
-			// 检查是否应该排除
-			const relativePath = toPosixPath(relative(this.workspacePath, fullPath))
-			const shouldExclude = excludes.some(
-				(exclude) =>
-					relativePath === exclude ||
-					relativePath.startsWith(`${exclude}/`) ||
-					relativePath.includes(`/${exclude}/`),
-			)
+		// 继续扫描剩余目录
+		let hasYieldedControl = false
 
-			if (shouldExclude) {
-				continue
-			}
+		while (dirQueue.length > 0 && this.isIndexing) {
+			// 定期让出控制权，避免阻塞主线程
+			if (!hasYieldedControl || dirQueue.length % 10 === 0) {
+				await new Promise((resolve) => setTimeout(resolve, 0))
+				hasYieldedControl = true
 
-			if (entry.isDirectory()) {
-				// 递归扫描子目录
-				await this.scanDirectory(fullPath, results, excludes, options)
-			} else if (entry.isFile()) {
-				// 使用 shouldIndexFile 方法来统一判断文件是否应该被索引
-				// 这样按钮触发的索引和文件系统监听器触发的索引会使用相同的规则
-				if (this.shouldIndexFile(fullPath)) {
-					results.push(toPosixPath(fullPath))
+				// 通知进度变化
+				this.notifyStatusChange()
+
+				// 如果扫描过程被暂停，保存当前状态并返回
+				if (this._progress.status === "paused") {
+					// 再次保存扫描状态，将来可以恢复
+					this._scanState = {
+						dirQueue,
+						files,
+						excludeDirs,
+					}
+					return files
 				}
 			}
+
+			// 处理当前目录
+			const { path: currentDir, isIncluded } = dirQueue.shift()!
+
+			try {
+				// 分批读取目录内容
+				const entries = fs.readdirSync(currentDir, { withFileTypes: true })
+
+				// 处理当前目录中的每个条目
+				for (const entry of entries) {
+					const fullPath = join(currentDir, entry.name)
+
+					// 检查是否应该排除
+					const relativePath = toPosixPath(relative(this.workspacePath, fullPath))
+					const shouldExclude = excludeDirs.some(
+						(exclude) =>
+							relativePath === exclude ||
+							relativePath.startsWith(`${exclude}/`) ||
+							relativePath.includes(`/${exclude}/`),
+					)
+
+					if (shouldExclude) {
+						continue
+					}
+
+					if (entry.isDirectory()) {
+						// 将子目录添加到队列
+						dirQueue.push({ path: fullPath, isIncluded })
+					} else if (entry.isFile() && this.shouldIndexFile(fullPath)) {
+						files.push(toPosixPath(fullPath))
+					}
+				}
+			} catch (error) {
+				console.warn(`无法读取目录 ${currentDir}:`, error)
+			}
 		}
+
+		return files
 	}
 
 	/**
@@ -1211,18 +1448,7 @@ export class CodebaseIndexService {
 			}
 		}
 
-		// 先发送基本信息
-		const basicStats: IndexStats = {
-			filesCount: 0,
-			symbolsCount: 0,
-			keywordsCount: 0,
-			lastIndexed: null,
-			status: this._progress.status,
-		}
-
-		safeFireEvent(basicStats)
-
-		// 然后异步更新完整的统计信息
+		// 获取最新的统计信息并直接发送，避免统计数据不更新的问题
 		this.getIndexStats()
 			.then((fullStats) => {
 				// 确保stats的status值与progress的status保持一致
@@ -1231,6 +1457,15 @@ export class CodebaseIndexService {
 			})
 			.catch((error) => {
 				console.error("获取索引统计信息失败:", error)
+				// 发生错误时才发送基本信息作为备选
+				const basicStats: IndexStats = {
+					filesCount: 0,
+					symbolsCount: 0,
+					keywordsCount: 0,
+					lastIndexed: null,
+					status: this._progress.status,
+				}
+				safeFireEvent(basicStats)
 			})
 	}
 }

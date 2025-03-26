@@ -736,43 +736,46 @@
 			"resetStateDescription": "Это сбросит все глобальное состояние и секретное хранилище в расширении."
 		},
 		"codebaseIndex": {
-			"title": "Codebase Index",
+			"title": "Индекс кодовой базы",
 			"deleteConfirmTitle": "Подтвердите удаление индекса",
-			"deleteConfirm": "Are you sure you want to delete the index? This will remove all indexed data.",
+			"deleteConfirm": "Вы уверены, что хотите удалить индекс? Это удалит все проиндексированные данные.",
 			"enable": {
-				"title": "Enable Code Index",
-				"description": "When enabled, builds an index for your workspace code to provide smarter code search capabilities"
+				"title": "Включить индексацию кода",
+				"description": "При включении создает индекс для кода вашего рабочего пространства, обеспечивая более интеллектуальные возможности поиска кода"
 			},
 			"status": {
-				"title": "Index Status",
-				"filesCount": "Indexed Files",
-				"symbolsCount": "Indexed Symbols",
-				"lastIndexed": "Last Indexed",
-				"current": "Current Status",
-				"progress": "Progress",
-				"idle": "Idle",
-				"scanning": "Scanning",
-				"indexing": "Indexing",
-				"completed": "Completed",
-				"error": "Error"
+				"title": "Статус индекса",
+				"filesCount": "Проиндексировано файлов",
+				"symbolsCount": "Проиндексировано символов",
+				"lastIndexed": "Последняя индексация",
+				"current": "Текущий статус",
+				"progress": "Прогресс",
+				"idle": "Бездействие",
+				"scanning": "Сканирование",
+				"indexing": "Индексация",
+				"paused": "Приостановлено",
+				"completed": "Завершено",
+				"error": "Ошибка"
 			},
 			"actions": {
-				"start": "Start Indexing",
-				"refresh": "Refresh Index",
-				"clear": "Clear Index",
-				"stop": "Остановить Индексацию"
+				"start": "Начать индексацию",
+				"refresh": "Обновить индекс",
+				"resume": "Возобновить индексацию",
+				"pause": "Приостановить индексацию",
+				"clear": "Очистить индекс",
+				"stop": "Остановить индексацию"
 			},
 			"autoStart": {
-				"title": "Auto-index on Startup",
-				"description": "Automatically start indexing when the editor launches"
+				"title": "Автоиндексация при запуске",
+				"description": "Автоматически начинать индексацию при запуске редактора"
 			},
 			"includeTests": {
-				"title": "Include Test Files",
-				"description": "Whether to include test files in the index"
+				"title": "Включать тестовые файлы",
+				"description": "Включать ли тестовые файлы в индекс"
 			},
 			"excludePaths": {
-				"title": "Exclude Paths",
-				"description": "Paths to exclude from indexing, separated by commas"
+				"title": "Исключить пути",
+				"description": "Пути, которые следует исключить из индексации, разделенные запятыми"
 			}
 		}
 	}

@@ -753,12 +753,15 @@
 				"idle": "Tétlen",
 				"scanning": "Vizsgálat",
 				"indexing": "Indexelés",
+				"paused": "Szüneteltetve",
 				"completed": "Befejezve",
 				"error": "Hiba"
 			},
 			"actions": {
 				"start": "Indexelés Indítása",
 				"refresh": "Index frissítése",
+				"resume": "Indexelés Folytatása",
+				"pause": "Indexelés Szüneteltetése",
 				"clear": "Index Törlése",
 				"stop": "Indexelés Leállítása"
 			},

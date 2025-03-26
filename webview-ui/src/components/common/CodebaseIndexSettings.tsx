@@ -62,6 +62,13 @@ const CodebaseIndexSettings = () => {
 	// 确认对话框状态
 	const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
 
+	// 本地操作跟踪状态 - 用于按钮立即反馈
+	const [isPendingAction, setIsPendingAction] = useState(false)
+	const [pendingActionType, setPendingActionType] = useState<string | null>(null)
+
+	// 添加一个状态来跟踪待定操作开始时间
+	const [pendingActionStartTime, setPendingActionStartTime] = useState<number | null>(null)
+
 	// 获取索引状态
 	const fetchIndexStatus = useCallback(() => {
 		vscode.postMessage({
@@ -77,6 +84,10 @@ const CodebaseIndexSettings = () => {
 
 			// 处理索引状态更新消息
 			if (message.type === "codebaseIndexStats") {
+				// 清除待定操作标记
+				setIsPendingAction(false)
+				setPendingActionType(null)
+
 				if (message.stats) {
 					setIndexStats({
 						filesCount: message.stats.filesCount,
@@ -99,7 +110,6 @@ const CodebaseIndexSettings = () => {
 
 				if (message.error) {
 					console.error("索引错误:", message.error)
-					console.error(`索引错误: ${message.error}`)
 				}
 			}
 
@@ -127,13 +137,36 @@ const CodebaseIndexSettings = () => {
 		// 初始获取索引状态
 		fetchIndexStatus()
 
-		// 定期获取索引状态更新
-		const intervalId = setInterval(fetchIndexStatus, 2000)
-
-		// 当索引状态为"indexing"时，使用更短的间隔获取进度
-		const fastUpdateIntervalId = setInterval(() => {
-			if (indexProgress.status === "indexing" || indexProgress.status === "scanning") {
+		// 定期获取索引状态更新 - 但不要在暂停状态下频繁获取
+		const intervalId = setInterval(() => {
+			// 如果当前状态是暂停状态，并且不是因为刚点击暂停而处于待定状态，则减少更新频率
+			if (indexProgress.status === "paused" && !isPendingAction) {
+				// 在暂停状态下，我们仍然需要偶尔检查，因为暂停可能在其他地方被恢复
+				// 但频率可以大大降低，例如每10秒检查一次
+				const now = Date.now()
+				if (now % 10000 < 2000) {
+					// 每10秒左右检查一次
+					fetchIndexStatus()
+				}
+			} else {
 				fetchIndexStatus()
+			}
+		}, 2000)
+
+		// 当索引状态为特定状态时，使用更短的间隔获取进度
+		const fastUpdateIntervalId = setInterval(() => {
+			if (
+				(indexProgress.status === "indexing" || indexProgress.status === "scanning") &&
+				!isPendingAction // 避免刚暂停时继续频繁更新
+			) {
+				fetchIndexStatus()
+			} else if (isPendingAction) {
+				// 如果有待处理操作，也要频繁更新，但只有最多10秒
+				const pendingTimeLimit = 10000 // 10秒
+				const now = Date.now()
+				if (pendingActionStartTime && now - pendingActionStartTime < pendingTimeLimit) {
+					fetchIndexStatus()
+				}
 			}
 		}, 500)
 
@@ -142,10 +175,27 @@ const CodebaseIndexSettings = () => {
 			clearInterval(intervalId)
 			clearInterval(fastUpdateIntervalId)
 		}
-	}, [fetchIndexStatus])
+	}, [fetchIndexStatus, indexProgress.status, isPendingAction, pendingActionStartTime])
 
-	// 启动索引
+	// 开始索引
 	const handleStartIndex = () => {
+		// 立即更新UI状态
+		setIsPendingAction(true)
+		setPendingActionType("start")
+		setPendingActionStartTime(Date.now())
+
+		// 更新进度状态
+		setIndexProgress({
+			...indexProgress,
+			status: "scanning",
+		})
+
+		// 同步更新统计数据状态，但保留原有统计数字
+		setIndexStats({
+			...indexStats,
+			status: "scanning",
+		})
+
 		vscode.postMessage({
 			type: "codebaseSearch",
 			action: "refreshIndex",
@@ -158,6 +208,23 @@ const CodebaseIndexSettings = () => {
 
 	// 刷新索引
 	const handleRefreshIndex = () => {
+		// 立即更新UI状态
+		setIsPendingAction(true)
+		setPendingActionType("refresh")
+		setPendingActionStartTime(Date.now())
+
+		// 更新进度状态
+		setIndexProgress({
+			...indexProgress,
+			status: "scanning",
+		})
+
+		// 同步更新统计数据状态，但保留原有统计数字
+		setIndexStats({
+			...indexStats,
+			status: "scanning",
+		})
+
 		vscode.postMessage({
 			type: "codebaseSearch",
 			action: "refreshIndex",
@@ -168,12 +235,60 @@ const CodebaseIndexSettings = () => {
 		})
 	}
 
-	// 停止索引
-	const handleStopIndexing = () => {
+	// 暂停索引
+	const handlePauseIndexing = () => {
+		// 立即更新UI状态
+		setIsPendingAction(true)
+		setPendingActionType("pause")
+		setPendingActionStartTime(Date.now())
+
+		// 更新进度状态为暂停
+		setIndexProgress({
+			...indexProgress,
+			status: "paused",
+		})
+
+		// 同步更新统计数据状态，但保留原有统计数字
+		setIndexStats({
+			...indexStats,
+			status: "paused",
+		})
+
 		vscode.postMessage({
 			type: "codebaseSearch",
-			action: "stopIndexing",
+			action: "pauseIndexing",
 		})
+	}
+
+	// 恢复索引
+	const handleResumeIndexing = () => {
+		// 立即更新UI状态
+		setIsPendingAction(true)
+		setPendingActionType("resume")
+		setPendingActionStartTime(Date.now())
+
+		// 更新进度状态为索引中
+		setIndexProgress({
+			...indexProgress,
+			status: "indexing",
+		})
+
+		// 同步更新统计数据状态，但保留原有统计数字
+		setIndexStats({
+			...indexStats,
+			status: "indexing",
+		})
+
+		vscode.postMessage({
+			type: "codebaseSearch",
+			action: "resumeIndexing",
+		})
+	}
+
+	// 停止索引 (向后兼容)
+	const handleStopIndexing = () => {
+		// 使用新的暂停功能
+		handlePauseIndexing()
 	}
 
 	// 清除索引 - 打开确认对话框
@@ -183,19 +298,32 @@ const CodebaseIndexSettings = () => {
 
 	// 确认清除索引
 	const handleConfirmClearIndex = () => {
-		vscode.postMessage({
-			type: "codebaseSearch",
-			action: "clearIndex",
-		})
-		setConfirmDialogOpen(false)
+		// 立即更新UI状态
+		setIsPendingAction(true)
+		setPendingActionType("clear")
 
-		// 清除索引后立即更新进度条状态为空闲
+		// 同时清空进度和统计数据
 		setIndexProgress({
 			...indexProgress,
 			status: "idle",
 			completed: 0,
 			total: 0,
 		})
+
+		// 重要：同时清空统计数据
+		setIndexStats({
+			...indexStats,
+			filesCount: 0,
+			symbolsCount: 0,
+			keywordsCount: 0,
+			status: "idle",
+		})
+
+		vscode.postMessage({
+			type: "codebaseSearch",
+			action: "clearIndex",
+		})
+		setConfirmDialogOpen(false)
 	}
 
 	// 切换启用状态
@@ -208,6 +336,40 @@ const CodebaseIndexSettings = () => {
 				enabled: enabled,
 			},
 		})
+	}
+
+	// 根据索引状态确定按钮类型和文本
+	const getIndexActionButton = () => {
+		const status = indexProgress.status
+
+		if (status === "indexing" || status === "scanning") {
+			return (
+				<VSCodeButton
+					className={`codicon codicon-debug-pause`}
+					style={{ display: "flex", alignItems: "center", padding: "0 8px" }}
+					onClick={handlePauseIndexing}>
+					{t("settings.codebaseIndex.actions.pause").toString() || "暂停索引"}
+				</VSCodeButton>
+			)
+		} else if (status === "paused") {
+			return (
+				<VSCodeButton
+					className={`codicon codicon-debug-continue`}
+					style={{ display: "flex", alignItems: "center", padding: "0 8px" }}
+					onClick={handleResumeIndexing}>
+					{t("settings.codebaseIndex.actions.resume").toString() || "继续索引"}
+				</VSCodeButton>
+			)
+		} else {
+			return (
+				<VSCodeButton
+					className={`codicon codicon-debug-start`}
+					style={{ display: "flex", alignItems: "center", padding: "0 8px" }}
+					onClick={handleStartIndex}>
+					{t("settings.codebaseIndex.actions.start").toString() || "开始索引"}
+				</VSCodeButton>
+			)
+		}
 	}
 
 	// 如果正在加载中，显示加载提示
@@ -330,6 +492,8 @@ const CodebaseIndexSettings = () => {
 												return (
 													t("settings.codebaseIndex.status.indexing").toString() || "索引中"
 												)
+											case "paused":
+												return t("settings.codebaseIndex.status.paused").toString() || "已暂停"
 											case "completed":
 												return (
 													t("settings.codebaseIndex.status.completed").toString() || "已完成"
@@ -362,13 +526,15 @@ const CodebaseIndexSettings = () => {
 												? `${Math.floor((indexProgress.completed / indexProgress.total) * 100)}% (${indexProgress.completed}/${indexProgress.total})`
 												: t("settings.codebaseIndex.status.indexing").toString() ||
 													"正在索引..."
-											: indexProgress.status === "error"
-												? t("settings.codebaseIndex.status.error").toString() || "索引错误"
-												: indexProgress.status === "completed"
-													? "100% - " +
-														(t("settings.codebaseIndex.status.completed").toString() ||
-															"索引完成")
-													: t("settings.codebaseIndex.status.idle").toString() || "空闲"}
+											: indexProgress.status === "paused"
+												? t("settings.codebaseIndex.status.paused").toString() || "已暂停"
+												: indexProgress.status === "error"
+													? t("settings.codebaseIndex.status.error").toString() || "索引错误"
+													: indexProgress.status === "completed"
+														? "100% - " +
+															(t("settings.codebaseIndex.status.completed").toString() ||
+																"索引完成")
+														: t("settings.codebaseIndex.status.idle").toString() || "空闲"}
 								</span>
 							</div>
 							<div
@@ -387,6 +553,12 @@ const CodebaseIndexSettings = () => {
 									if (indexProgress.status === "completed") {
 										width = "100%"
 										color = "var(--vscode-testing-iconPassed)" // 绿色
+									} else if (indexProgress.status === "paused" && indexProgress.total > 0) {
+										const percentage = Math.floor(
+											(indexProgress.completed / indexProgress.total) * 100,
+										)
+										width = `${percentage}%`
+										color = "var(--vscode-descriptionForeground)" // 暂停为灰色
 									} else if (indexProgress.status === "indexing" && indexProgress.total > 0) {
 										const percentage = Math.floor(
 											(indexProgress.completed / indexProgress.total) * 100,
@@ -414,35 +586,13 @@ const CodebaseIndexSettings = () => {
 
 						{/* 操作按钮 */}
 						<div style={{ display: "flex", gap: 10, marginTop: 15 }}>
-							{/* <VSCodeButton
-								disabled={indexProgress.status === "indexing" || indexProgress.status === "scanning"}
-								onClick={handleStartIndex}>
-								{indexProgress.status === "indexing" || indexProgress.status === "scanning"
-									? t("settings.codebaseIndex.status.indexing").toString() || "正在索引..."
-									: t("settings.codebaseIndex.actions.start").toString() || "开始索引"}
-							</VSCodeButton> */}
-							{indexStats.status === "indexing" || indexStats.status === "scanning" ? (
-								<VSCodeButton
-									className={`codicon codicon-stop`}
-									style={{ display: "flex", alignItems: "center", padding: "0 8px" }}
-									onClick={handleStopIndexing}>
-									{t("settings.codebaseIndex.actions.stop").toString() || "Stop Indexing"}
-								</VSCodeButton>
-							) : (
-								<VSCodeButton
-									className={`codicon codicon-inspect`}
-									style={{ display: "flex", alignItems: "center", padding: "0 8px" }}
-									onClick={handleRefreshIndex}
-									disabled={indexStats.status === "indexing" || indexStats.status === "scanning"}>
-									{t("settings.codebaseIndex.actions.refresh").toString() || "刷新索引"}
-								</VSCodeButton>
-							)}
+							{getIndexActionButton()}
 							<VSCodeButton
-								className={`codicon codicon-trash`} // 使用正确的垃圾桶图标类名
+								className={`codicon codicon-trash`}
 								style={{ display: "flex", alignItems: "center", padding: "0 8px" }}
 								appearance="secondary"
 								onClick={handleClearIndex}
-								disabled={indexStats.status === "indexing" || indexStats.status === "scanning"}>
+								disabled={indexProgress.status === "indexing" || indexProgress.status === "scanning"}>
 								{t("settings.codebaseIndex.actions.clear").toString() || "清除索引"}
 							</VSCodeButton>
 						</div>

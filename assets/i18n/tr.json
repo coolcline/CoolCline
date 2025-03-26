@@ -745,34 +745,37 @@
 			},
 			"status": {
 				"title": "İndeks durumu",
-				"filesCount": "Indexed Files",
-				"symbolsCount": "Indexed Symbols",
+				"filesCount": "İndekslenen Dosyalar",
+				"symbolsCount": "İndekslenen Semboller",
 				"lastIndexed": "Son indeksleme",
-				"current": "Current Status",
-				"progress": "Progress",
+				"current": "Güncel Durum",
+				"progress": "İlerleme",
 				"idle": "Boşta",
 				"scanning": "Taranıyor",
 				"indexing": "İndeksleniyor",
-				"completed": "Completed",
+				"paused": "Duraklatıldı",
+				"completed": "Tamamlandı",
 				"error": "Hata"
 			},
 			"actions": {
 				"start": "İndekslemeyi Başlat",
 				"refresh": "İndeksi yenile",
+				"resume": "İndekslemeye Devam Et",
+				"pause": "İndekslemeyi Duraklat",
 				"clear": "İndeksi Temizle",
 				"stop": "İndekslemeyi Durdur"
 			},
 			"autoStart": {
-				"title": "Auto-index on Startup",
-				"description": "Automatically start indexing when the editor launches"
+				"title": "Başlangıçta Otomatik İndeksleme",
+				"description": "Düzenleyici başlatıldığında otomatik olarak indekslemeye başla"
 			},
 			"includeTests": {
-				"title": "Include Test Files",
-				"description": "Whether to include test files in the index"
+				"title": "Test Dosyalarını Dahil Et",
+				"description": "Test dosyalarının indekse dahil edilip edilmeyeceği"
 			},
 			"excludePaths": {
-				"title": "Exclude Paths",
-				"description": "Paths to exclude from indexing, separated by commas"
+				"title": "Hariç Tutulacak Yollar",
+				"description": "İndekslemeden hariç tutulacak, virgülle ayrılmış yollar"
 			}
 		}
 	}

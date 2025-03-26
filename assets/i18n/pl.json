@@ -753,12 +753,15 @@
 				"idle": "Bezczynny",
 				"scanning": "Skanowanie",
 				"indexing": "Indeksowanie",
+				"paused": "Wstrzymano",
 				"completed": "Zakończono",
 				"error": "Błąd"
 			},
 			"actions": {
 				"start": "Rozpocznij Indeksowanie",
 				"refresh": "Odśwież Indeks",
+				"resume": "Wznów Indeksowanie",
+				"pause": "Wstrzymaj Indeksowanie",
 				"clear": "Wyczyść Indeks",
 				"stop": "Zatrzymaj Indeksowanie"
 			},

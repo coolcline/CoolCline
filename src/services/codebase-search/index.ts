@@ -228,6 +228,7 @@ export class CodebaseSearchManager {
 
 	/**
 	 * 停止当前索引过程
+	 * @deprecated 使用 pauseIndexing 代替
 	 */
 	public async stopIndexing(): Promise<void> {
 		try {
@@ -236,6 +237,32 @@ export class CodebaseSearchManager {
 			await indexService?.stopIndexing()
 		} catch (error) {
 			console.error("停止索引失败:", error)
+		}
+	}
+
+	/**
+	 * 暂停当前索引过程
+	 */
+	public async pauseIndexing(): Promise<void> {
+		try {
+			const workspacePath = this.getCurrentWorkspacePath()
+			const indexService = this.getIndexService(workspacePath)
+			await indexService?.pauseIndexing()
+		} catch (error) {
+			console.error("暂停索引失败:", error)
+		}
+	}
+
+	/**
+	 * 恢复之前暂停的索引过程
+	 */
+	public async resumeIndexing(): Promise<void> {
+		try {
+			const workspacePath = this.getCurrentWorkspacePath()
+			const indexService = this.getIndexService(workspacePath)
+			await indexService?.resumeIndexing()
+		} catch (error) {
+			console.error("恢复索引失败:", error)
 		}
 	}
 }
@@ -285,7 +312,8 @@ export async function initializeCodebaseSearch(): Promise<void> {
 				for (const folder of workspaceFolders) {
 					try {
 						const workspacePath = folder.uri.fsPath
-						progress.report({ message: "Scanning" })
+						// 修改为通用的开始索引提示，而不是具体进度
+						progress.report({ message: "Start Indexing Codebase" })
 
 						// 开始索引过程
 						await manager.startIndexing({
@@ -293,11 +321,10 @@ export async function initializeCodebaseSearch(): Promise<void> {
 							excludePaths: ["node_modules", ".git", "dist", "build"],
 						})
 
-						// 获取索引状态并更新进度
-						const indexStats = await manager.getIndexStatus()
-						progress.report({
-							message: `Indexed ${indexStats.filesCount} files`,
-						})
+						// 获取索引状态但不显示
+						await manager.getIndexStatus()
+
+						// 不再更新进度消息，保持"Start Indexing Codebase"
 					} catch (error) {
 						console.error(`索引工作区失败:`, error)
 						progress.report({
@@ -306,16 +333,12 @@ export async function initializeCodebaseSearch(): Promise<void> {
 					}
 				}
 
-				// 显示完成消息
-				progress.report({
-					message: "Indexing completed",
-				})
-
+				// 不显示完成消息，只在状态栏显示
 				// 显示状态栏消息通知用户索引已完成
-				vscode.window.setStatusBarMessage("Codebase indexing completed", 5000)
+				vscode.window.setStatusBarMessage("Codebase indexing in progress", 5000)
 
 				return new Promise<void>((resolve) => {
-					// 短暂显示完成消息后关闭进度条
+					// 短暂显示后直接关闭进度条，不显示完成消息
 					setTimeout(() => {
 						resolve()
 					}, 3000)
@@ -634,7 +657,46 @@ export async function handleCodebaseSearchWebviewMessage(webview: vscode.Webview
 				break
 
 			case "stopIndexing":
-				await manager.stopIndexing()
+				// 调用暂停索引而不是停止，保留兼容性
+				await manager.pauseIndexing()
+
+				// 获取最新状态并通知UI
+				try {
+					const stats = await manager.getIndexStatus()
+					const progress = manager.getIndexProgress()
+
+					// 发送更新的状态和进度
+					webview.postMessage({
+						type: "codebaseIndexStats",
+						stats,
+						progress,
+					})
+				} catch (error) {
+					console.error("获取索引状态失败:", error)
+				}
+				break
+
+			case "pauseIndexing":
+				await manager.pauseIndexing()
+
+				// 获取最新状态并通知UI
+				try {
+					const stats = await manager.getIndexStatus()
+					const progress = manager.getIndexProgress()
+
+					// 发送更新的状态和进度
+					webview.postMessage({
+						type: "codebaseIndexStats",
+						stats,
+						progress,
+					})
+				} catch (error) {
+					console.error("获取索引状态失败:", error)
+				}
+				break
+
+			case "resumeIndexing":
+				await manager.resumeIndexing()
 
 				// 获取最新状态并通知UI
 				try {
