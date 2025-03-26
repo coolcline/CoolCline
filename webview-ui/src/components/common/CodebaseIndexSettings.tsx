@@ -671,7 +671,7 @@ const CodebaseIndexSettings = () => {
 										},
 									})
 								}}
-								placeholder="node_modules,dist,build"
+								placeholder="node_modules,dist,build,.git"
 								style={{ width: "100%" }}
 							/>
 							<p

@@ -292,6 +292,9 @@ export async function initializeCodebaseSearch(): Promise<void> {
 	const extensionContext = getExtensionContext()! // 需要从extension.ts中获取context
 	const IndexEnabled = extensionContext.globalState.get<boolean>("codebaseIndexEnabled") ?? true
 	const autoIndexEnabled = extensionContext.globalState.get<boolean>("codebaseIndexAutoStart") ?? true
+	// 读取存储的排除路径
+	const excludePaths =
+		extensionContext.globalState.get<string>("codebaseIndexExcludePaths") ?? "node_modules,dist,build,.git"
 
 	if (!IndexEnabled || !autoIndexEnabled) {
 		// console.log("自动扫描已禁用，跳过索引过程")
@@ -315,10 +318,16 @@ export async function initializeCodebaseSearch(): Promise<void> {
 						// 修改为通用的开始索引提示，而不是具体进度
 						progress.report({ message: "Start Indexing Codebase" })
 
+						// 解析存储的排除路径
+						const excludePathsArray = excludePaths
+							.split(",")
+							.map((folder: string) => folder.trim())
+							.filter(Boolean)
+
 						// 开始索引过程
 						await manager.startIndexing({
 							includePaths: ["src", "lib", "app", "core"],
-							excludePaths: ["node_modules", ".git", "dist", "build"],
+							excludePaths: excludePathsArray, // 使用存储的排除路径
 						})
 
 						// 获取索引状态但不显示
@@ -611,6 +620,12 @@ export async function handleCodebaseSearchWebviewMessage(webview: vscode.Webview
 					const indexOptions: IndexOptions = {}
 
 					if (message.settings.excludePaths !== undefined) {
+						// 保存到globalStorage
+						await getExtensionContext()!.globalState.update(
+							"codebaseIndexExcludePaths",
+							message.settings.excludePaths,
+						)
+
 						const excludePaths = message.settings.excludePaths
 							.split(",")
 							.map((folder: string) => folder.trim())
