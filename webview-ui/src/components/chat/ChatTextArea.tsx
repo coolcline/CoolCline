@@ -57,6 +57,7 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 		const { filePaths, openedTabs, currentApiConfigName, listApiConfigMeta, customModes } = useExtensionState()
 		const [gitCommits, setGitCommits] = useState<any[]>([])
 		const [showDropdown, setShowDropdown] = useState(false)
+		const [activeMentions, setActiveMentions] = useState<Array<{ type: ContextMenuOptionType; value: string }>>([])
 
 		// Close dropdown when clicking outside
 		useEffect(() => {
@@ -570,6 +571,97 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			opacity: 0.8,
 		}
 
+		// 从输入文本中提取所有@mentions
+		const extractMentionsFromText = useCallback((text: string) => {
+			const mentions: Array<{ type: ContextMenuOptionType; value: string }> = []
+			const matches = text.match(mentionRegexGlobal)
+
+			if (matches) {
+				matches.forEach((match) => {
+					// 移除@符号
+					const value = match.substring(1)
+					// 根据值确定类型
+					let type = ContextMenuOptionType.File
+					if (value === "problems") {
+						type = ContextMenuOptionType.Problems
+					} else if (value === "codebase") {
+						type = ContextMenuOptionType.Codebase
+					} else if (value === "git-changes" || /^[a-f0-9]{7,40}$/.test(value)) {
+						type = ContextMenuOptionType.Git
+					} else if (value.startsWith("/")) {
+						type = value.endsWith("/") ? ContextMenuOptionType.Folder : ContextMenuOptionType.File
+					}
+
+					mentions.push({ type, value })
+				})
+			}
+
+			return mentions
+		}, [])
+
+		// 当输入值变化时更新活动mentions
+		useEffect(() => {
+			const newMentions = extractMentionsFromText(inputValue)
+			setActiveMentions(newMentions)
+		}, [inputValue, extractMentionsFromText])
+
+		// 处理删除mention
+		const handleRemoveMention = useCallback(
+			(mentionIndex: number) => {
+				if (mentionIndex >= 0 && mentionIndex < activeMentions.length) {
+					const mentionToRemove = activeMentions[mentionIndex]
+					const mentionText = `@${mentionToRemove.value}`
+
+					// 使用正则表达式创建一个能匹配特定mention的模式
+					const mentionPattern = new RegExp(`@${mentionToRemove.value}(?=[.,;:!?]?(?=[\\s\\r\\n]|$))`)
+
+					// 替换第一个匹配项
+					const newValue = inputValue.replace(mentionPattern, "")
+					setInputValue(newValue)
+				}
+			},
+			[activeMentions, inputValue, setInputValue],
+		)
+
+		// 处理点击mention打开相应内容
+		const handleOpenMention = useCallback((mention: { type: ContextMenuOptionType; value: string }) => {
+			vscode.postMessage({
+				type: "openMention",
+				text: mention.value,
+			})
+		}, [])
+
+		// 处理键盘事件删除mention
+		const handleMentionKeyDown = useCallback(
+			(e: React.KeyboardEvent, index: number) => {
+				if (e.key === "Delete" || e.key === "Backspace") {
+					e.preventDefault()
+					handleRemoveMention(index)
+				}
+			},
+			[handleRemoveMention],
+		)
+
+		// 处理"@ Add context"按钮点击事件
+		const handleAddContextClick = useCallback(() => {
+			if (textAreaRef.current) {
+				// 将@符号添加到输入框，并设置光标位置
+				const newValue = inputValue + "@"
+				setInputValue(newValue)
+				setShowContextMenu(true)
+				setCursorPosition(newValue.length)
+				setIntendedCursorPosition(newValue.length)
+
+				// 聚焦文本区域并设置光标位置
+				setTimeout(() => {
+					if (textAreaRef.current) {
+						textAreaRef.current.focus()
+						textAreaRef.current.setSelectionRange(newValue.length, newValue.length)
+					}
+				}, 0)
+			}
+		}, [inputValue, setInputValue])
+
 		return (
 			<div
 				className="chat-text-area"
@@ -662,6 +754,118 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 						/>
 					</div>
 				)}
+
+				{/* 活动上下文区域 */}
+				<div
+					style={{
+						display: "flex",
+						flexDirection: "column",
+						padding: "4px 0",
+						borderBottom: "1px solid var(--vscode-editorGroup-border)",
+						marginBottom: "4px",
+					}}>
+					<div
+						style={{
+							display: "flex",
+							alignItems: "center",
+							gap: "8px",
+							fontSize: "12px",
+						}}>
+						<button
+							style={{
+								display: "flex",
+								alignItems: "center",
+								gap: "4px",
+								background: "none",
+								border: "1px solid var(--vscode-editorGroup-border)",
+								padding: "2px 6px",
+								borderRadius: "3px",
+								fontSize: "12px",
+								color: "var(--vscode-foreground)",
+								backgroundColor: "transparent",
+								cursor: "pointer",
+								flexShrink: 0,
+							}}
+							onClick={handleAddContextClick}>
+							{activeMentions.length > 0 ? "@" : "@ Add Context"}
+						</button>
+
+						{activeMentions.length > 0 && (
+							<div
+								style={{
+									display: "flex",
+									flexWrap: "wrap",
+									gap: "4px",
+									flex: "1 1 auto",
+								}}>
+								{activeMentions.map((mention, index) => (
+									<div
+										key={`${mention.type}-${mention.value}-${index}`}
+										style={{
+											display: "flex",
+											alignItems: "center",
+											backgroundColor: "var(--vscode-badge-background)",
+											color: "var(--vscode-badge-foreground)",
+											borderRadius: "3px",
+											padding: "2px 6px",
+											fontSize: "12px",
+											position: "relative",
+											transition: "all 0.2s ease",
+											cursor: "pointer",
+										}}
+										title={`点击打开: ${mention.value}`}
+										onClick={() => handleOpenMention(mention)}
+										onKeyDown={(e) => handleMentionKeyDown(e, index)}
+										tabIndex={0}>
+										{/* 根据mention类型添加不同图标 */}
+										<i
+											className={`codicon codicon-${
+												mention.type === ContextMenuOptionType.File
+													? "file"
+													: mention.type === ContextMenuOptionType.Folder
+														? "folder"
+														: mention.type === ContextMenuOptionType.Problems
+															? "warning"
+															: mention.type === ContextMenuOptionType.Git
+																? "git-commit"
+																: mention.type === ContextMenuOptionType.Codebase
+																	? "search"
+																	: "file"
+											}`}
+											style={{
+												marginRight: "4px",
+												fontSize: "12px",
+											}}
+										/>
+										<span>{mention.value}</span>
+										<span
+											className="codicon codicon-close"
+											style={{
+												fontSize: "12px",
+												marginLeft: "4px",
+												cursor: "pointer",
+												opacity: 0.7,
+												color: "var(--vscode-errorForeground)",
+												transition: "opacity 0.2s ease",
+											}}
+											title="删除此上下文"
+											onMouseEnter={(e) => {
+												e.currentTarget.style.opacity = "1"
+											}}
+											onMouseLeave={(e) => {
+												e.currentTarget.style.opacity = "0.7"
+											}}
+											onClick={(e) => {
+												e.stopPropagation()
+												handleRemoveMention(index)
+											}}
+										/>
+									</div>
+								))}
+							</div>
+						)}
+					</div>
+				</div>
 
 				<div
 					style={{
