@@ -201,9 +201,14 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 					type === ContextMenuOptionType.Git
 				) {
 					if (!value) {
-						setSelectedType(type)
-						setSearchQuery("")
-						setSelectedMenuIndex(0)
+						// 先关闭菜单，然后重新打开对应类型的菜单
+						setShowContextMenu(false)
+						setTimeout(() => {
+							setSelectedType(type)
+							setSearchQuery("")
+							setSelectedMenuIndex(0)
+							setShowContextMenu(true)
+						}, 50) // 短暂延迟确保关闭动画完成
 						return
 					}
 				}

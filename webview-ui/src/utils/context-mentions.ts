@@ -171,6 +171,15 @@ export function getContextMenuOptions(
 			return folders.length > 0 ? folders : [{ type: ContextMenuOptionType.NoResults }]
 		}
 
+		// 当已选择类型且查询为空时，返回该类型下的所有选项
+		if (selectedType && query === "") {
+			const items = queryItems.filter((item) => item.type === selectedType)
+			if (items.length > 0) {
+				return items.slice(0, 10) // 返回前10个结果
+			}
+			return [{ type: ContextMenuOptionType.NoResults }]
+		}
+
 		if (selectedType === ContextMenuOptionType.Git) {
 			const commits = queryItems.filter((item) => item.type === ContextMenuOptionType.Git)
 			return commits.length > 0 ? [workingChanges, ...commits] : [workingChanges]
