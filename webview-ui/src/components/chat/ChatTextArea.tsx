@@ -432,27 +432,40 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 				const items = e.clipboardData.items
 
 				const pastedText = e.clipboardData.getData("text")
-				// Check if the pasted content is a URL, add space after so user can easily delete if they don't want it
-				const urlRegex = /^\S+:\/\/\S+$/
-				if (urlRegex.test(pastedText.trim())) {
+
+				// 对于所有非空的粘贴内容，发送消息到扩展检查是否与当前选择匹配
+				if (pastedText.trim().length > 0) {
+					// 拦截默认粘贴行为，我们会在收到匹配结果后决定如何处理
 					e.preventDefault()
-					const trimmedUrl = pastedText.trim()
-					const newValue =
-						inputValue.slice(0, cursorPosition) + trimmedUrl + " " + inputValue.slice(cursorPosition)
+
+					// 请求扩展查找当前编辑器中的匹配选择
+					vscode.postMessage({
+						type: "findMatchingSelection",
+						text: pastedText,
+					})
+
+					// 检查是否是URL
+					const urlRegex = /^\S+:\/\/\S+$/
+					if (urlRegex.test(pastedText.trim())) {
+						const trimmedUrl = pastedText.trim()
+						const newValue =
+							inputValue.slice(0, cursorPosition) + trimmedUrl + " " + inputValue.slice(cursorPosition)
+						setInputValue(newValue)
+						const newCursorPosition = cursorPosition + trimmedUrl.length + 1
+						setCursorPosition(newCursorPosition)
+						setIntendedCursorPosition(newCursorPosition)
+						setShowContextMenu(false)
+						return
+					}
+
+					// 如果不是URL和图片，则暂时先插入原文本，等待匹配结果返回
+					// 如果匹配成功，会在messageHandler中处理，替换为上下文标记
+					const newValue = inputValue.slice(0, cursorPosition) + pastedText + inputValue.slice(cursorPosition)
 					setInputValue(newValue)
-					const newCursorPosition = cursorPosition + trimmedUrl.length + 1
+					const newCursorPosition = cursorPosition + pastedText.length
 					setCursorPosition(newCursorPosition)
 					setIntendedCursorPosition(newCursorPosition)
 					setShowContextMenu(false)
-
-					// Scroll to new cursor position
-					setTimeout(() => {
-						if (textAreaRef.current) {
-							textAreaRef.current.blur()
-							textAreaRef.current.focus()
-						}
-					}, 0)
-
 					return
 				}
 
@@ -494,6 +507,58 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			},
 			[shouldDisableImages, setSelectedImages, cursorPosition, setInputValue, inputValue],
 		)
+
+		// 监听扩展返回的匹配结果
+		useEffect(() => {
+			const handleMessage = (event: MessageEvent) => {
+				const message = event.data
+				if (message.type === "selectionMatched" && message.matched) {
+					console.log("[选择匹配] 收到匹配结果:", message)
+
+					// 收到匹配结果，添加上下文标记
+					const { fileName, lineStart, lineEnd } = message
+
+					// 构建上下文标记
+					const contextTag = `@${fileName}(${lineStart}-${lineEnd})`
+
+					// 查找上次粘贴的文本位置，从当前位置向前查找
+					const pastedText = message.text || ""
+					if (pastedText && inputValue.includes(pastedText)) {
+						// 找到粘贴的文本，删除它并在其位置添加上下文标记
+						const startIndex = inputValue.lastIndexOf(pastedText)
+						if (startIndex !== -1) {
+							const endIndex = startIndex + pastedText.length
+							// 用上下文标记替换粘贴的内容
+							const newValue =
+								inputValue.substring(0, startIndex) + contextTag + " " + inputValue.substring(endIndex)
+							setInputValue(newValue)
+
+							// 更新光标位置
+							const newPosition = startIndex + contextTag.length + 1
+							setCursorPosition(newPosition)
+							setIntendedCursorPosition(newPosition)
+
+							return
+						}
+					}
+
+					// 如果找不到粘贴的文本，就在当前光标位置插入上下文标记
+					const newValue =
+						inputValue.slice(0, cursorPosition) + " " + contextTag + " " + inputValue.slice(cursorPosition)
+					setInputValue(newValue)
+
+					// 更新光标位置
+					const newPosition = cursorPosition + contextTag.length + 2 // +2 for the two spaces
+					setCursorPosition(newPosition)
+					setIntendedCursorPosition(newPosition)
+				} else if (message.type === "selectionMatched" && !message.matched) {
+					// 未匹配上时无需特殊处理，已经在handlePaste中插入了原文本
+				}
+			}
+
+			window.addEventListener("message", handleMessage)
+			return () => window.removeEventListener("message", handleMessage)
+		}, [inputValue, cursorPosition, setInputValue])
 
 		const handleThumbnailsHeightChange = useCallback((height: number) => {
 			setThumbnailsHeight(height)
@@ -590,6 +655,9 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 						type = ContextMenuOptionType.Git
 					} else if (value.startsWith("/")) {
 						type = value.endsWith("/") ? ContextMenuOptionType.Folder : ContextMenuOptionType.File
+					} else if (/^[\w\.-]+\(\d+-\d+\)$/.test(value)) {
+						// 匹配文件名(起始行-结束行)格式
+						type = ContextMenuOptionType.File
 					}
 
 					mentions.push({ type, value })
@@ -612,8 +680,9 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 					const mentionToRemove = activeMentions[mentionIndex]
 					const mentionText = `@${mentionToRemove.value}`
 
-					// 使用正则表达式创建一个能匹配特定mention的模式
-					const mentionPattern = new RegExp(`@${mentionToRemove.value}(?=[.,;:!?]?(?=[\\s\\r\\n]|$))`)
+					// 使用正则表达式创建一个能精确匹配特定mention的模式
+					const escapedValue = mentionToRemove.value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+					const mentionPattern = new RegExp(`@${escapedValue}(?=[.,;:!?]?(?=[\\s\\r\\n]|$))`)
 
 					// 替换第一个匹配项
 					const newValue = inputValue.replace(mentionPattern, "")
@@ -625,6 +694,19 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 
 		// 处理点击mention打开相应内容
 		const handleOpenMention = useCallback((mention: { type: ContextMenuOptionType; value: string }) => {
+			// 检查是否是文件名(行号-行号)格式
+			const lineRangeMatch = mention.value.match(/^([\w\.-]+)\((\d+)-(\d+)\)$/)
+			if (lineRangeMatch) {
+				const [, fileName, lineStart, lineEnd] = lineRangeMatch
+				vscode.postMessage({
+					type: "openMention",
+					text: fileName,
+					lineStart: parseInt(lineStart, 10),
+					lineEnd: parseInt(lineEnd, 10),
+				})
+				return
+			}
+
 			vscode.postMessage({
 				type: "openMention",
 				text: mention.value,

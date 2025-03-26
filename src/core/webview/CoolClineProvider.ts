@@ -41,6 +41,8 @@ import { getShadowGitPath, hashWorkingDir, PathUtils } from "../../services/chec
 import { ManageCheckpointRepository } from "../../services/checkpoints/ManageCheckpointRepository"
 import { handleCodebaseSearchWebviewMessage } from "../../services/codebase-search"
 import { EditorFactory, EditorType } from "../../integrations/editor/EditorFactory"
+import { DIFF_VIEW_URI_SCHEME } from "../../integrations/editor/DiffViewProvider"
+import * as pathUtils from "../../utils/path"
 
 /*
 https://github.com/microsoft/vscode-webview-ui-toolkit-samples/blob/main/default/weather-webview/src/providers/WeatherViewProvider.ts
@@ -821,7 +823,7 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
 						openFile(message.text!, message.values as { create?: boolean; content?: string })
 						break
 					case "openMention":
-						openMention(message.text)
+						openMention(message.text, message.lineStart, message.lineEnd)
 						break
 					case "checkpointDiff":
 						if (message.payload) {
@@ -944,7 +946,7 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
 							const soundPath = PathUtils.joinPath(
 								this.context.extensionPath,
 								"audio",
-								`${message.audioType}.wav`,
+								`${message.audioType}.${os.platform() === "win32" ? "mp3" : "ogg"}`,
 							)
 							playSound(soundPath)
 						}
@@ -1002,6 +1004,51 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
 					case "mode":
 						await this.handleModeSwitch(message.text as Mode)
 						break
+					case "findMatchingSelection":
+						// 查找当前编辑器选择区域是否与粘贴内容匹配
+						const pastedText = message.text
+
+						// 检查当前活动编辑器的选择
+						const editor = vscode.window.activeTextEditor
+						let matched = false
+
+						if (editor && !editor.selection.isEmpty) {
+							const selectedText = editor.document.getText(editor.selection)
+
+							if (selectedText === pastedText) {
+								// 找到匹配
+								const filePath = editor.document.uri.fsPath
+								const fileName = pathUtils.basename(filePath)
+								const lineStart = editor.selection.start.line + 1
+								const lineEnd = editor.selection.end.line + 1
+
+								// 发送匹配结果
+								this.view?.webview.postMessage({
+									type: "selectionMatched",
+									matched: true,
+									fileName,
+									filePath,
+									lineStart,
+									lineEnd,
+									text: pastedText, // 包含原始粘贴文本以便前端找到并替换
+								})
+
+								matched = true
+							}
+						}
+
+						if (!matched) {
+							// 未找到匹配
+							this.view?.webview.postMessage({
+								type: "selectionMatched",
+								matched: false,
+								text: pastedText, // 包含原始粘贴文本
+							})
+						}
+						break
+					case "getSourceFileInfo":
+					// 处理获取源文件信息请求
+					// ... existing code ...
 					case "updateSupportPrompt":
 						try {
 							if (Object.keys(message?.values ?? {}).length === 0) {

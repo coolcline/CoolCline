@@ -94,6 +94,12 @@ export interface WebviewMessage {
 		| "deleteThisProjectAllHistory"
 		| "codebaseSearch"
 		| "editorType"
+		| "uploadScreenshot"
+		| "getHistoricalMemoryStats"
+		| "setHistoricalMemoryEnabled"
+		| "findMatchingSelection"
+		| "selectionMatched"
+		| "getSourceFileInfo"
 	text?: string
 	disabled?: boolean
 	askResponse?: CoolClineAskResponse
@@ -118,6 +124,8 @@ export interface WebviewMessage {
 	payload?: WebViewMessagePayload
 	action?: string
 	settings?: Record<string, any>
+	lineStart?: number
+	lineEnd?: number
 }
 
 export type CoolClineAskResponse = "yesButtonClicked" | "noButtonClicked" | "messageResponse"

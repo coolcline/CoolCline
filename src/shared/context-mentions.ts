@@ -50,7 +50,7 @@ Mention regex:
 
 */
 export const mentionRegex =
-	/@((?:\/|\w+:\/\/)[^\s]+?|[a-f0-9]{7,40}\b|problems\b|git-changes\b|codebase\b)(?=[.,;:!?]?(?=[\s\r\n]|$))/
+	/@((?:\/|\w+:\/\/)[^\s]+?|[a-f0-9]{7,40}\b|problems\b|git-changes\b|codebase\b|[\w\.-]+\(\d+-\d+\))(?=[.,;:!?]?(?=[\s\r\n]|$))/
 export const mentionRegexGlobal = new RegExp(mentionRegex.source, "g")
 
 export interface MentionSuggestion {

@@ -9,7 +9,7 @@ import { diagnosticsToProblemsString } from "../../integrations/diagnostics"
 import { getCommitInfo, getWorkingState } from "../../utils/git"
 import { PathUtils } from "../../services/checkpoints/CheckpointUtils"
 
-export async function openMention(mention?: string): Promise<void> {
+export async function openMention(mention?: string, lineStart?: number, lineEnd?: number): Promise<void> {
 	if (!mention) {
 		return
 	}
@@ -17,6 +17,52 @@ export async function openMention(mention?: string): Promise<void> {
 	const cwd = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath).at(0)
 	if (!cwd) {
 		return
+	}
+
+	// 检查是否包含行号信息 - 格式为：filename(lineStart-lineEnd)
+	const lineRangeMatch = !lineStart && !lineEnd ? mention.match(/^([\w\.-]+)\((\d+)-(\d+)\)$/) : null
+	if (lineRangeMatch) {
+		const [, fileName, lStart, lEnd] = lineRangeMatch
+		// 查找工作区中的文件
+		const files = await vscode.workspace.findFiles(`**/${fileName}`, null)
+		if (files.length > 0) {
+			// 打开文件并跳转到指定行
+			const document = await vscode.workspace.openTextDocument(files[0])
+			const editor = await vscode.window.showTextDocument(document)
+
+			// 转换为0基索引
+			const startLine = Math.max(0, parseInt(lStart, 10) - 1)
+			const endLine = Math.max(startLine, parseInt(lEnd, 10) - 1)
+
+			// 创建选择范围
+			const range = new vscode.Range(startLine, 0, endLine, document.lineAt(endLine).text.length)
+
+			// 设置选择并显示
+			editor.selection = new vscode.Selection(range.start, range.end)
+			editor.revealRange(range, vscode.TextEditorRevealType.InCenter)
+			return
+		}
+	} else if (lineStart !== undefined && lineEnd !== undefined) {
+		// 如果提供了直接的行号参数
+		// 查找工作区中的文件
+		const files = await vscode.workspace.findFiles(`**/${mention}`, null)
+		if (files.length > 0) {
+			// 打开文件并跳转到指定行
+			const document = await vscode.workspace.openTextDocument(files[0])
+			const editor = await vscode.window.showTextDocument(document)
+
+			// 转换为0基索引
+			const startLine = Math.max(0, lineStart - 1)
+			const endLine = Math.max(startLine, lineEnd - 1)
+
+			// 创建选择范围
+			const range = new vscode.Range(startLine, 0, endLine, document.lineAt(endLine).text.length)
+
+			// 设置选择并显示
+			editor.selection = new vscode.Selection(range.start, range.end)
+			editor.revealRange(range, vscode.TextEditorRevealType.InCenter)
+			return
+		}
 	}
 
 	if (mention.startsWith("/")) {
