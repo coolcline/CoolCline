@@ -162,6 +162,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
 
 	return (
 		<div
+			className="context-menu"
 			ref={menuRef}
 			style={{
 				backgroundColor: "var(--vscode-dropdown-background)",

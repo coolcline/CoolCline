@@ -772,6 +772,7 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 							fontSize: "12px",
 						}}>
 						<button
+							className="mention-context-button"
 							style={{
 								display: "flex",
 								alignItems: "center",
