@@ -66,73 +66,87 @@ export async function loadRequiredLanguageParsers(filesToParse: string[]): Promi
 	for (const ext of extensionsToLoad) {
 		let language: Parser.Language
 		let query: Parser.Query
-		switch (ext) {
-			case "js":
-			case "jsx":
-				language = await loadLanguage("javascript")
-				query = language.query(javascriptQuery)
-				break
-			case "ts":
-				language = await loadLanguage("typescript")
-				query = language.query(typescriptQuery)
-				break
-			case "tsx":
-				language = await loadLanguage("tsx")
-				query = language.query(typescriptQuery)
-				break
-			case "py":
-				language = await loadLanguage("python")
-				query = language.query(pythonQuery)
-				break
-			case "rs":
-				language = await loadLanguage("rust")
-				query = language.query(rustQuery)
-				break
-			case "go":
-				language = await loadLanguage("go")
-				query = language.query(goQuery)
-				break
-			case "cpp":
-			case "hpp":
-				language = await loadLanguage("cpp")
-				query = language.query(cppQuery)
-				break
-			case "c":
-			case "h":
-				language = await loadLanguage("c")
-				query = language.query(cQuery)
-				break
-			case "cs":
-				language = await loadLanguage("c_sharp")
-				query = language.query(csharpQuery)
-				break
-			case "rb":
-				language = await loadLanguage("ruby")
-				query = language.query(rubyQuery)
-				break
-			case "java":
-				language = await loadLanguage("java")
-				query = language.query(javaQuery)
-				break
-			case "php":
-				language = await loadLanguage("php")
-				query = language.query(phpQuery)
-				break
-			case "swift":
-				language = await loadLanguage("swift")
-				query = language.query(swiftQuery)
-				break
-			case "kt":
-			case "kts":
-				language = await loadLanguage("kotlin")
-				query = language.query(kotlinQuery)
-				break
-			default:
-				throw new Error(`Unsupported language: ${ext}`)
+
+		try {
+			switch (ext) {
+				case "js":
+				case "jsx":
+					language = await loadLanguage("javascript")
+					query = language.query(javascriptQuery)
+					break
+				case "ts":
+					language = await loadLanguage("typescript")
+					query = language.query(typescriptQuery)
+					break
+				case "tsx":
+					language = await loadLanguage("tsx")
+					query = language.query(typescriptQuery)
+					break
+				case "py":
+					language = await loadLanguage("python")
+					query = language.query(pythonQuery)
+					break
+				case "rs":
+					language = await loadLanguage("rust")
+					query = language.query(rustQuery)
+					break
+				case "go":
+					language = await loadLanguage("go")
+					query = language.query(goQuery)
+					break
+				case "cpp":
+				case "hpp":
+					language = await loadLanguage("cpp")
+					query = language.query(cppQuery)
+					break
+				case "c":
+				case "h":
+					language = await loadLanguage("c")
+					query = language.query(cQuery)
+					break
+				case "cs":
+					language = await loadLanguage("c_sharp")
+					query = language.query(csharpQuery)
+					break
+				case "rb":
+					language = await loadLanguage("ruby")
+					query = language.query(rubyQuery)
+					break
+				case "java":
+					language = await loadLanguage("java")
+					query = language.query(javaQuery)
+					break
+				case "php":
+					language = await loadLanguage("php")
+					query = language.query(phpQuery)
+					break
+				case "swift":
+					language = await loadLanguage("swift")
+					query = language.query(swiftQuery)
+					break
+				case "kt":
+				case "kts":
+					try {
+						language = await loadLanguage("kotlin")
+						query = language.query(kotlinQuery)
+					} catch (error) {
+						console.warn(`无法加载Kotlin解析器，跳过此文件类型: ${error.message}`)
+						continue // 跳过当前循环迭代，不处理Kotlin文件
+					}
+					break
+				default:
+					throw new Error(`Unsupported language: ${ext}`)
+			}
+
+			const parser = new Parser()
+			parser.setLanguage(language)
+			parsers[ext] = { parser, query }
+		} catch (error) {
+			if (error instanceof Error && error.message.includes("Unsupported language")) {
+				throw error
+			}
+			console.warn(`加载语言解析器失败: ${ext}`, error)
 		}
-		const parser = new Parser()
-		parser.setLanguage(language)
-		parsers[ext] = { parser, query }
 	}
 	return parsers
 }

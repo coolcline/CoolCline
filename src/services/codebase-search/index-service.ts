@@ -529,10 +529,18 @@ export class CodebaseIndexService {
 								relation.sourceId > 0 &&
 								relation.targetId > 0
 							) {
-								await this.db!.run(
-									"INSERT INTO symbol_relations (source_id, target_id, relation_type) VALUES (?, ?, ?)",
+								// 检查关系是否已存在，避免唯一约束冲突
+								const existingRelation = await this.db!.get(
+									"SELECT id FROM symbol_relations WHERE source_id = ? AND target_id = ? AND relation_type = ?",
 									[relation.sourceId, relation.targetId, relation.relationType],
 								)
+
+								if (!existingRelation) {
+									await this.db!.run(
+										"INSERT INTO symbol_relations (source_id, target_id, relation_type) VALUES (?, ?, ?)",
+										[relation.sourceId, relation.targetId, relation.relationType],
+									)
+								}
 							}
 						}
 					})
