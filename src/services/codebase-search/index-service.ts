@@ -499,10 +499,10 @@ export class CodebaseIndexService {
 							const symbolId = result.lastID
 
 							// 保存符号内容
-							await this.db!.run("INSERT INTO symbol_contents (symbol_id, content) VALUES (?, ?)", [
-								symbolId,
-								symbol.content,
-							])
+							await this.db!.run(
+								"INSERT OR IGNORE INTO symbol_contents (symbol_id, content) VALUES (?, ?)",
+								[symbolId, symbol.content],
+							)
 
 							// 生成并保存关键词
 							const keywords = this.extractKeywords(symbol.name, symbol.content)
@@ -514,7 +514,7 @@ export class CodebaseIndexService {
 								)
 
 								await this.db!.run(
-									"INSERT INTO keywords (keyword, symbol_id, relevance) VALUES (?, ?, ?)",
+									"INSERT OR IGNORE INTO keywords (keyword, symbol_id, relevance) VALUES (?, ?, ?)",
 									[keyword, symbolId, relevance],
 								)
 							}
@@ -537,7 +537,7 @@ export class CodebaseIndexService {
 
 								if (!existingRelation) {
 									await this.db!.run(
-										"INSERT INTO symbol_relations (source_id, target_id, relation_type) VALUES (?, ?, ?)",
+										"INSERT OR IGNORE INTO symbol_relations (source_id, target_id, relation_type) VALUES (?, ?, ?)",
 										[relation.sourceId, relation.targetId, relation.relationType],
 									)
 								}
