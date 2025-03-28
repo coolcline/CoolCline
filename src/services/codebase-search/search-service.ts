@@ -278,6 +278,7 @@ export class CodebaseSearchService {
 	private async executeSearch(parsedQuery: ParsedQuery, options?: CodebaseSearchOptions): Promise<SearchResult[]> {
 		// 确保依赖服务
 		if (!this.db) {
+			// console.log("search-service.ts 创建数据库连接")
 			this.db = await createDatabase(this.workspacePath)
 		}
 

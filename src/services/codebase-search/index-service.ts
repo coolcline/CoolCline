@@ -114,7 +114,10 @@ export class CodebaseIndexService {
 	 * @private
 	 */
 	private async initDatabase(): Promise<void> {
+		// console.log("index-service.ts Initializing database123...")
 		if (!this.db) {
+			// console.log("index-service.ts Initializing database...")
+			// console.log("Creating codebase workspace path:", this.workspacePath)
 			this.db = await createDatabase(this.workspacePath)
 		}
 	}
@@ -205,6 +208,9 @@ export class CodebaseIndexService {
 		this.isIndexing = true
 
 		try {
+			// 初始化数据库，因为可能在暂停状态后删除了数据库
+			await this.initDatabase()
+
 			// 根据当前阶段选择恢复方式
 			if (this._scanState) {
 				// 恢复扫描过程

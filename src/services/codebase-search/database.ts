@@ -513,6 +513,7 @@ export async function createDatabase(workspacePath: string): Promise<Database> {
 	}
 
 	// 从工作区路径生成唯一标识符(哈希)
+	// console.log("生成 codebase hash 的路径:", workspacePath)
 	const workspaceId = generateWorkspaceId(workspacePath)
 
 	// 创建数据库文件路径 (使用工作区ID作为文件名)
