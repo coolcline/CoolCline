@@ -1,60 +1,34 @@
 /*
-- class declarations
-- method declarations
-- interface declarations
-- references to identifiers
-- method invocations
-- import statements
+- Basic Java definitions and references
 */
 export default `
-(class_declaration
-  name: (identifier) @name.definition.class) @definition.class
+; 基本标识符
+(identifier) @definition
 
-(method_declaration
-  name: (identifier) @name.definition.method) @definition.method
+; 类型标识符
+(type_identifier) @type
 
-(interface_declaration
-  name: (identifier) @name.definition.interface) @definition.interface
+; 类声明
+(class_declaration) @class
 
-; 变量声明和字段声明
-(variable_declarator
-  name: (identifier) @name.definition.variable) @definition.variable
+; 接口声明
+(interface_declaration) @interface
 
-(field_declaration
-  declarator: (variable_declarator
-    name: (identifier) @name.definition.field)) @definition.field
+; 方法声明
+(method_declaration) @method
 
-; 引用捕获
-(identifier) @name.reference
+; 字段声明
+(field_declaration) @field
 
-; 方法调用引用
-(method_invocation
-  name: (identifier) @name.reference.method) @reference.method
+; 变量声明
+(local_variable_declaration) @variable
 
-; 对象创建引用
-(object_creation_expression
-  type: (type_identifier) @name.reference.class) @reference.creation
+; 方法调用
+(method_invocation) @call
 
-; 导入语句
-(import_declaration
-  .
-  (package_name) @import.package) @import
+; 构造函数调用
+(object_creation_expression) @new
 
-(import_declaration
-  .
-  (asterisk) @import.wildcard) @import.wildcard
-
-(import_declaration
-  .
-  (identifier) @import.name) @import.single
-
-; 单类型导入
-(single_type_import
-  (identifier) @import.class) @import.single
-
-; 静态导入
-(static_import_on_demand_declaration) @import.static
-
-; 文档注释
-(javadoc_comment) @doc.comment
+; 导入声明
+(import_declaration) @import
 `

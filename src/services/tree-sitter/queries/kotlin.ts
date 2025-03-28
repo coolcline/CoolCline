@@ -1,22 +1,34 @@
+/*
+- Basic Kotlin definitions and references
+*/
 export default `
-(class_declaration
-  name: (simple_identifier) @name.definition.class) @definition.class
+; 基本标识符
+(identifier) @definition
 
-(function_declaration
-  name: (simple_identifier) @name.definition.function) @definition.function
+; 类型标识符
+(type_identifier) @type
 
-(interface_declaration
-  name: (simple_identifier) @name.definition.interface) @definition.interface
+; 函数声明
+(function_declaration) @function
 
-(object_declaration
-  name: (simple_identifier) @name.definition.object) @definition.object
+; 类声明
+(class_declaration) @class
 
-(property_declaration
-  name: (simple_identifier) @name.definition.property) @definition.property
+; 属性声明
+(property_declaration) @property
 
-(enum_declaration
-  name: (simple_identifier) @name.definition.enum) @definition.enum
+; 对象声明
+(object_declaration) @object
 
-(typealias_declaration
-  name: (simple_identifier) @name.definition.typealias) @definition.typealias
-)`
+; 枚举条目
+(enum_entry) @enum
+
+; 类型别名
+(type_alias) @type
+
+; 导入声明
+(import_header) @import
+
+; 包声明
+(package_header) @package
+`
