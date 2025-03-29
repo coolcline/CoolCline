@@ -513,7 +513,7 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			const handleMessage = (event: MessageEvent) => {
 				const message = event.data
 				if (message.type === "selectionMatched" && message.matched) {
-					console.log("[选择匹配] 收到匹配结果:", message)
+					// console.log("[选择匹配] 收到匹配结果:", message)
 
 					// 收到匹配结果，添加上下文标记
 					const { fileName, lineStart, lineEnd } = message

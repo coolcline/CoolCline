@@ -39,7 +39,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<CoolCl
 	// 初始化代码库搜索服务
 	try {
 		await initializeCodebaseSearch()
-		logger.info("代码库搜索服务初始化完成", { ctx: "extension" })
+		// console.log("代码库搜索服务初始化完成", { ctx: "extension" })
 	} catch (error) {
 		const errorMessage = `代码库搜索服务初始化失败: ${error instanceof Error ? error.message : String(error)}`
 		outputChannel.appendLine(errorMessage)
@@ -49,7 +49,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<CoolCl
 	// 初始化日志系统
 	try {
 		await initializeLogger(context)
-		logger.info("CoolCline extension activated", { ctx: "extension" })
+		// console.log("CoolCline extension activated", { ctx: "extension" })
 	} catch (error) {
 		const errorMessage = `日志系统初始化失败: ${error instanceof Error ? error.message : String(error)}`
 		outputChannel.appendLine(errorMessage)

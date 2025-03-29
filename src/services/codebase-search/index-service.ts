@@ -11,7 +11,7 @@ import * as fs from "fs"
 import * as vscode from "vscode"
 import { IndexOptions, IndexProgress, IndexStats, IndexTask, ResultType } from "./types"
 import { toPosixPath, arePathsEqual, extname, join, relative } from "../../utils/path"
-import { createDatabase, Database } from "./database"
+import { createDatabase, Database, initDatabaseSchema } from "./database"
 import { SemanticAnalysisService, createSemanticAnalysisService } from "./semantic-analysis"
 
 // 定义索引状态接口
@@ -120,6 +120,15 @@ export class CodebaseIndexService {
 			// console.log("Creating codebase workspace path:", this.workspacePath)
 			this.db = await createDatabase(this.workspacePath)
 		}
+
+		if (this.db) {
+			// 判断是否清除了索引
+			// if (!this.db.isCleared) {
+			// 	await initDatabaseSchema(this.db)
+			// }
+
+			await initDatabaseSchema(this.db)
+		}
 	}
 
 	/**
@@ -155,6 +164,7 @@ export class CodebaseIndexService {
 			// 启动处理队列
 			this.processQueue()
 		} catch (error) {
+			console.log("开始索引失败:", error)
 			this._progress.status = "error"
 			this.isIndexing = false
 			throw error
@@ -397,6 +407,13 @@ export class CodebaseIndexService {
 				// 通知状态变化
 				this.notifyStatusChange()
 			}
+			if (!this.db) {
+				console.warn("数据库未初始化，无法清除索引")
+				// 更新状态为已完成清除
+				this._progress = { total: 0, completed: 0, status: "idle" }
+				// 通知状态变化
+				this.notifyStatusChange()
+			}
 		} catch (error) {
 			console.error("清除索引数据失败:", error)
 			this._progress.status = "error"
@@ -535,18 +552,22 @@ export class CodebaseIndexService {
 								relation.sourceId > 0 &&
 								relation.targetId > 0
 							) {
-								// 检查关系是否已存在，避免唯一约束冲突
-								const existingRelation = await this.db!.get(
-									"SELECT id FROM symbol_relations WHERE source_id = ? AND target_id = ? AND relation_type = ?",
+								// // 检查关系是否已存在，避免唯一约束冲突
+								// const existingRelation = await this.db!.get(
+								// 	"SELECT id FROM symbol_relations WHERE source_id = ? AND target_id = ? AND relation_type = ?",
+								// 	[relation.sourceId, relation.targetId, relation.relationType],
+								// )
+
+								// if (!existingRelation) {
+								// 	await this.db!.run(
+								// 		"INSERT OR IGNORE INTO symbol_relations (source_id, target_id, relation_type) VALUES (?, ?, ?)",
+								// 		[relation.sourceId, relation.targetId, relation.relationType],
+								// 	)
+								// }
+								await this.db!.run(
+									"INSERT OR IGNORE INTO symbol_relations (source_id, target_id, relation_type) VALUES (?, ?, ?)",
 									[relation.sourceId, relation.targetId, relation.relationType],
 								)
-
-								if (!existingRelation) {
-									await this.db!.run(
-										"INSERT OR IGNORE INTO symbol_relations (source_id, target_id, relation_type) VALUES (?, ?, ?)",
-										[relation.sourceId, relation.targetId, relation.relationType],
-									)
-								}
 							}
 						}
 					})

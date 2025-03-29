@@ -283,6 +283,8 @@ export class Database {
 			return result
 		} catch (err) {
 			console.error("SQL查询错误:", err)
+			console.error("SQL查询错误sql:", sql)
+			console.error("SQL查询错误params:", params)
 			// 不抛出异常，而是返回null
 			return null
 		}
@@ -544,7 +546,7 @@ export async function createDatabase(workspacePath: string): Promise<Database> {
  * 初始化数据库表结构
  * @param db 数据库实例
  */
-async function initDatabaseSchema(db: Database): Promise<void> {
+export async function initDatabaseSchema(db: Database): Promise<void> {
 	try {
 		// 创建所需的表
 		await db.exec(`
