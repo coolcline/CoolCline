@@ -121,8 +121,7 @@ export class InlineDiffEditor implements EditorInterface {
 		const editor = await vscode.window.showTextDocument(uri, {
 			preview: true,
 			preserveFocus: true,
-			viewColumn: vscode.ViewColumn.Active, // 改为使用当前活动视图
-			selection: new vscode.Range(0, 0, 0, 0), // 将光标放在开始位置
+			viewColumn: vscode.ViewColumn.Active, // 使用当前活动视图
 		})
 
 		// 应用只读装饰器
@@ -196,9 +195,6 @@ export class InlineDiffEditor implements EditorInterface {
 		if (!editor || !document) {
 			throw new Error("User closed text editor, unable to edit file...")
 		}
-
-		const beginningOfDocument = new vscode.Position(0, 0)
-		editor.selection = new vscode.Selection(beginningOfDocument, beginningOfDocument)
 
 		const endLine = accumulatedLines.length
 		const edit = new vscode.WorkspaceEdit()
