@@ -13,31 +13,23 @@ interface GitCommit {
 
 const GitService = {
 	async commit(git: SimpleGit, message: string): Promise<{ hash: string; timestamp: number }> {
-		const commitMessage = `${message},time:${Date.now()}`
-		// if (!commitMessage.includes("checkpoint:") || !commitMessage.includes("autosave:")) {
-		// 	throw new Error("无效的消息格式: 必须包含 checkpoint: 字段 或者 autosave: 字段")
-		// }
+		if (!message.includes("checkpoint:")) {
+			throw new Error("无效的消息格式: 必须包含 checkpoint: 字段")
+		}
 
-		const info = GitOperations.parseMessage(commitMessage)
+		const info = GitOperations.parseMessage(message)
+		if (!info.type) {
+			throw new Error("无效的消息格式: checkpoint 字段值不能为空")
+		}
 
 		let result
-		if (!info.type) {
-			// autosave 提交
-			result = await git.commit(commitMessage)
-		} else if (info.type === "create") {
-			const status = await git.status()
-			if (status.files.length > 0) {
-				// 常规提交，需要包含文件变更
-				result = await git.commit(commitMessage)
-			} else {
-				// 空提交，只记录操作
-				const options = { "--allow-empty": null }
-				result = await git.commit(commitMessage, options)
-			}
+		if (info.type === "create") {
+			// 常规提交，需要包含文件变更
+			result = await git.commit(message)
 		} else if (info.type === "restore" || info.type === "undo_restore") {
 			// 空提交，只记录操作
 			const options = { "--allow-empty": null }
-			result = await git.commit(commitMessage, options)
+			result = await git.commit(message, options)
 		} else {
 			throw new Error(`未知的提交类型: ${info.type}`)
 		}
@@ -253,82 +245,86 @@ export class GitOperations {
 
 		const git = this.getGit(gitPath)
 
-		const hash_one = hash1
-		const hash_two = await git.revparse(["HEAD"])
+		// 由于现在是编辑完成生成检查点
+		// // 将 hash1 往前移动一个检查点
+		// 因为现在是编辑文件内容结束才创建检查点
+		const hash_one = await this.getAdjacentCheckpoint(gitPath, hash1, "previous")
+		const hash_two = hash1
+		if (!hash_one) {
+			throw new Error("这是第一个检查点，无法比较差异")
+		}
 
+		const summary = await git.diffSummary([hash_one, hash_two])
 		const result: CheckpointDiff[] = []
-		// 有 hash_two 也就是比较两个检查点之间的差异
-		if (hash_one !== hash_two) {
-			const summary = await git.diffSummary([hash_one, hash_two])
 
-			for (const file of summary.files) {
-				const relativePath = file.file
+		for (const file of summary.files) {
+			const relativePath = file.file
+			const absolutePath = PathUtils.joinPath(this.userProjectPath, relativePath)
+
+			let before = ""
+			let after = ""
+
+			try {
+				before = await git.show([`${hash_one}:${file.file}`])
+			} catch (error) {
+				// 文件在 previousHash 中不存在
+			}
+
+			try {
+				after = await git.show([`${hash_two}:${file.file}`])
+			} catch (error) {
+				// 文件在 hash2 中不存在
+			}
+
+			const diff: CheckpointDiff = {
+				relativePath,
+				absolutePath,
+				before,
+				after,
+			}
+			result.push(diff)
+		}
+
+		// 检查是否有未提交的变更（工作区和暂存区）
+		const status = await git.status()
+		if (status.files.length > 0) {
+			for (const file of status.files) {
+				const relativePath = file.path
 				const absolutePath = PathUtils.joinPath(this.userProjectPath, relativePath)
-
 				let before = ""
 				let after = ""
 
+				// 获取最新提交的文件内容作为"之前"
 				try {
-					before = await git.show([`${hash_one}:${file.file}`])
+					before = await git.show([`${hash_two}:${relativePath}`])
 				} catch (error) {
-					// 文件在 previousHash 中不存在
+					// 如果文件是新增的，在 hash_two 中不存在
 				}
 
+				// 获取当前工作区的文件内容作为"之后"
 				try {
-					after = await git.show([`${hash_two}:${file.file}`])
+					// 如果文件已被删除，这将抛出错误
+					const filePath = PathUtils.joinPath(this.userProjectPath, relativePath)
+					after = await fs.readFile(filePath, { encoding: "utf8" })
 				} catch (error) {
-					// 文件在 hash2 中不存在
+					// 文件可能已被删除
 				}
 
-				const diff: CheckpointDiff = {
-					relativePath,
-					absolutePath,
-					before,
-					after,
-				}
-				result.push(diff)
-			}
-		} else {
-			// hash_one === hash_two
-			// 没有 hash_two 也就是与工作区，暂存区比较
-			const status = await git.status()
-			if (status.files.length > 0) {
-				for (const file of status.files) {
-					const relativePath = file.path
-					const absolutePath = PathUtils.joinPath(this.userProjectPath, relativePath)
-					let before = ""
-					let after = ""
+				// 检查是否已有此文件的差异（避免重复）
+				const existingDiffIndex = result.findIndex((diff) => diff.relativePath === relativePath)
 
-					// 获取最新提交的文件内容作为"之前"
-					try {
-						before = await git.show([`${hash_one}:${relativePath}`])
-					} catch (error) {}
-
-					// 获取当前工作区的文件内容作为"之后"
-					try {
-						// 如果文件已被删除，这将抛出错误
-						const filePath = PathUtils.joinPath(this.userProjectPath, relativePath)
-						after = await fs.readFile(filePath, { encoding: "utf8" })
-					} catch (error) {
-						// 文件可能已被删除
+				if (existingDiffIndex >= 0) {
+					// 更新现有差异
+					result[existingDiffIndex].after = after
+				} else {
+					// 添加新差异
+					const diff: CheckpointDiff = {
+						relativePath,
+						absolutePath,
+						before,
+						after,
 					}
-
-					// 检查是否已有此文件的差异（避免重复）
-					const existingDiffIndex = result.findIndex((diff) => diff.relativePath === relativePath)
-
-					if (existingDiffIndex >= 0) {
-						// 更新现有差异
-						result[existingDiffIndex].after = after
-					} else {
-						// 添加新差异
-						const diff: CheckpointDiff = {
-							relativePath,
-							absolutePath,
-							before,
-							after,
-						}
-						result.push(diff)
-					}
+					result.push(diff)
 				}
 			}
 		}
@@ -348,135 +344,90 @@ export class GitOperations {
 
 		const git = this.getGit(gitPath)
 
-		const hash_one = fromHash
-		if (!hash_one) {
-			throw new Error("请选择正确的检查点")
-		}
+		// 由于现在是编辑完成生成检查点
+		const hash_one = await this.getAdjacentCheckpoint(gitPath, fromHash, "previous")
 
 		// 获取最新的检查点
 		const hash_two = await git.revparse(["HEAD"])
+		if (!hash_two) {
+			throw new Error("无法获取最新检查点")
+		}
 
+		const summary = await git.diffSummary([hash_one, hash_two])
 		const result: CheckpointDiff[] = []
-		if (hash_one === hash_two) {
-			// hash_one === hash_two
-			// 没有 hash_two 也就是与工作区，暂存区比较
-			const status = await git.status()
-			if (status.files.length > 0) {
-				for (const file of status.files) {
-					const relativePath = file.path
-					const absolutePath = PathUtils.joinPath(this.userProjectPath, relativePath)
-					let before = ""
-					let after = ""
 
-					// 获取最新提交的文件内容作为"之前"
-					try {
-						before = await git.show([`${hash_one}:${relativePath}`])
-					} catch (error) {
-						// 如果文件是新增的，在 hash_two 中不存在
-					}
+		for (const file of summary.files) {
+			const relativePath = file.file
+			const absolutePath = PathUtils.joinPath(this.userProjectPath, relativePath)
 
-					// 获取当前工作区的文件内容作为"之后"
-					try {
-						// 如果文件已被删除，这将抛出错误
-						const filePath = PathUtils.joinPath(this.userProjectPath, relativePath)
-						after = await fs.readFile(filePath, { encoding: "utf8" })
-					} catch (error) {
-						// 文件可能已被删除
-					}
+			let before = ""
+			let after = ""
 
-					// 检查是否已有此文件的差异（避免重复）
-					const existingDiffIndex = result.findIndex((diff) => diff.relativePath === relativePath)
-
-					if (existingDiffIndex >= 0) {
-						// 更新现有差异
-						result[existingDiffIndex].after = after
-					} else {
-						// 添加新差异
-						const diff: CheckpointDiff = {
-							relativePath,
-							absolutePath,
-							before,
-							after,
-						}
-						result.push(diff)
-					}
-				}
+			try {
+				before = await git.show([`${hash_one}:${file.file}`])
+			} catch (error) {
+				// 文件在 previousHash 中不存在
 			}
-		} else {
-			const summary = await git.diffSummary([hash_one, hash_two])
 
-			for (const file of summary.files) {
-				const relativePath = file.file
+			try {
+				after = await git.show([`${hash_two}:${file.file}`])
+			} catch (error) {
+				// 文件在 hash2 中不存在
+			}
+
+			const diff: CheckpointDiff = {
+				relativePath,
+				absolutePath,
+				before,
+				after,
+			}
+			result.push(diff)
+		}
+
+		// 检查是否有未提交的变更（工作区和暂存区）
+		const status = await git.status()
+		if (status.files.length > 0) {
+			for (const file of status.files) {
+				const relativePath = file.path
 				const absolutePath = PathUtils.joinPath(this.userProjectPath, relativePath)
-
 				let before = ""
 				let after = ""
 
+				// 获取最新提交的文件内容作为"之前"
 				try {
-					before = await git.show([`${hash_one}:${file.file}`])
+					before = await git.show([`${hash_two}:${relativePath}`])
 				} catch (error) {
-					// 文件在 previousHash 中不存在
+					// 如果文件是新增的，在 hash_two 中不存在
 				}
 
+				// 获取当前工作区的文件内容作为"之后"
 				try {
-					after = await git.show([`${hash_two}:${file.file}`])
+					// 如果文件已被删除，这将抛出错误
+					const filePath = PathUtils.joinPath(this.userProjectPath, relativePath)
+					after = await fs.readFile(filePath, { encoding: "utf8" })
 				} catch (error) {
-					// 文件在 hash2 中不存在
+					// 文件可能已被删除
 				}
 
-				const diff: CheckpointDiff = {
-					relativePath,
-					absolutePath,
-					before,
-					after,
-				}
-				result.push(diff)
-			}
+				// 检查是否已有此文件的差异（避免重复）
+				const existingDiffIndex = result.findIndex((diff) => diff.relativePath === relativePath)
 
-			// 检查是否有未提交的变更（工作区和暂存区）
-			const status = await git.status()
-			if (status.files.length > 0) {
-				for (const file of status.files) {
-					const relativePath = file.path
-					const absolutePath = PathUtils.joinPath(this.userProjectPath, relativePath)
-					let before = ""
-					let after = ""
-
-					// 获取最新提交的文件内容作为"之前"
-					try {
-						before = await git.show([`${hash_one}:${relativePath}`])
-					} catch (error) {
-						// 如果文件是新增的，在 hash_two 中不存在
+				if (existingDiffIndex >= 0) {
+					// 更新现有差异
+					result[existingDiffIndex].after = after
+				} else {
+					// 添加新差异
+					const diff: CheckpointDiff = {
+						relativePath,
+						absolutePath,
+						before,
+						after,
 					}
-
-					// 获取当前工作区的文件内容作为"之后"
-					try {
-						// 如果文件已被删除，这将抛出错误
-						const filePath = PathUtils.joinPath(this.userProjectPath, relativePath)
-						after = await fs.readFile(filePath, { encoding: "utf8" })
-					} catch (error) {
-						// 文件可能已被删除
-					}
-
-					// 检查是否已有此文件的差异（避免重复）
-					const existingDiffIndex = result.findIndex((diff) => diff.relativePath === relativePath)
-
-					if (existingDiffIndex >= 0) {
-						// 更新现有差异
-						result[existingDiffIndex].after = after
-					} else {
-						// 添加新差异
-						const diff: CheckpointDiff = {
-							relativePath,
-							absolutePath,
-							before,
-							after,
-						}
-						result.push(diff)
-					}
+					result.push(diff)
 				}
 			}
 		}
+
 		return result
 	}
 
@@ -489,18 +440,9 @@ export class GitOperations {
 		}
 
 		const git = this.getGit(gitPath)
-
-		// 判断工作区和暂存区是否有未提交的变更
-		const status = await git.status()
-		if (status.files.length > 0) {
-			// 有未提交的变更，先提交，这样后面如果要实现 undo restore 才可用还原到未提交的变更
-			await git.add(".")
-			// const autoSaveMessage = `autosave: uncommitted changes before reset to ${info.targetHash.substring(0, 7)}`
-			return await GitService.commit(git, message)
-		} else {
-			// 没有未提交的变更，直接创建检查点
-			return await GitService.commit(git, message)
-		}
+		await git.add(".")
+		const commitMessage = `${message},time:${Date.now()}`
+		return await GitService.commit(git, commitMessage)
 	}
 
 	/**
@@ -542,7 +484,10 @@ export class GitOperations {
 		const git = this.getGit(gitPath)
 		const info = GitOperations.parseMessage(message)
 
-		if (!info.targetHash) {
+		// 获取前一个检查点
+		// 由于我们现在改为编辑完成生成检查点，所以 restore 是要还原到上一个提交
+		const previousHash = await this.getAdjacentCheckpoint(gitPath, info.targetHash!, "previous")
+		if (!previousHash) {
 			throw new Error("这是第一个检查点，无法恢复")
 		}
 
@@ -553,23 +498,17 @@ export class GitOperations {
 				throw error
 			}
 		} else if (info.restoreMode === "restore_this_and_after_change") {
-			// 判断工作区和暂存区是否有未提交的变更
-			const status = await git.status()
-			if (status.files.length > 0) {
-				// 有未提交的变更，先提交，这样后面如果要实现 undo restore 才可用还原到未提交的变更
-				await git.add(".")
-				const autoSaveMessage = `autosave: uncommitted changes before reset to ${info.targetHash.substring(0, 7)}`
-				await GitService.commit(git, autoSaveMessage)
-			}
+			// 清理工作区中未跟踪的文件
+			await git.clean([CleanOptions.FORCE, CleanOptions.RECURSIVE])
 
-			// 恢复到指定的检查点
-			await git.reset(["--hard", info.targetHash])
+			// 恢复到前一个检查点
+			await git.reset(["--hard", previousHash])
 		} else {
 			throw new Error("无效的 restore 模式")
 		}
 
-		// 记录恢复操作
-		return await GitService.commit(git, message)
+		const commitMessage = `${message},time:${Date.now()}`
+		return await GitService.commit(git, commitMessage)
 	}
 
 	/**
@@ -592,6 +531,12 @@ export class GitOperations {
 			throw new Error("目标不是一个 restore 记录，不能执行撤销")
 		}
 
+		// 获取下一个检查点
+		const nextHash = await this.getAdjacentCheckpoint(gitPath, info.targetHash!, "next")
+		if (!nextHash) {
+			throw new Error("这是最新的检查点，无法撤销恢复")
+		}
+
 		// 获取恢复操作的目标提交
 		const restoreTargetHash = targetInfo.targetHash
 		if (!restoreTargetHash) {
@@ -601,21 +546,20 @@ export class GitOperations {
 		// 根据原始恢复操作的模式执行不同的撤销操作
 		if (targetInfo.restoreMode === "restore_this_change") {
 			try {
-				await this.revertCheckpoint(git, targetInfo.targetHash!)
+				await this.revertCheckpoint(git, info.targetHash!)
 			} catch (error) {
 				throw error
 			}
 		} else if (targetInfo.restoreMode === "restore_this_and_after_change") {
-			// 判断工作区和暂存区是否有未提交的变更
-			const status = await git.status()
-			if (status.files.length > 0) {
-				// 有未提交的变更，先提交，这样后面如果要实现 undo restore 才可用还原到未提交的变更
-				await git.add(".")
-				const autoSaveMessage = `autosave: uncommitted changes before reset to ${restoreTargetHash.substring(0, 7)}`
-				await GitService.commit(git, autoSaveMessage)
-			}
+			// 清理工作区中未跟踪的文件
+			await git.clean([CleanOptions.FORCE, CleanOptions.RECURSIVE])
 
-			await git.reset(["--hard", restoreTargetHash])
+			// 恢复到恢复操作的目标提交的下一个提交
+			const restoreNextHash = await this.getAdjacentCheckpoint(gitPath, restoreTargetHash, "next")
+			if (!restoreNextHash) {
+				throw new Error("无法获取恢复操作的目标提交的下一个提交")
+			}
+			await git.reset(["--hard", restoreNextHash])
 		} else {
 			throw new Error("无效的 restore 模式")
 		}

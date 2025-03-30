@@ -503,7 +503,7 @@ export class CoolCline {
 		if (text) {
 			// 收到发送的消息（一个任务窗口追问的情况）
 			// console.log("handleWebviewAskResponse,awaitCreateCheckpoint", text)
-			// this.awaitCreateCheckpoint = true // 当用户发送消息时设置标记
+			this.awaitCreateCheckpoint = true // 当用户发送消息时设置标记
 		}
 		this.askResponse = askResponse
 		this.askResponseText = text
@@ -619,7 +619,7 @@ export class CoolCline {
 
 	private async resumeTaskFromHistory() {
 		const modifiedCoolClineMessages = await this.getSavedCoolClineMessages()
-		// this.awaitCreateCheckpoint = true // 在恢复任务时设置标记，确保第一次修改操作会创建检查点
+		this.awaitCreateCheckpoint = true // 在恢复任务时设置标记，确保第一次修改操作会创建检查点
 
 		// Remove any resume messages that may have been added before
 		const lastRelevantMessageIndex = findLastIndex(
@@ -1370,7 +1370,12 @@ export class CoolCline {
 				]
 
 				if (modifyingTools.includes(block.name)) {
-					this.awaitCreateCheckpoint = true
+					// 如果有文件修改，在 AI 响应结束时创建检查点
+					if (this.awaitCreateCheckpoint) {
+						// console.log("1.AI 响应结束，生成 checkpoint")
+						await this.checkpointSave()
+						// await new Promise(resolve => setTimeout(resolve, 1000))
+					}
 				}
 
 				const toolDescription = (): string => {
@@ -2922,12 +2927,19 @@ export class CoolCline {
 									break
 								}
 
-								// 如果有文件修改，在 AI 响应结束时创建检查点
-								if (this.awaitCreateCheckpoint) {
-									// console.log("1.AI 响应结束，生成 checkpoint")
-									await this.checkpointSave()
-									// await new Promise(resolve => setTimeout(resolve, 1000))
-								}
+								// // 如果有文件修改，在 AI 响应结束时创建检查点
+								// if (this.awaitCreateCheckpoint) {
+								// 	// console.log("1.AI 响应结束，生成 checkpoint")
+								// 	await this.checkpointSave()
+								// 	// await new Promise(resolve => setTimeout(resolve, 1000))
+								// }
+
+								// 在成功创建检查点后调用差异功能
+								await this.checkpointDiff({
+									ts: Date.now(),
+									commitHash: "HEAD",
+									mode: "checkpoint",
+								})
 
 								this.consecutiveMistakeCount = 0
 
@@ -3130,6 +3142,13 @@ export class CoolCline {
 					// instead of streaming partialMessage events, we do a save and post like normal to persist to disk
 					console.log("updating partial message", lastMessage)
 					// await this.saveCoolClineMessages()
+
+					// // 在成功创建检查点后调用差异功能
+					// await this.checkpointDiff({
+					// 	ts: Date.now(),
+					// 	commitHash: "HEAD",
+					// 	mode: "checkpoint",
+					// })
 				}
 
 				// Let assistant know their response was interrupted for when task is resumed
@@ -3740,6 +3759,7 @@ export class CoolCline {
 			const service = await this.getCheckpointService()
 			const message = `checkpoint:create,task:${this.taskId}`
 			const checkpoint = await service.saveCheckpoint(message)
+			// console.log("checkpointresult: ", checkpoint)
 
 			if (checkpoint?.hash) {
 				await this.providerRef
@@ -3752,14 +3772,14 @@ export class CoolCline {
 
 				// 直接移动最后一条消息（就是刚刚创建的 checkpoint 消息）
 				// 移动到消息下一行
-				await this.moveCheckpointAfterMessage()
+				this.moveCheckpointAfterMessage()
 
-				// 在成功创建检查点后调用差异功能
-				await this.checkpointDiff({
-					ts: Date.now(),
-					commitHash: checkpoint.hash,
-					mode: "checkpoint",
-				})
+				// // 在成功创建检查点后调用差异功能
+				// await this.checkpointDiff({
+				// 	ts: Date.now(),
+				// 	commitHash: checkpoint.hash,
+				// 	mode: "checkpoint",
+				// })
 				return true
 			}
 			return false
@@ -3771,7 +3791,7 @@ export class CoolCline {
 				)
 
 			// 失败时不重置标记，这样下次修改操作时还会尝试创建检查点
-			console.error("创建检查点失败，将在下次修改时重试")
+			console.error("创建检查点失败，将在下次修改时重试", err)
 			return false
 		}
 	}
@@ -3894,13 +3914,13 @@ export class CoolCline {
 			// 处理文件恢复
 			const service = await this.getCheckpointService()
 			if (mode === "restore_this_change") {
-				const message1 = `checkpoint:restore,task:${this.taskId},target:${commitHash},restoreMode:restore_this_change,time:${Date.now()}`
+				const message1 = `checkpoint:restore,task:${this.taskId},target:${commitHash},restoreMode:restore_this_change`
 				await service.restoreCheckpoint(message1)
 			} else if (mode === "restore_this_and_after_change") {
-				const message2 = `checkpoint:restore,task:${this.taskId},target:${commitHash},restoreMode:restore_this_and_after_change,time:${Date.now()}`
+				const message2 = `checkpoint:restore,task:${this.taskId},target:${commitHash},restoreMode:restore_this_and_after_change`
 				await service.restoreCheckpoint(message2)
 			} else if (mode === "undo_restore") {
-				const message3 = `checkpoint:undo_restore,task:${this.taskId},target:${commitHash},restoreMode:undo_restore,time:${Date.now()}`
+				const message3 = `checkpoint:undo_restore,task:${this.taskId},target:${commitHash},restoreMode:undo_restore`
 				await service.undoRestore(message3)
 			}
 
