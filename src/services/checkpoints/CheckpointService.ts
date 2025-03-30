@@ -157,7 +157,7 @@ export class CheckpointService {
 	 * @param toHash 结束 commit hash，如果不提供则与工作区比较
 	 * 当没有传 toHash 时会执行与工作区的比较
 	 */
-	public async getDiff(fromHash: string, toHash?: string): Promise<CheckpointDiff[]> {
+	public async getDiff(fromHash: string): Promise<CheckpointDiff[]> {
 		if (!this.gitPath) {
 			throw new Error("Checkpoint 服务未初始化")
 		}

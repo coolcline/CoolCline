@@ -254,11 +254,11 @@ export class GitOperations {
 		const git = this.getGit(gitPath)
 
 		const hash_one = hash1
-		const hash_two = await git.revparse(["HEAD"])
+		const hash_two = await this.getAdjacentCheckpoint(gitPath, hash1, "next")
 
 		const result: CheckpointDiff[] = []
 		// 有 hash_two 也就是比较两个检查点之间的差异
-		if (hash_one !== hash_two) {
+		if (hash_two !== "" && hash_one !== hash_two) {
 			const summary = await git.diffSummary([hash_one, hash_two])
 
 			for (const file of summary.files) {
@@ -516,18 +516,22 @@ export class GitOperations {
 	): Promise<string> {
 		const git = this.getGit(gitPath)
 
-		// 使用 git rev-list 命令高效查找相邻的检查点
-		const args = ["--max-count=1", direction === "previous" ? "--parents" : "--children", currentHash]
-
-		const result = await git.raw(["rev-list", ...args])
-		const hashes = result.trim().split(/\s+/)
-
 		if (direction === "previous") {
-			// 对于 previous，取第二个 hash（父提交）
+			// 对于 previous，使用 --parents 获取父提交
+			const result = await git.raw(["rev-list", "--max-count=1", "--parents", currentHash])
+			const hashes = result.trim().split(/\s+/)
 			return hashes[1] || ""
 		} else {
-			// 对于 next，取第一个子提交
-			return hashes[0] || ""
+			// 对于 next，使用 rev-list 获取所有提交，然后找到当前提交的下一个
+			const result = await git.raw(["rev-list", "--reverse", "HEAD"])
+			const commits = result.trim().split("\n")
+			const currentIndex = commits.indexOf(currentHash)
+
+			// 如果找到当前提交且不是最后一个，返回下一个提交
+			if (currentIndex !== -1 && currentIndex < commits.length - 1) {
+				return commits[currentIndex + 1]
+			}
+			return ""
 		}
 	}
 

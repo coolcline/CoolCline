@@ -817,11 +817,13 @@ export const ChatRowContent = ({
 					)
 				case "checkpoint_saved":
 					return (
-						<CheckpointSaved
-							ts={message.ts!}
-							commitHash={message.text!}
-							currentCheckpointHash={currentCheckpoint}
-						/>
+						<div style={{ paddingBottom: 10 }}>
+							<CheckpointSaved
+								ts={message.ts!}
+								commitHash={message.text!}
+								currentCheckpointHash={currentCheckpoint}
+							/>
+						</div>
 					)
 				default:
 					return (

@@ -2937,7 +2937,7 @@ export class CoolCline {
 								// 在成功创建检查点后调用差异功能
 								await this.checkpointDiff({
 									ts: Date.now(),
-									commitHash: "HEAD",
+									commitHash: "",
 									mode: "checkpoint",
 								})
 
@@ -3610,13 +3610,12 @@ export class CoolCline {
 			return
 		}
 
-		let nextCommitHash = undefined
 		let title = ""
 		let changes = undefined
 
 		if (mode === "checkpoint") {
 			const service = await this.getCheckpointService()
-			changes = await service.getDiff(commitHash || "HEAD", nextCommitHash || undefined)
+			changes = await service.getDiff(commitHash || "HEAD")
 
 			title = "This Changes"
 		} else {
