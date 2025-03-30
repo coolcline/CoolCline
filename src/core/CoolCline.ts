@@ -3811,8 +3811,8 @@ export class CoolCline {
 			if (shouldRestoreMessages) {
 				// 找到用户发送的消息
 				const editMessageIndex = this.coolclineMessages.findIndex((m) => m.ts === ts)
-				console.log("coolclineMessages: ", this.coolclineMessages)
-				console.log("editMessageIndex: ", editMessageIndex)
+				// console.log("coolclineMessages: ", this.coolclineMessages)
+				// console.log("editMessageIndex: ", editMessageIndex)
 
 				if (editMessageIndex === -1) {
 					this.providerRef
@@ -3835,7 +3835,7 @@ export class CoolCline {
 
 				// 找到原始消息
 				const message = this.coolclineMessages[taskStartIndex]
-				console.log("上一条message: ", message)
+				// console.log("上一条message: ", message)
 				if (!message) {
 					throw new Error("无法找到要恢复的消息")
 				}
@@ -3850,7 +3850,7 @@ export class CoolCline {
 
 					// 查找下一条用户消息
 					let nextMessageIndex = editMessageIndex
-					console.log("nextMessageIndex1: ", nextMessageIndex)
+					// console.log("nextMessageIndex1: ", nextMessageIndex)
 					while (nextMessageIndex < this.coolclineMessages.length - 1) {
 						const nextMsg = this.coolclineMessages[nextMessageIndex] // 修改这里
 						if (nextMsg.type === "say" && Array.isArray(nextMsg.images)) {
@@ -3865,7 +3865,7 @@ export class CoolCline {
 					} else {
 						message = this.coolclineMessages[taskStartIndex]
 					}
-					console.log("下一条message: ", message)
+					// console.log("下一条message: ", message)
 
 					// 计算要删除的元素数量
 					const deleteCount =

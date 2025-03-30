@@ -36,7 +36,7 @@ export class CheckpointService {
 	private readonly vscodeGlobalStorageCoolClinePath: string
 	private readonly userProjectPath: string
 	private readonly _taskId: string
-	private readonly log: (message: string) => void
+	// private readonly log: (message: string) => void
 	private gitPath?: string
 	private isInitialized = false // 添加初始化状态标志
 
@@ -47,7 +47,7 @@ export class CheckpointService {
 		this.userProjectPath = PathUtils.normalizePath(options.userProjectPath)
 		this.git = options.git || simpleGit(this.vscodeGlobalStorageCoolClinePath)
 		this._taskId = options.taskId
-		this.log = options.log || console.log
+		// this.log = options.log || console.log
 		this.outputChannel = vscode.window.createOutputChannel("Checkpoint Service")
 		this.tracker = new CheckpointTracker(this.vscodeGlobalStorageCoolClinePath, this._taskId, this.userProjectPath)
 		this.gitOps = new GitOperations(this.vscodeGlobalStorageCoolClinePath, this.userProjectPath)
@@ -71,7 +71,7 @@ export class CheckpointService {
 			vscodeGlobalStorageCoolClinePath: PathUtils.normalizePath(provider.context.globalStorageUri.fsPath),
 			taskId,
 			provider,
-			log: console.log,
+			// log: console.log,
 		})
 	}
 
