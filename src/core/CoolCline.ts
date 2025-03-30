@@ -619,7 +619,7 @@ export class CoolCline {
 
 	private async resumeTaskFromHistory() {
 		const modifiedCoolClineMessages = await this.getSavedCoolClineMessages()
-		this.awaitCreateCheckpoint = true // 在恢复任务时设置标记，确保第一次修改操作会创建检查点
+		// this.awaitCreateCheckpoint = true // 在恢复任务时设置标记，确保第一次修改操作会创建检查点
 
 		// Remove any resume messages that may have been added before
 		const lastRelevantMessageIndex = findLastIndex(
