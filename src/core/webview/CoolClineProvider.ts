@@ -946,7 +946,7 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
 							const soundPath = PathUtils.joinPath(
 								this.context.extensionPath,
 								"audio",
-								`${message.audioType}.${os.platform() === "win32" ? "mp3" : "ogg"}`,
+								`${message.audioType}.wav`,
 							)
 							playSound(soundPath)
 						}
