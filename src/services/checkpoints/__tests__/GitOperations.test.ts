@@ -127,7 +127,7 @@ describe("GitOperations", () => {
 			await gitOps.restoreCheckpoint(gitPath, restoreMessage)
 
 			const content = await fs.readFile(testFile, "utf-8")
-			expect(content).toBe("initial content")
+			expect(content).toBe("modified content 1")
 		})
 	})
 

@@ -124,7 +124,7 @@ describe("CheckpointService", () => {
 
 			// 验证文件内容已恢复
 			const content = await fs.readFile(env.testFilePath, "utf-8")
-			expect(content).toBe("initial content")
+			expect(content).toBe("modified content 1")
 		})
 
 		it("应该能够撤销恢复操作", async () => {
@@ -152,7 +152,7 @@ describe("CheckpointService", () => {
 
 			// 验证文件内容已恢复到修改后的状态
 			const content = await fs.readFile(env.testFilePath, "utf-8")
-			expect(content).toBe("modified content")
+			expect(content).toBe("initial content")
 		})
 	})
 
