@@ -5,7 +5,7 @@ import * as fs from "fs"
 import * as vscode from "vscode"
 import { CodebaseSearchOptions, ParsedQuery, ResultType, SearchResult } from "./types"
 import { toPosixPath, arePathsEqual, join, isAbsolute } from "../../utils/path"
-import { createDatabase, Database, initDatabaseSchema } from "./database"
+import { createDatabase, Database } from "./database"
 import { createSemanticAnalysisService, SemanticAnalysisService } from "./semantic-analysis"
 
 /**
@@ -280,14 +280,6 @@ export class CodebaseSearchService {
 		if (!this.db) {
 			// console.log("search-service.ts 创建数据库连接")
 			this.db = await createDatabase(this.workspacePath)
-		}
-		if (this.db) {
-			// 判断是否清除了索引
-			// if (!this.db.isCleared) {
-			// 	await initDatabaseSchema(this.db)
-			// }
-
-			await initDatabaseSchema(this.db)
 		}
 
 		if (!this.semanticAnalyzer) {

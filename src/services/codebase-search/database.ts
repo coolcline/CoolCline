@@ -546,7 +546,7 @@ export async function createDatabase(workspacePath: string): Promise<Database> {
  * 初始化数据库表结构
  * @param db 数据库实例
  */
-export async function initDatabaseSchema(db: Database): Promise<void> {
+async function initDatabaseSchema(db: Database): Promise<void> {
 	try {
 		// 创建所需的表
 		await db.exec(`

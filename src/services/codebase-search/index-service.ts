@@ -11,7 +11,7 @@ import * as fs from "fs"
 import * as vscode from "vscode"
 import { IndexOptions, IndexProgress, IndexStats, IndexTask, ResultType } from "./types"
 import { toPosixPath, arePathsEqual, extname, join, relative } from "../../utils/path"
-import { createDatabase, Database, initDatabaseSchema } from "./database"
+import { createDatabase, Database } from "./database"
 import { SemanticAnalysisService, createSemanticAnalysisService } from "./semantic-analysis"
 
 // 定义索引状态接口
@@ -119,15 +119,6 @@ export class CodebaseIndexService {
 			// console.log("index-service.ts Initializing database...")
 			// console.log("Creating codebase workspace path:", this.workspacePath)
 			this.db = await createDatabase(this.workspacePath)
-		}
-
-		if (this.db) {
-			// 判断是否清除了索引
-			// if (!this.db.isCleared) {
-			// 	await initDatabaseSchema(this.db)
-			// }
-
-			await initDatabaseSchema(this.db)
 		}
 	}
 
