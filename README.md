@@ -15,6 +15,10 @@
 
 ---
 
+## ![chat](assets/docs/chat.png)
+
+## ![codebase](assets/docs/codebase.jpg)
+
 ## Getting Started
 
 ### Install VSCode Extension

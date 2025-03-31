@@ -4,6 +4,10 @@
 >
 > 详细文档: [English](docs/user-docs/en/index.md) | [简体中文](https://gitee.com/coolcline/coolcline/blob/main/docs/user-docs/zh/index.md)
 
+## [4.6.4] 2025-03-31
+
+- 优化终端命令执行后自动读取输出
+
 ## [4.6.3] 2025-03-31
 
 - 优化 UI 状态更新逻辑

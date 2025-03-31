@@ -15,6 +15,10 @@
 
 ---
 
+## ![chat](assets/docs/chat.png)
+
+## ![codebase](assets/docs/codebase.jpg)
+
 ## 准备工作
 
 ### 安装 VSCode 插件
