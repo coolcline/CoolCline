@@ -3,25 +3,31 @@
 >
 > Detailed Documentation: [English](docs/user-docs/en/index.md) | [简体中文](https://gitee.com/coolcline/coolcline/blob/main/docs/user-docs/zh/index.md)
 
-## [4.6.1] 2023-03-27
+## [4.6.2] 2025-03-31
+
+- Added gemini-2.5-pro-03-25 model support
+- Optimized codebase indexing
+- Optimized editor focus jump, changed to not jump to editor during ai response process
+
+## [4.6.1] 2025-03-27
 
 - Optimized @ mention functionality
 
-## [4.5.9] 2023-03-26
+## [4.5.9] 2025-03-26
 
 - Optimized @ mention functionality
 - Optimized codebase
 
-## [4.5.8] 2023-03-26
+## [4.5.8] 2025-03-26
 
 - Optimized codebase
 
-## [4.5.7] 2023-03-25
+## [4.5.7] 2025-03-25
 
 - Added message area editor
 - Optimized codebase
 
-## [4.5.6] 2023-03-23
+## [4.5.6] 2025-03-23
 
 - Optimized codebase
 

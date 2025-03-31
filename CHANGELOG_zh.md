@@ -4,25 +4,31 @@
 >
 > 详细文档: [English](docs/user-docs/en/index.md) | [简体中文](https://gitee.com/coolcline/coolcline/blob/main/docs/user-docs/zh/index.md)
 
-## [4.6.1] 2023-03-27
+## [4.6.2] 2025-03-31
+
+- 新增 gemini-2.5-pro-03-25 模型支持
+- 优化 codebase 索引
+- 优化编辑器焦点跳转，改为 ai 响应过程焦点不跳转到编辑器
+
+## [4.6.1] 2025-03-27
 
 - 优化 @ 提及功能
 
-## [4.5.9] 2023-03-26
+## [4.5.9] 2025-03-26
 
 - 优化 @ 提及功能
 - 优化代码库 codebase 索引
 
-## [4.5.8] 2023-03-26
+## [4.5.8] 2025-03-26
 
 - Optimized codebase
 
-## [4.5.7] 2023-03-25
+## [4.5.7] 2025-03-25
 
 - 新增消息区编辑器
 - Optimized codebase
 
-## [4.5.6] 2023-03-23
+## [4.5.6] 2025-03-23
 
 - 优化codebase
 
