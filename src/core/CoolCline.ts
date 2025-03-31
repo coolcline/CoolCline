@@ -2941,6 +2941,9 @@ export class CoolCline {
 									mode: "checkpoint",
 								})
 
+								//
+								this.moveCheckpointAfterMessage()
+
 								this.consecutiveMistakeCount = 0
 
 								let commandResult: ToolResponse | undefined
@@ -3771,7 +3774,7 @@ export class CoolCline {
 
 				// 直接移动最后一条消息（就是刚刚创建的 checkpoint 消息）
 				// 移动到消息下一行
-				this.moveCheckpointAfterMessage()
+				// this.moveCheckpointAfterMessage()
 
 				// // 在成功创建检查点后调用差异功能
 				// await this.checkpointDiff({
