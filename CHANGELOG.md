@@ -3,6 +3,10 @@
 >
 > Detailed Documentation: [English](docs/user-docs/en/index.md) | [简体中文](https://gitee.com/coolcline/coolcline/blob/main/docs/user-docs/zh/index.md)
 
+## [4.6.3] 2025-03-31
+
+- Optimized UI state update logic
+
 ## [4.6.2] 2025-03-31
 
 - Added gemini-2.5-pro-03-25 model support

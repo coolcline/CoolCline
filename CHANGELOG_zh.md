@@ -4,6 +4,10 @@
 >
 > 详细文档: [English](docs/user-docs/en/index.md) | [简体中文](https://gitee.com/coolcline/coolcline/blob/main/docs/user-docs/zh/index.md)
 
+## [4.6.3] 2025-03-31
+
+- 优化 UI 状态更新逻辑
+
 ## [4.6.2] 2025-03-31
 
 - 新增 gemini-2.5-pro-03-25 模型支持
