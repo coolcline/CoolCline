@@ -19,8 +19,8 @@ export class TerminalProcess extends EventEmitter {
 	private static isTestMode: boolean = false
 
 	private static readonly OUTPUT_CHECK_CONFIG = {
-		maxAttempts: 30,
-		intervalMs: 100,
+		maxAttempts: 60 * 60,
+		intervalMs: 1000,
 		minWaitMs: 100,
 		maxWaitMs: 2000,
 		stableCount: 3,
@@ -121,7 +121,7 @@ export class TerminalProcess extends EventEmitter {
 			let disposable: vscode.Disposable | undefined
 
 			const cleanup = () => {
-				logger.debug("清理资源", { ctx: "terminal" })
+				// logger.debug("清理资源", { ctx: "terminal" })
 				if (timeoutId) clearTimeout(timeoutId)
 				if (disposable) disposable.dispose()
 				this.isHot = false
@@ -132,37 +132,60 @@ export class TerminalProcess extends EventEmitter {
 				const hasExecuteCommand = typeof shellIntegration?.executeCommand === "function"
 
 				if (hasExecuteCommand) {
-					logger.debug("使用 shell integration 执行命令", {
-						ctx: "terminal",
-						command: commandPreview,
-					})
+					// logger.debug("使用 shell integration 执行命令", {
+					// 	ctx: "terminal",
+					// 	command: commandPreview,
+					// })
 
 					//先启动监听命令输出,再执行命令,防止执行速度太快或慢漏了监听的东西
-					disposable = vscode.window.onDidEndTerminalShellExecution(async (event) => {
+					disposable = vscode.window.onDidEndTerminalShellExecution(async (event): Promise<void> => {
 						if (event.execution === execution) {
 							try {
-								logger.debug("命令执行完成", {
-									ctx: "terminal",
-									exitCode: event.exitCode,
-								})
+								// logger.debug("命令执行完成", {
+								// 	ctx: "terminal",
+								// 	exitCode: event.exitCode,
+								// })
 
 								// 获取最终输出
 								const finalOutput = await this.getTerminalContents()
 								if (finalOutput) {
-									logger.debug("获取到最终输出", {
-										ctx: "terminal",
-										outputLength: finalOutput.length,
-									})
+									// logger.debug("获取到最终输出", {
+									// 	ctx: "terminal",
+									// 	outputLength: finalOutput.length,
+									// })
 
+									const lines = finalOutput.split("\n")
 									// 重组命令行（因为终端显示内容时，如果终端宽度窄，命令会被截断，而换行，所有无法找到命令
+									// 1. 找到最后一个提示符行
+									let lastPromptLineIndex = lines.length - 1
+									while (lastPromptLineIndex >= 0 && !this.isPromptLine(lines[lastPromptLineIndex])) {
+										lastPromptLineIndex--
+									}
+
+									if (lastPromptLineIndex < 0) {
+										console.log("没有找到提示符行，返回 null")
+									}
+
+									const promptText = this.extractPromptText(lines[lastPromptLineIndex])
+
+									// 2. 找命令所在行
+									let commandIndex = -1
+									for (let i = lastPromptLineIndex - 1; i >= 0; i--) {
+										if (lines[i].includes(promptText)) {
+											commandIndex = i
+											break
+										}
+									}
+
+									// 3. 重组命令行（如果命令被换行）,只处理最后一个命令
+									const reconstructLines = await this.reconstructCommandLines(
+										lines.slice(commandIndex),
+										this.command,
+										promptText,
+									)
 
 									// 只处理新的输出部分
-									const lines = finalOutput.split("\n")
-									const commandIndex = lines.findIndex((line) => line.includes(this.command))
-									if (commandIndex !== -1 && commandIndex < lines.length - 1) {
-										const newOutput = lines.slice(commandIndex + 1).join("\n")
-										this.processOutput(newOutput)
-									}
+									this.processOutput(reconstructLines.join("\n"))
 								}
 
 								// 命令执行完成
@@ -171,10 +194,10 @@ export class TerminalProcess extends EventEmitter {
 								cleanup()
 								resolve()
 							} catch (error) {
-								logger.error("处理命令输出时发生错误", {
-									ctx: "terminal",
-									error: error instanceof Error ? error : new Error(String(error)),
-								})
+								// logger.error("处理命令输出时发生错误", {
+								// 	ctx: "terminal",
+								// 	error: error instanceof Error ? error : new Error(String(error)),
+								// })
 								cleanup()
 								reject(error)
 							}
@@ -187,20 +210,20 @@ export class TerminalProcess extends EventEmitter {
 					// 设置超时（在测试模式下禁用）
 					if (!TerminalProcess.isTestMode) {
 						timeoutId = setTimeout(() => {
-							logger.warn("命令执行超时", {
-								ctx: "terminal",
-								command: commandPreview,
-							})
+							// logger.warn("命令执行超时", {
+							// 	ctx: "terminal",
+							// 	command: commandPreview,
+							// })
 							cleanup()
 							reject(new Error("Command execution timeout"))
 						}, PROCESS_HOT_TIMEOUT_COMPILING)
 					}
 				} else {
 					// 使用传统方式
-					logger.debug("使用传统方式执行命令", {
-						ctx: "terminal",
-						command: commandPreview,
-					})
+					// logger.debug("使用传统方式执行命令", {
+					// 	ctx: "terminal",
+					// 	command: commandPreview,
+					// })
 
 					// 触发 no_shell_integration 事件
 					this.emit("no_shell_integration")
@@ -215,10 +238,10 @@ export class TerminalProcess extends EventEmitter {
 					// 设置较短的超时时间（在测试模式下禁用）
 					if (!TerminalProcess.isTestMode) {
 						timeoutId = setTimeout(() => {
-							logger.warn("传统方式执行超时", {
-								ctx: "terminal",
-								command: commandPreview,
-							})
+							// logger.warn("传统方式执行超时", {
+							// 	ctx: "terminal",
+							// 	command: commandPreview,
+							// })
 							cleanup()
 							reject(new Error("Command execution timeout"))
 						}, PROCESS_HOT_TIMEOUT_COMPILING)
@@ -229,11 +252,11 @@ export class TerminalProcess extends EventEmitter {
 						.then((output) => {
 							if (output) {
 								if (output.length > TerminalProcess.MAX_OUTPUT_LENGTH) {
-									logger.warn("命令输出超过限制", {
-										ctx: "terminal",
-										length: output.length,
-										limit: TerminalProcess.MAX_OUTPUT_LENGTH,
-									})
+									// logger.warn("命令输出超过限制", {
+									// 	ctx: "terminal",
+									// 	length: output.length,
+									// 	limit: TerminalProcess.MAX_OUTPUT_LENGTH,
+									// })
 
 									const truncatedOutput =
 										output.substring(0, TerminalProcess.MAX_OUTPUT_PREVIEW_LENGTH) +
@@ -259,10 +282,10 @@ export class TerminalProcess extends EventEmitter {
 						})
 				}
 			} catch (error) {
-				logger.error("命令执行失败", {
-					ctx: "terminal",
-					error: error instanceof Error ? error : new Error(String(error)),
-				})
+				// logger.error("命令执行失败", {
+				// 	ctx: "terminal",
+				// 	error: error instanceof Error ? error : new Error(String(error)),
+				// })
 				cleanup()
 				reject(error instanceof Error ? error : new Error(String(error)))
 			}
@@ -270,10 +293,10 @@ export class TerminalProcess extends EventEmitter {
 	}
 
 	private processOutput(output: string) {
-		logger.debug("开始处理终端输出", {
-			ctx: "terminal",
-			outputLength: output.length,
-		})
+		// logger.debug("开始处理终端输出", {
+		// 	ctx: "terminal",
+		// 	outputLength: output.length,
+		// })
 
 		// 移除 ANSI 转义序列
 		const cleanOutput = stripAnsi(output)
@@ -298,21 +321,46 @@ export class TerminalProcess extends EventEmitter {
 	 * 考虑到了前后无效内容，前有无效回显，后有无效空行
 	 */
 	private processTerminalOutput(fullOutput: string): string[] | null {
+		// console.log("处理终端输出:", fullOutput)
 		// 1. 去掉尾部空行
 		let lines = this.removeTrailingEmptyLines(fullOutput)
 		if (lines.length === 0) {
 			return null
 		}
 
-		// 2. 处理每一行，移除控制字符等
+		// 4. 处理每一行，移除控制字符等
 		lines = lines.map((line) => {
 			return this.cleanTerminalLine(line)
 		})
 
-		// 3. 过滤不需要的行
+		// 5. 过滤不需要的行
 		lines = this.filterOutputLines(lines)
 
 		return lines.length > 0 ? lines : null
+	}
+
+	/*
+	 * 重建命令行
+	 */
+	private async reconstructCommandLines(lines: string[], command: string, promptText: string): Promise<string[]> {
+		// 第一行就包含完整命令
+		if (lines[0] === promptText + " " + command) {
+			return lines
+		} else {
+			// 命令被截断了
+			let newcommandline = ""
+			let i = 0
+			let newLines: string[] = []
+			for (i = 0; i < lines.length; i++) {
+				newcommandline = newcommandline + lines[i]
+				if (newcommandline === promptText + " " + command) {
+					newLines = lines.slice(i + 1)
+					newLines.unshift(promptText + " " + command)
+					break
+				}
+			}
+			return newLines
+		}
 	}
 
 	/**
@@ -406,38 +454,46 @@ export class TerminalProcess extends EventEmitter {
 			const currentOutput = await this.getTerminalContents()
 
 			// 提取实际的命令输出
-			let processedOutput = currentOutput
 			if (currentOutput) {
-				// 重组命令行（因为终端显示内容时，如果终端宽度窄，命令会被截断，而换行，所有无法找到命令
-
-				//
 				const lines = currentOutput.split("\n")
-				const commandIndex = lines.findIndex((line) => line.includes(this.command))
-				if (commandIndex !== -1 && commandIndex < lines.length - 1) {
-					processedOutput = lines.slice(commandIndex + 1).join("\n")
+				// 重组命令行（因为终端显示内容时，如果终端宽度窄，命令会被截断，而换行，所有无法找到命令
+				// 1. 找到最后一个提示符行
+				let lastPromptLineIndex = lines.length - 1
+				while (lastPromptLineIndex >= 0 && !this.isPromptLine(lines[lastPromptLineIndex])) {
+					lastPromptLineIndex--
 				}
-			}
 
-			if (processedOutput === lastOutput) {
-				stableCount++
-				if (stableCount >= config.stableCount) {
-					logger.debug("检测到提示符，命令执行完成", {
-						ctx: "terminal",
-						attempt,
-					})
-					return processedOutput
+				if (this.extractPromptText(lines[lastPromptLineIndex]).trim() !== lines[lastPromptLineIndex].trim()) {
+					// 还没有找到提示符行，继续下一个循环
+					continue
+				} else {
+					const promptText = this.extractPromptText(lines[lastPromptLineIndex])
+
+					// 2. 找命令所在行
+					let commandIndex = -1
+					for (let i = lastPromptLineIndex - 1; i >= 0; i--) {
+						if (lines[i].includes(promptText)) {
+							commandIndex = i
+							break
+						}
+					}
+
+					// 3. 重组命令行（如果命令被换行）,只处理最后一个命令
+					const reconstructLines = await this.reconstructCommandLines(
+						lines.slice(commandIndex),
+						this.command,
+						promptText,
+					)
+					lastOutput = reconstructLines.join("\n")
+					break
 				}
-			} else {
-				stableCount = 0
-				lastOutput = processedOutput
 			}
 		}
 
-		logger.warn("命令执行超时", {
-			ctx: "terminal",
-			attempts: attempt,
-		})
-
+		// logger.warn("命令执行超时", {
+		// 	ctx: "terminal",
+		// 	attempts: attempt,
+		// })
 		return lastOutput
 	}
 
@@ -450,7 +506,7 @@ export class TerminalProcess extends EventEmitter {
 			await vscode.commands.executeCommand("workbench.action.terminal.clearSelection")
 
 			// 选择到上一个命令
-			await vscode.commands.executeCommand("workbench.action.terminal.selectToPreviousCommand")
+			await vscode.commands.executeCommand("workbench.action.terminal.selectAll")
 
 			// 复制选中内容
 			await vscode.commands.executeCommand("workbench.action.terminal.copySelection")
