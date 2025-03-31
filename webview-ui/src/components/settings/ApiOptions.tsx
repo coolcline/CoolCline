@@ -615,7 +615,7 @@ const ApiOptions = ({ apiErrorMessage, modelIdErrorMessage }: ApiOptionsProps) =
 					</VSCodeTextField>
 
 					{!apiConfiguration?.geminiApiKey && (
-						<VSCodeButtonLink href="https://ai.google.dev/" style={{ margin: "5px 0 0 0" }}>
+						<VSCodeButtonLink href="https://aistudio.google.com/apikey/" style={{ margin: "5px 0 0 0" }}>
 							{t("settings.provider.providers.gemini.getKey").toString()}
 						</VSCodeButtonLink>
 					)}
