@@ -24,12 +24,44 @@ export interface LanguageParser {
 	}
 }
 
-async function loadLanguage(langName: string) {
-	return await Parser.Language.load(toPosixPath(PathUtils.joinPath(__dirname, `tree-sitter-${langName}.wasm`)))
+/**
+ * 缓存已加载的语言模块，避免重复加载同一个WASM文件
+ * 这对于解决WebAssembly内存问题至关重要：
+ * 1. 防止重复加载同一模块导致的内存浪费
+ * 2. 维护模块引用的一致性，避免状态冲突
+ * 3. 提供显式的模块生命周期管理
+ */
+let loadedLanguages = new Map<string, Parser.Language>()
+
+/**
+ * 加载指定语言的WASM模块
+ * @param langName 语言名称
+ * @param forceReload 是否强制重新加载，即使已经在缓存中
+ * @returns 语言对象
+ */
+async function loadLanguage(langName: string, forceReload: boolean = false) {
+	// 如果强制重新加载或缓存中没有，则从WASM文件加载
+	if (forceReload || !loadedLanguages.has(langName)) {
+		const wasmPath = toPosixPath(PathUtils.joinPath(__dirname, `tree-sitter-${langName}.wasm`))
+		const language = await Parser.Language.load(wasmPath)
+
+		// 更新缓存
+		loadedLanguages.set(langName, language)
+		return language
+	}
+
+	// 返回缓存的语言对象
+	return loadedLanguages.get(langName)!
 }
 
+/**
+ * 用于标记Parser是否已初始化
+ */
 let isParserInitialized = false
 
+/**
+ * 初始化Parser，只执行一次
+ */
 async function initializeParser() {
 	if (!isParserInitialized) {
 		await Parser.init()
@@ -145,7 +177,32 @@ export async function loadRequiredLanguageParsers(filesToParse: string[]): Promi
 			if (error instanceof Error && error.message.includes("Unsupported language")) {
 				throw error
 			}
+
+			// 记录解析器加载错误信息
 			console.warn(`加载语言解析器失败: ${ext}`, error)
+
+			// 分析特定的WebAssembly错误
+			if (error instanceof Error) {
+				if (error.message.includes("Aborted") || error.message.includes("table index is out of bounds")) {
+					console.error(`[Tree-sitter] 检测到WebAssembly内存问题: ${error.message}`)
+					console.error(`[Tree-sitter] 这可能是由于处理大量文件导致的资源累积或内存泄漏`)
+
+					// 尝试获取更多错误上下文
+					console.error(`[Tree-sitter] 错误堆栈: ${error.stack || "无堆栈信息"}`)
+
+					// 记录当前已处理的解析器数量
+					console.error(`[Tree-sitter] 当前已加载 ${Object.keys(parsers).length} 个语言解析器`)
+
+					try {
+						const memoryUsage = process.memoryUsage()
+						console.error(
+							`[Tree-sitter] 错误发生时内存使用: RSS=${Math.round(memoryUsage.rss / 1024 / 1024)}MB, 堆总大小=${Math.round(memoryUsage.heapTotal / 1024 / 1024)}MB, 堆已用=${Math.round(memoryUsage.heapUsed / 1024 / 1024)}MB`,
+						)
+					} catch (memErr) {
+						console.error(`[Tree-sitter] 无法获取内存使用情况: ${memErr}`)
+					}
+				}
+			}
 		}
 	}
 	return parsers
