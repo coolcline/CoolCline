@@ -2892,7 +2892,7 @@ export class CoolClineProvider implements vscode.WebviewViewProvider {
 			requestyModelInfo,
 			codebaseIndexEnabled: codebaseIndexEnabled ?? true,
 			codebaseIndexAutoStart: codebaseIndexAutoStart ?? true,
-			codebaseIndexExcludePaths: codebaseIndexExcludePaths ?? "node_modules,dist,build",
+			codebaseIndexExcludePaths: codebaseIndexExcludePaths ?? "node_modules,dist,build,.git",
 			codebaseIndexIncludeTests: codebaseIndexIncludeTests ?? false,
 			editorType,
 		}

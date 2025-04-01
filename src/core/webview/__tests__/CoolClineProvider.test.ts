@@ -350,7 +350,7 @@ describe.skip("CoolClineProvider", () => {
 			customInstructions: undefined,
 			codebaseIndexEnabled: true,
 			codebaseIndexAutoStart: true,
-			codebaseIndexExcludePaths: "node_modules,dist,build",
+			codebaseIndexExcludePaths: "node_modules,dist,build,.git",
 			codebaseIndexIncludeTests: false,
 			requestyModels: {},
 			alwaysAllowReadOnly: false,

@@ -48,7 +48,7 @@ You can configure codebase indexing features in the settings page to optimize yo
 2. In the "Codebase Search Index" section:
     - Enable/disable code indexing
     - Configure automatic indexing settings
-    - Set exclusion paths (e.g., node_modules,dist,build)
+    - Set exclusion paths (e.g., node_modules,dist,build,.git)
     - Choose whether to index test files
 
 ## Notes

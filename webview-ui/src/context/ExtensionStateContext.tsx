@@ -135,7 +135,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		// 代码库索引相关状态
 		codebaseIndexEnabled: true,
 		codebaseIndexAutoStart: true,
-		codebaseIndexExcludePaths: "node_modules,dist,build",
+		codebaseIndexExcludePaths: "node_modules,dist,build,.git",
 		codebaseIndexIncludeTests: false,
 	})
 
@@ -165,7 +165,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		// console.log("初始化codebaseIndexAutoStart状态，默认值为true")
 		return true
 	})
-	const [codebaseIndexExcludePaths, setCodebaseIndexExcludePaths] = useState<string>("node_modules,dist,build")
+	const [codebaseIndexExcludePaths, setCodebaseIndexExcludePaths] = useState<string>("node_modules,dist,build,.git")
 	const [codebaseIndexIncludeTests, setCodebaseIndexIncludeTests] = useState<boolean>(false)
 	// 代码库索引加载状态 - 初始为true表示正在等待后端消息
 	const [codebaseIndexLoading, setCodebaseIndexLoading] = useState<boolean>(true)
