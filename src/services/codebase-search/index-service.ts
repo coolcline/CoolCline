@@ -38,6 +38,7 @@ export class CodebaseIndexService {
 	private debounceTimer: NodeJS.Timeout | null = null
 	private _onIndexStatusChange: vscode.EventEmitter<IndexStatus>
 	public readonly onIndexStatusChange: vscode.Event<IndexStatus>
+	private options: IndexOptions | undefined
 
 	// 保存扫描状态以支持恢复
 	private _scanState: {
@@ -133,6 +134,7 @@ export class CodebaseIndexService {
 
 		this.isIndexing = true
 		this._progress = { total: 0, completed: 0, status: "scanning" }
+		this.options = options // 保存选项
 
 		try {
 			// 初始化数据库
@@ -281,6 +283,7 @@ export class CodebaseIndexService {
 			// 标记开始索引
 			this.isIndexing = true
 			this._progress = { total: 0, completed: 0, status: "scanning" }
+			this.options = options // 保存选项
 
 			// 确保数据库已初始化
 			await this.initDatabase()
@@ -1297,6 +1300,20 @@ export class CodebaseIndexService {
 			return false
 		}
 
+		// 测试相关目录，根据 includeTests 选项决定是否排除
+		const testDirs = ["test", "tests", "spec", "coverage", "__tests__", "__test__", "__mocks__"]
+		const isInTestDir = testDirs.some(
+			(testDir) =>
+				relativePath === testDir ||
+				relativePath.startsWith(`${testDir}/`) ||
+				relativePath.includes(`/${testDir}/`),
+		)
+
+		// 如果文件在测试目录中且 includeTests 为 false，则排除
+		if (isInTestDir && this.options?.includeTests !== true) {
+			return false
+		}
+
 		// 检查是否在排除目录中
 		const excludeDirs = [
 			// 包管理器目录
@@ -1333,11 +1350,7 @@ export class CodebaseIndexService {
 			".vscode",
 			".vs",
 			"__pycache__",
-			// 测试和文档目录 (可选，取决于配置)
-			"test",
-			"tests",
-			"spec",
-			"coverage",
+			// 文档目录
 			"docs",
 			"example",
 			"examples",

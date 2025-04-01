@@ -295,6 +295,8 @@ export async function initializeCodebaseSearch(): Promise<void> {
 	// 读取存储的排除路径
 	const excludePaths =
 		extensionContext.globalState.get<string>("codebaseIndexExcludePaths") ?? "node_modules,dist,build,.git"
+	// 读取是否包含测试文件的配置
+	const includeTests = extensionContext.globalState.get<boolean>("codebaseIndexIncludeTests") ?? false
 
 	if (!IndexEnabled || !autoIndexEnabled) {
 		// console.log("自动扫描已禁用，跳过索引过程")
@@ -328,6 +330,7 @@ export async function initializeCodebaseSearch(): Promise<void> {
 						await manager.startIndexing({
 							includePaths: ["src", "lib", "app", "core"],
 							excludePaths: excludePathsArray, // 使用存储的排除路径
+							includeTests: includeTests, // 使用存储的includeTests配置
 						})
 
 						// 获取索引状态但不显示
@@ -634,6 +637,11 @@ export async function handleCodebaseSearchWebviewMessage(webview: vscode.Webview
 					}
 
 					if (message.settings.includeTests !== undefined) {
+						// 保存到globalStorage
+						await getExtensionContext()!.globalState.update(
+							"codebaseIndexIncludeTests",
+							message.settings.includeTests,
+						)
 						indexOptions.includeTests = message.settings.includeTests
 					}
 
