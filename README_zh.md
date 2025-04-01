@@ -15,9 +15,17 @@
 
 ---
 
-## ![chat](assets/docs/chat.png)
+<div style="text-align: center;">
+  <img src="assets/docs/chat.png" alt="chat" width="40%">
+</div>
 
-## ![codebase](assets/docs/codebase.jpg)
+---
+
+<div style="text-align: center;">
+  <img src="assets/docs/codebase.png" alt="codebase" width="40%">
+</div>
+
+---
 
 ## 准备工作
 
