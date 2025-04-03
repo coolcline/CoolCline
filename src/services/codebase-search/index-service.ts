@@ -13,6 +13,7 @@ import { IndexOptions, IndexProgress, IndexStats, IndexTask, ResultType } from "
 import { toPosixPath, arePathsEqual, extname, join, relative } from "../../utils/path"
 import { createDatabase, Database } from "./database"
 import { SemanticAnalysisService, createSemanticAnalysisService } from "./semantic-analysis"
+import { IncrementalIndexer } from "./incremental-index"
 
 // 定义索引状态接口
 export interface IndexStatus {
@@ -140,16 +141,22 @@ export class CodebaseIndexService {
 			// 初始化数据库
 			await this.initDatabase()
 
-			// 扫描工作区文件
-			const files = await this.scanWorkspace(options?.includePaths, options?.excludePaths, options)
-			this._progress.total = files.length
+			// 使用增量索引器扫描工作区文件
+			const incrementalIndexer = new IncrementalIndexer(this.db!)
+			const filesToUpdate = await incrementalIndexer.executeIncrementalIndex(this.workspacePath, options)
+			this._progress.total = filesToUpdate.length
 			this._progress.status = "indexing"
 
-			// 将文件添加到索引队列
-			this.indexQueue = files.map((file) => ({
-				filePath: file,
-				priority: this.calculatePriority(file),
-			}))
+			// 将需要更新的文件添加到索引队列
+			this.indexQueue = await Promise.all(
+				filesToUpdate.map(async (file) => {
+					return {
+						filePath: file.path,
+						priority: this.calculatePriority(file.path),
+						lastModified: file.last_modified,
+					}
+				}),
+			)
 
 			// 按优先级排序
 			this.indexQueue.sort((a, b) => b.priority - a.priority)
@@ -214,49 +221,28 @@ export class CodebaseIndexService {
 			// 初始化数据库，因为可能在暂停状态后删除了数据库
 			await this.initDatabase()
 
-			// 根据当前阶段选择恢复方式
-			if (this._scanState) {
-				// 恢复扫描过程
-				this._progress.status = "scanning"
-				this.notifyStatusChange()
+			// 使用增量索引器扫描工作区文件
+			const incrementalIndexer = new IncrementalIndexer(this.db!)
+			const filesToUpdate = await incrementalIndexer.executeIncrementalIndex(this.workspacePath, this.options)
+			this._progress.total = filesToUpdate.length
+			this._progress.status = "indexing"
 
-				// 恢复扫描并获取文件列表
-				const files = await this.resumeScan()
+			// 将需要更新的文件添加到索引队列
+			this.indexQueue = await Promise.all(
+				filesToUpdate.map(async (file) => {
+					return {
+						filePath: file.path,
+						priority: this.calculatePriority(file.path),
+						lastModified: file.last_modified,
+					}
+				}),
+			)
 
-				if (files.length > 0) {
-					this._progress.total = files.length
-					this._progress.status = "indexing"
+			// 按优先级排序
+			this.indexQueue.sort((a, b) => b.priority - a.priority)
 
-					// 将文件添加到索引队列
-					this.indexQueue = files.map((file) => ({
-						filePath: file,
-						priority: this.calculatePriority(file),
-					}))
-
-					// 按优先级排序
-					this.indexQueue.sort((a, b) => b.priority - a.priority)
-
-					// 启动处理队列
-					this.processQueue()
-				} else {
-					// 没有文件需要处理
-					this._progress.status = "completed"
-					this.isIndexing = false
-					this.notifyStatusChange()
-				}
-			} else if (this.indexQueue.length > 0) {
-				// 恢复索引过程
-				this._progress.status = "indexing"
-				this.notifyStatusChange()
-
-				// 重启处理队列
-				this.processQueue()
-			} else {
-				// 没有可恢复的内容，标记为完成
-				this._progress.status = "completed"
-				this.isIndexing = false
-				this.notifyStatusChange()
-			}
+			// 启动处理队列
+			this.processQueue()
 		} catch (error) {
 			console.error("恢复索引失败:", error)
 			this._progress.status = "error"
@@ -343,10 +329,16 @@ export class CodebaseIndexService {
 				this._progress.status = "indexing"
 
 				// 将文件添加到索引队列
-				this.indexQueue = filesToUpdate.map((file) => ({
-					filePath: file,
-					priority: this.calculatePriority(file),
-				}))
+				this.indexQueue = await Promise.all(
+					filesToUpdate.map(async (file) => {
+						const stats = fs.statSync(file)
+						return {
+							filePath: file,
+							priority: this.calculatePriority(file),
+							lastModified: stats.mtimeMs, // 填充 lastModified 字段
+						}
+					}),
+				)
 
 				// 按优先级排序
 				this.indexQueue.sort((a, b) => b.priority - a.priority)
@@ -808,6 +800,11 @@ export class CodebaseIndexService {
 							return
 						}
 					}
+				}
+
+				// 在批处理完成后，更新这批文件的 content_hash
+				for (const task of batch) {
+					await this.updateContentHash(task.filePath, task.lastModified.toString())
 				}
 			})
 
@@ -1506,6 +1503,26 @@ export class CodebaseIndexService {
 				}
 				safeFireEvent(basicStats)
 			})
+	}
+
+	/**
+	 * 更新内容哈希值
+	 * @param filePath 文件路径
+	 * @param lastModified 文件最后修改时间
+	 */
+	private async updateContentHash(filePath: string, lastModified: string): Promise<void> {
+		try {
+			// 确保数据库已初始化
+			await this.initDatabase()
+
+			// 更新文件的 content_hash
+			await this.db!.run("UPDATE files SET content_hash = ? WHERE path = ?", [
+				lastModified,
+				toPosixPath(filePath),
+			])
+		} catch (error) {
+			console.error(`Failed to update content hash for file: ${filePath}`, error)
+		}
 	}
 }
 

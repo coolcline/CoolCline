@@ -86,7 +86,7 @@ async function globbyLevelByLevel(limit: number, options?: Options) {
 
 	// Timeout after 10 seconds and return partial results
 	const timeoutPromise = new Promise<string[]>((_, reject) => {
-		setTimeout(() => reject(new Error("Globbing timeout")), 10_000)
+		setTimeout(() => reject(new Error("Globbing timeout")), 1_000 * 60)
 	})
 	try {
 		return await Promise.race([globbingProcess(), timeoutPromise])

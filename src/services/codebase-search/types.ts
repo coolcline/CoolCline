@@ -83,6 +83,7 @@ export interface IndexOptions {
 export interface IndexTask {
 	filePath: string // 文件路径
 	priority: number // 优先级
+	lastModified: number // 添加 lastModified 字段
 }
 
 /**
