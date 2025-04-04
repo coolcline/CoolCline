@@ -265,6 +265,32 @@ export class CodebaseSearchManager {
 			console.error("恢复索引失败:", error)
 		}
 	}
+
+	/**
+	 * 清理所有资源
+	 */
+	public async cleanup(): Promise<void> {
+		try {
+			// 关闭所有索引服务
+			for (const [workspacePath, indexService] of this.indexServices.entries()) {
+				try {
+					await indexService.close()
+					console.log(`已关闭索引服务: ${workspacePath}`)
+				} catch (error) {
+					console.error(`关闭索引服务失败: ${workspacePath}`, error)
+				}
+			}
+
+			// 清空服务映射
+			this.indexServices.clear()
+			this.searchServices.clear()
+			this.semanticServices.clear()
+
+			console.log("代码库搜索管理器资源已清理")
+		} catch (error) {
+			console.error("清理代码库搜索管理器资源失败:", error)
+		}
+	}
 }
 
 /**

@@ -11,7 +11,7 @@ import { handleUri, registerCommands, registerCodeActions, registerTerminalActio
 import { McpServerManager } from "./services/mcp/McpServerManager"
 import { setExtensionContext as setCheckpointsExtensionContext } from "./services/checkpoints/CheckpointUtils"
 import { setExtensionContext } from "./services/codebase-search/extension-context"
-import { initializeCodebaseSearch } from "./services/codebase-search"
+import { initializeCodebaseSearch, CodebaseSearchManager } from "./services/codebase-search"
 
 /**
  * Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -127,6 +127,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<CoolCl
 // This method is called when your extension is deactivated
 export async function deactivate() {
 	outputChannel.appendLine("CoolCline extension deactivated")
+
+	// 关闭所有索引服务
+	try {
+		const manager = CodebaseSearchManager.getInstance()
+		// 使用管理器的 cleanup 方法关闭所有索引服务
+		await manager.cleanup()
+	} catch (error) {
+		console.error("关闭索引服务失败:", error)
+	}
+
 	// Clean up MCP server manager
 	await McpServerManager.cleanup(extensionContext)
 }

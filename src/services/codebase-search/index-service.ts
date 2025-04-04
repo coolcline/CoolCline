@@ -112,6 +112,7 @@ export class CodebaseIndexService {
 
 			// 初始化事务管理器（确保事务管理器使用最新的数据库实例）
 			TransactionManager.getInstance(this.db)
+			// console.table(await this.db!.all("SELECT * FROM files LIMIT 20"))
 
 			const stats = await this.getIndexStats()
 			this.notifyStatusChange()
@@ -190,6 +191,20 @@ export class CodebaseIndexService {
 			// 重要：暂时设置isIndexing为false来停止当前处理循环
 			// 但不要清空索引队列，以便恢复时继续处理
 			this.isIndexing = false
+
+			// 确保所有数据已写入
+			if (this.db) {
+				try {
+					// 执行一个空事务，确保所有数据已提交
+					await this.executeInTransaction(async () => {
+						// 空事务，只是为了确保之前的所有更改都已提交
+					})
+				} catch (error) {
+					console.error("暂停时提交事务失败:", error)
+				}
+			}
+
+			// console.table(await this.db!.all("SELECT * FROM files LIMIT 20"))
 
 			// 强制暂停所有当前处理
 			await new Promise((resolve) => setTimeout(resolve, 100))
@@ -275,7 +290,7 @@ export class CodebaseIndexService {
 			const files = await this.scanWorkspace(options?.includePaths, options?.excludePaths, options)
 
 			// 获取需要更新的文件列表
-			const filesToUpdate: string[] = []
+			const filesToUpdate: { path: string; last_modified: number }[] = []
 			const filesToRemove: string[] = []
 
 			// 获取当前已索引的文件列表
@@ -289,20 +304,30 @@ export class CodebaseIndexService {
 
 				if (!indexedFile) {
 					// 新文件，需要添加
-					filesToUpdate.push(file)
+					try {
+						const stats = fs.statSync(file)
+						filesToUpdate.push({
+							path: file,
+							last_modified: stats.mtimeMs,
+						})
+					} catch (error) {
+						console.warn(`无法检查文件状态: ${file}`, error)
+					}
 				} else {
 					// 检查文件是否被修改
 					try {
 						const stats = fs.statSync(file)
-						const currentHash = this.calculateContentHash(await fs.promises.readFile(file, "utf-8"))
+						const currentHash = stats.mtimeMs
 
-						if (stats.mtimeMs > indexedFile.last_modified || currentHash !== indexedFile.content_hash) {
+						if (currentHash > indexedFile.content_hash) {
 							// 文件被修改，需要更新
-							filesToUpdate.push(file)
+							filesToUpdate.push({
+								path: file,
+								last_modified: currentHash,
+							})
 						}
 					} catch (error) {
 						console.warn(`无法检查文件状态: ${file}`, error)
-						filesToUpdate.push(file)
 					}
 				}
 			}
@@ -328,11 +353,10 @@ export class CodebaseIndexService {
 				// 将文件添加到索引队列
 				this.indexQueue = await Promise.all(
 					filesToUpdate.map(async (file) => {
-						const stats = fs.statSync(file)
 						return {
-							filePath: file,
-							priority: this.calculatePriority(file),
-							lastModified: stats.mtimeMs, // 填充 lastModified 字段
+							filePath: file.path,
+							priority: this.calculatePriority(file.path),
+							lastModified: file.last_modified, // 使用已获取的 last_modified 值
 						}
 					}),
 				)
@@ -408,19 +432,20 @@ export class CodebaseIndexService {
 	/**
 	 * 索引单个文件
 	 * @param filePath 文件路径
+	 * @param last_modified 文件最后修改时间，如果不提供将自动获取
 	 */
-	public async indexFile(filePath: string): Promise<void> {
+	public async indexFile(filePath: string, last_modified?: number): Promise<void> {
 		await this.initDatabase()
 
 		// 检查文件是否存在
 		if (!fs.existsSync(filePath)) {
-			console.log(`文件不存在，跳过索引: ${filePath}`)
+			// console.log(`文件不存在，跳过索引: ${filePath}`)
 			return
 		}
 
 		// 检查是否在.vscode-test目录中，这些文件可能是临时的或不稳定的
 		if (filePath.includes(".vscode-test")) {
-			console.log(`跳过.vscode-test目录下的文件: ${filePath}`)
+			// console.log(`跳过.vscode-test目录下的文件: ${filePath}`)
 			return
 		}
 
@@ -429,12 +454,14 @@ export class CodebaseIndexService {
 		await transactionManager.executeInTransaction(async () => {
 			try {
 				// 执行文件索引逻辑...
-				const fileStats = fs.statSync(filePath)
-				const lastModified = fileStats.mtimeMs.toString()
+				// const fileStats = fs.statSync(filePath)
+				// 如果没有提供 last_modified，则使用文件的修改时间
+				const lastModified = last_modified !== undefined ? last_modified : fs.statSync(filePath).mtimeMs
 
 				// 计算文件内容的哈希以检测变化
-				const content = fs.readFileSync(filePath, "utf-8")
-				const contentHash = this.calculateContentHash(content)
+				// const content = fs.readFileSync(filePath, "utf-8")
+				// const contentHash = this.calculateContentHash(content)
+				const contentHash = lastModified
 
 				// 检查文件是否已在数据库中，并检查其内容是否有变化
 				const existingFile = await this.db!.get("SELECT id, content_hash FROM files WHERE path = ?", [filePath])
@@ -466,8 +493,8 @@ export class CodebaseIndexService {
 					// 保存符号信息
 					for (const symbol of symbols) {
 						const symbolResult = await this.db!.run(
-							`INSERT INTO symbols 
-							(file_id, name, type, signature, line, column, parent_id) 
+							`INSERT INTO symbols
+							(file_id, name, type, signature, line, column, parent_id)
 							VALUES (?, ?, ?, ?, ?, ?, ?)`,
 							[
 								fileId,
@@ -504,8 +531,8 @@ export class CodebaseIndexService {
 					for (const relation of relations) {
 						if (relation.sourceId && relation.targetId) {
 							await this.db!.run(
-								`INSERT OR IGNORE INTO symbol_relations 
-								(source_id, target_id, relation_type) 
+								`INSERT OR IGNORE INTO symbol_relations
+								(source_id, target_id, relation_type)
 								VALUES (?, ?, ?)`,
 								[relation.sourceId, relation.targetId, relation.relationType],
 							)
@@ -527,16 +554,16 @@ export class CodebaseIndexService {
 	 * @param content 文件内容
 	 * @returns 哈希值
 	 */
-	private calculateContentHash(content: string): string {
-		// 简单的哈希计算
-		let hash = 0
-		for (let i = 0; i < content.length; i++) {
-			const char = content.charCodeAt(i)
-			hash = (hash << 5) - hash + char
-			hash = hash & hash // 转换为32位整数
-		}
-		return Math.abs(hash).toString(16)
-	}
+	// private calculateContentHash(content: string): string {
+	// 	// 简单的哈希计算
+	// 	let hash = 0
+	// 	for (let i = 0; i < content.length; i++) {
+	// 		const char = content.charCodeAt(i)
+	// 		hash = (hash << 5) - hash + char
+	// 		hash = hash & hash // 转换为32位整数
+	// 	}
+	// 	return Math.abs(hash).toString(16)
+	// }
 
 	/**
 	 * 从索引中删除文件
@@ -570,6 +597,7 @@ export class CodebaseIndexService {
 		try {
 			// 确保数据库已初始化
 			await this.initDatabase()
+			// console.log("已经索引：",await this.db!.all("SELECT * FROM files"))
 
 			// 从数据库获取统计信息
 			const filesCount = await this.db!.get("SELECT COUNT(id) as count FROM files WHERE content_hash > 0")
@@ -631,6 +659,19 @@ export class CodebaseIndexService {
 			if (this._progress.status === "paused") {
 				// 确保isIndexing为false
 				this.isIndexing = false
+
+				// 确保所有数据已写入
+				if (this.db) {
+					try {
+						// 执行一个空事务，确保所有数据已提交
+						await this.executeInTransaction(async () => {
+							// 空事务，只是为了确保之前的所有更改都已提交
+						})
+					} catch (error) {
+						console.error("暂停时提交事务失败:", error)
+					}
+				}
+
 				// 通知监听器索引已暂停
 				this.notifyStatusChange()
 				return
@@ -639,6 +680,19 @@ export class CodebaseIndexService {
 			// 如果是由于停止索引导致的，保持停止状态
 			if (this._progress.status === "stopped") {
 				this.isIndexing = false
+
+				// 确保所有数据已写入
+				if (this.db) {
+					try {
+						// 执行一个空事务，确保所有数据已提交
+						await this.executeInTransaction(async () => {
+							// 空事务，只是为了确保之前的所有更改都已提交
+						})
+					} catch (error) {
+						console.error("暂停时提交事务失败:", error)
+					}
+				}
+
 				// 通知监听器索引已停止
 				this.notifyStatusChange()
 				return
@@ -646,6 +700,19 @@ export class CodebaseIndexService {
 
 			this._progress.status = "completed"
 			this.isIndexing = false
+
+			// 确保所有数据已写入
+			if (this.db) {
+				try {
+					// 执行一个空事务，确保所有数据已提交
+					await this.executeInTransaction(async () => {
+						// 空事务，只是为了确保之前的所有更改都已提交
+					})
+				} catch (error) {
+					console.error("提交最终事务失败:", error)
+				}
+			}
+
 			// 确保进度值在完成时是有效的
 			if (this._progress.total > 0 && this._progress.completed < this._progress.total) {
 				this._progress.completed = this._progress.total
@@ -686,7 +753,7 @@ export class CodebaseIndexService {
 						return
 					}
 
-					await this.indexFile(task.filePath)
+					await this.indexFile(task.filePath, task.lastModified)
 					this._progress.completed++
 
 					// 每完成一个任务就通知进度变化
@@ -710,9 +777,12 @@ export class CodebaseIndexService {
 				}
 
 				// 在批处理完成后，更新这批文件的 content_hash
-				for (const task of batch) {
-					await this.updateContentHash(task.filePath, task.lastModified.toString())
-				}
+				// indexFile 方法里的insert 是同样作用 "INSERT INTO files (path, language, last_modified, indexed_at, content_hash) VALUES (?, ?, ?, ?, ?)",
+				// [filePath, language, lastModified, Date.now(), contentHash]
+
+				// for (const task of batch) {
+				// 	await this.updateContentHash(task.filePath, task.lastModified)
+				// }
 			})
 
 			// 最后一次检查是否应该暂停
@@ -1160,7 +1230,7 @@ export class CodebaseIndexService {
 				const filePath = uri.fsPath
 				// 检查文件是否应该被索引
 				if (this.shouldIndexFile(filePath)) {
-					this.scheduleIndex(filePath)
+					this.scheduleIndex(filePath, 0)
 				}
 			})
 
@@ -1168,7 +1238,7 @@ export class CodebaseIndexService {
 			this.fileSystemWatcher.onDidChange(async (uri) => {
 				const filePath = uri.fsPath
 				if (this.shouldIndexFile(filePath)) {
-					this.scheduleIndex(filePath)
+					this.scheduleIndex(filePath, 0)
 				}
 			})
 
@@ -1353,7 +1423,7 @@ export class CodebaseIndexService {
 	 * @param filePath 文件路径
 	 * @private
 	 */
-	private scheduleIndex(filePath: string): void {
+	private scheduleIndex(filePath: string, last_modified: number): void {
 		// 清除之前的定时器
 		if (this.debounceTimer) {
 			clearTimeout(this.debounceTimer)
@@ -1361,7 +1431,7 @@ export class CodebaseIndexService {
 
 		// 设置新的定时器，延迟 500ms 执行，避免频繁索引
 		this.debounceTimer = setTimeout(async () => {
-			await this.indexFile(filePath)
+			await this.indexFile(filePath, last_modified)
 		}, 500)
 	}
 
@@ -1417,13 +1487,14 @@ export class CodebaseIndexService {
 	 * @param filePath 文件路径
 	 * @param lastModified 文件最后修改时间
 	 */
-	private async updateContentHash(filePath: string, lastModified: string): Promise<void> {
+	private async updateContentHash(filePath: string, lastModified: number): Promise<void> {
 		try {
 			// 确保数据库已初始化
 			await this.initDatabase()
 
 			// 更新文件的 content_hash
-			await this.db!.run("UPDATE files SET content_hash = ? WHERE path = ?", [
+			await this.db!.run("UPDATE files SET indexed_at = ?, content_hash = ? WHERE path = ?", [
+				Date.now(),
 				lastModified,
 				toPosixPath(filePath),
 			])

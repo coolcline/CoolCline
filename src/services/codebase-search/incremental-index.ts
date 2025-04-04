@@ -39,8 +39,9 @@ export class IncrementalIndexer {
 		const dbFiles = await this.db.all("SELECT path, content_hash, last_modified FROM files")
 		const dbFileMap = new Map(dbFiles.map((f) => [f.path, f]))
 
-		// 找出需要删除和更新的文件
+		// 找出需要删除的文件
 		const filesToDelete = this.findFilesToDelete(dbFiles, memoryTable)
+		// 找出更新的文件
 		const filesToUpdate = await this.findFilesToUpdate(memoryTable, dbFileMap)
 
 		// 使用removeFilesFromIndex方法批量删除不再存在的文件
