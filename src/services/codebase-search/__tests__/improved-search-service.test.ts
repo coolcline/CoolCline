@@ -4,56 +4,62 @@ import { getTestDatabaseInstance } from "../database"
 
 // 模拟数据库和Tree-sitter服务
 jest.mock("../database", () => {
+	// Create a mock database instance
+	const mockDb = {
+		all: jest.fn().mockImplementation(async (sql, params) => {
+			// 简单的模拟结果
+			if (sql.includes("keyword")) {
+				return [
+					{
+						id: 1,
+						name: "fetchUserData",
+						type: "function",
+						signature: "fetchUserData(userId: string): Promise<User>",
+						line: 10,
+						column: 2,
+						file: "/src/services/user-service.ts",
+						content: "async function fetchUserData(userId: string): Promise<User> {",
+						relevance: 0.95,
+						language: "typescript",
+					},
+					{
+						id: 2,
+						name: "User",
+						type: "class",
+						signature: "class User",
+						line: 5,
+						column: 0,
+						file: "/src/models/user.ts",
+						content: "export class User {",
+						relevance: 0.85,
+						language: "typescript",
+					},
+					{
+						id: 3,
+						name: "userData",
+						type: "variable",
+						signature: undefined,
+						line: 15,
+						column: 2,
+						file: "/src/store/user-store.ts",
+						content: "const userData: UserData = {",
+						relevance: 0.75,
+						language: "typescript",
+					},
+				]
+			} else {
+				return []
+			}
+		}),
+		run: jest.fn().mockResolvedValue({ lastID: 1, changes: 1 }),
+		exec: jest.fn().mockResolvedValue(undefined),
+		initialize: jest.fn().mockResolvedValue(undefined),
+	}
+
 	return {
-		createDatabase: jest.fn().mockImplementation(() => ({
-			all: jest.fn().mockImplementation(async (sql, params) => {
-				// 简单的模拟结果
-				if (sql.includes("keyword")) {
-					return [
-						{
-							id: 1,
-							name: "fetchUserData",
-							type: "function",
-							signature: "fetchUserData(userId: string): Promise<User>",
-							line: 10,
-							column: 2,
-							file: "/src/services/user-service.ts",
-							content: "async function fetchUserData(userId: string): Promise<User> {",
-							relevance: 0.95,
-							language: "typescript",
-						},
-						{
-							id: 2,
-							name: "User",
-							type: "class",
-							signature: "class User",
-							line: 5,
-							column: 0,
-							file: "/src/models/user.ts",
-							content: "export class User {",
-							relevance: 0.85,
-							language: "typescript",
-						},
-						{
-							id: 3,
-							name: "userData",
-							type: "variable",
-							signature: undefined,
-							line: 15,
-							column: 2,
-							file: "/src/store/user-store.ts",
-							content: "const userData: UserData = {",
-							relevance: 0.75,
-							language: "typescript",
-						},
-					]
-				} else {
-					return []
-				}
-			}),
-			run: jest.fn().mockResolvedValue({ lastID: 1, changes: 1 }),
-			exec: jest.fn().mockResolvedValue(undefined),
-		})),
+		createDatabase: jest.fn().mockImplementation(() => mockDb),
+		getDatabaseInstance: jest.fn().mockResolvedValue(mockDb),
+		getTestDatabaseInstance: jest.fn().mockResolvedValue(mockDb),
 	}
 })
 
