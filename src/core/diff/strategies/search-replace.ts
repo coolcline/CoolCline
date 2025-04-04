@@ -4,6 +4,145 @@ import { distance } from "fastest-levenshtein"
 
 const BUFFER_LINES = 20 // Number of extra context lines to show before and after matches
 
+/**
+ * Attempts a line-trimmed fallback match for the given search content in the original content.
+ * It tries to match `searchContent` lines against a block of lines in `originalContent` starting
+ * from `startIndex`. Lines are matched by trimming leading/trailing whitespace and ensuring
+ * they are identical afterwards.
+ *
+ * @param originalContent - The full content of the original file
+ * @param searchContent - The content we're trying to find in the original file
+ * @param startIndex - The character index in originalContent where to start searching
+ * @returns A tuple of [matchIndex, endIndex] if a match is found, false otherwise
+ */
+function lineTrimmedFallbackMatch(
+	originalContent: string,
+	searchContent: string,
+	startIndex: number,
+): [number, number] | false {
+	// Split both contents into lines
+	const originalLines = originalContent.split(/\r?\n/)
+	const searchLines = searchContent.split(/\r?\n/)
+
+	// Trim trailing empty line if exists (from the trailing \n in searchContent)
+	if (searchLines[searchLines.length - 1] === "") {
+		searchLines.pop()
+	}
+
+	// Find the line number where startIndex falls
+	let startLineNum = 0
+	let currentIndex = 0
+	while (currentIndex < startIndex && startLineNum < originalLines.length) {
+		currentIndex += originalLines[startLineNum].length + 1 // +1 for \n
+		startLineNum++
+	}
+
+	// For each possible starting position in original content
+	for (let i = startLineNum; i <= originalLines.length - searchLines.length; i++) {
+		let matches = true
+
+		// Try to match all search lines from this position
+		for (let j = 0; j < searchLines.length; j++) {
+			const originalTrimmed = originalLines[i + j].trim()
+			const searchTrimmed = searchLines[j].trim()
+
+			if (originalTrimmed !== searchTrimmed) {
+				matches = false
+				break
+			}
+		}
+
+		// If we found a match, calculate the exact character positions
+		if (matches) {
+			// Find start character index
+			let matchStartIndex = 0
+			for (let k = 0; k < i; k++) {
+				matchStartIndex += originalLines[k].length + 1 // +1 for \n
+			}
+
+			// Find end character index
+			let matchEndIndex = matchStartIndex
+			for (let k = 0; k < searchLines.length; k++) {
+				matchEndIndex += originalLines[i + k].length + 1 // +1 for \n
+			}
+
+			return [matchStartIndex, matchEndIndex]
+		}
+	}
+
+	return false
+}
+
+/**
+ * Attempts to match blocks of code by using the first and last lines as anchors.
+ * This is a third-tier fallback strategy that helps match blocks where we can identify
+ * the correct location by matching the beginning and end, even if the exact content
+ * differs slightly.
+ *
+ * @param originalContent - The full content of the original file
+ * @param searchContent - The content we're trying to find in the original file
+ * @param startIndex - The character index in originalContent where to start searching
+ * @returns A tuple of [startIndex, endIndex] if a match is found, false otherwise
+ */
+function blockAnchorFallbackMatch(
+	originalContent: string,
+	searchContent: string,
+	startIndex: number,
+): [number, number] | false {
+	const originalLines = originalContent.split(/\r?\n/)
+	const searchLines = searchContent.split(/\r?\n/)
+
+	// Only use this approach for blocks of 3+ lines
+	if (searchLines.length < 3) {
+		return false
+	}
+
+	// Trim trailing empty line if exists
+	if (searchLines[searchLines.length - 1] === "") {
+		searchLines.pop()
+	}
+
+	const firstLineSearch = searchLines[0].trim()
+	const lastLineSearch = searchLines[searchLines.length - 1].trim()
+	const searchBlockSize = searchLines.length
+
+	// Find the line number where startIndex falls
+	let startLineNum = 0
+	let currentIndex = 0
+	while (currentIndex < startIndex && startLineNum < originalLines.length) {
+		currentIndex += originalLines[startLineNum].length + 1
+		startLineNum++
+	}
+
+	// Look for matching start and end anchors
+	for (let i = startLineNum; i <= originalLines.length - searchBlockSize; i++) {
+		// Check if first line matches
+		if (originalLines[i].trim() !== firstLineSearch) {
+			continue
+		}
+
+		// Check if last line matches at the expected position
+		if (originalLines[i + searchBlockSize - 1].trim() !== lastLineSearch) {
+			continue
+		}
+
+		// Calculate exact character positions
+		let matchStartIndex = 0
+		for (let k = 0; k < i; k++) {
+			matchStartIndex += originalLines[k].length + 1
+		}
+
+		let matchEndIndex = matchStartIndex
+		for (let k = 0; k < searchBlockSize; k++) {
+			matchEndIndex += originalLines[i + k].length + 1
+		}
+
+		return [matchStartIndex, matchEndIndex]
+	}
+
+	return false
+}
+
 function getSimilarity(original: string, search: string): number {
 	if (search === "") {
 		return 1
@@ -219,7 +358,28 @@ Your search/replace content here
 			}
 		}
 
-		// Require similarity to meet threshold
+		// If no match found with fuzzy matching, try line-trimmed fallback match
+		if (matchIndex === -1 || bestMatchScore < this.fuzzyThreshold) {
+			// Try line-trimmed fallback match
+			const lineMatch = lineTrimmedFallbackMatch(originalContent, searchChunk, searchStartIndex)
+			if (lineMatch) {
+				const [lineMatchIndex, lineMatchEndIndex] = lineMatch
+				matchIndex = lineMatchIndex
+				bestMatchScore = 1.0 // Consider it a perfect match if line-trimmed matching succeeds
+				bestMatchContent = originalLines.slice(matchIndex, matchIndex + searchLines.length).join("\n")
+			} else {
+				// Try block anchor fallback for larger blocks
+				const blockMatch = blockAnchorFallbackMatch(originalContent, searchChunk, searchStartIndex)
+				if (blockMatch) {
+					const [blockMatchIndex, blockMatchEndIndex] = blockMatch
+					matchIndex = blockMatchIndex
+					bestMatchScore = 1.0 // Consider it a perfect match if block anchor matching succeeds
+					bestMatchContent = originalLines.slice(matchIndex, matchIndex + searchLines.length).join("\n")
+				}
+			}
+		}
+
+		// If still no match found after all fallback strategies
 		if (matchIndex === -1 || bestMatchScore < this.fuzzyThreshold) {
 			const searchChunk = searchLines.join("\n")
 			const originalContentSection =
