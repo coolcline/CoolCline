@@ -65,17 +65,31 @@ export async function removeFileFromIndex(
  * 批量删除多个文件索引
  * @param db 数据库实例
  * @param filePaths 文件路径数组
+ * @param inTransaction 是否已在事务中
  */
-export async function removeFilesFromIndex(db: Database, filePaths: string[]): Promise<void> {
+export async function removeFilesFromIndex(
+	db: Database,
+	filePaths: string[],
+	inTransaction: boolean = false,
+): Promise<void> {
 	if (filePaths.length === 0) {
 		return // 没有文件需要删除，直接返回
 	}
 
-	// 使用事务管理器执行批量删除
-	const transactionManager = TransactionManager.getInstance(db)
-	await transactionManager.executeInTransaction(async () => {
+	// 定义删除操作
+	const deleteOperation = async () => {
 		for (const filePath of filePaths) {
 			await removeFileFromIndex(db, filePath, true) // 在事务中执行
 		}
-	})
+	}
+
+	// 根据是否已在事务中决定是否创建新事务
+	if (inTransaction) {
+		// 如果已在事务中，直接执行操作
+		await deleteOperation()
+	} else {
+		// 否则创建新事务
+		const transactionManager = TransactionManager.getInstance(db)
+		await transactionManager.executeInTransaction(deleteOperation)
+	}
 }

@@ -264,7 +264,7 @@ export class Database {
 				})
 			})
 		} catch (err) {
-			console.error("SQL执行错误:", err)
+			// console.error("SQL执行错误:", err)
 			throw new Error(`SQL执行错误: ${err.message}`)
 		}
 	}
@@ -313,9 +313,9 @@ export class Database {
 				})
 			})
 		} catch (err) {
-			console.error("SQL查询错误:", err)
-			console.error("SQL查询错误sql:", sql)
-			console.error("SQL查询错误params:", params)
+			// console.error("SQL查询错误:", err)
+			// console.error("SQL查询错误sql:", sql)
+			// console.error("SQL查询错误params:", params)
 			// 不抛出异常，而是返回null
 			return null
 		}
@@ -340,7 +340,7 @@ export class Database {
 				})
 			})
 		} catch (err) {
-			console.error("SQL查询错误:", err)
+			// console.error("SQL查询错误:", err)
 			throw new Error(`SQL查询错误: ${err.message}`)
 		}
 	}
@@ -358,22 +358,22 @@ export class Database {
 	public async beginTransaction(): Promise<void> {
 		await this.ensureInitialized()
 		try {
-			// 先检查是否已在事务中，避免嵌套事务
-			const inTransaction = await this.isInTransaction()
-			if (inTransaction) {
-				// console.log("已在事务中，跳过开始新事务")
-				return // 已在事务中，直接返回而不是抛出错误
+			// 严格检查事务状态
+			const inTransaction = await this.get("PRAGMA transaction_active")
+			if (inTransaction && inTransaction.transaction_active === 1) {
+				console.log("数据库已在事务中，跳过开始新事务")
+				return
 			}
 
+			// 尝试执行BEGIN IMMEDIATE来检测嵌套事务
 			try {
-				await this.exec("BEGIN TRANSACTION")
-			} catch (transErr) {
-				// 捕获嵌套事务的错误
-				if (transErr.message && transErr.message.includes("within a transaction")) {
-					// console.log("检测到事务嵌套，忽略错误并继续")
+				await this.exec("BEGIN IMMEDIATE")
+			} catch (beginErr) {
+				if (beginErr.message && beginErr.message.includes("within a transaction")) {
+					console.log("检测到事务嵌套，跳过开始新事务")
 					return
 				}
-				throw transErr // 重新抛出其他类型的错误
+				throw beginErr
 			}
 		} catch (err) {
 			console.error("事务开始错误:", err)
@@ -429,15 +429,17 @@ export class Database {
 	public async isInTransaction(): Promise<boolean> {
 		await this.ensureInitialized()
 		try {
-			const result = await this.get("PRAGMA transaction_active")
-			const inTransaction = result && result.transaction_active === 1
-
-			// 添加详细日志，帮助调试事务问题
-			if (inTransaction) {
-				// console.log("数据库当前处于事务中")
+			// 使用BEGIN IMMEDIATE和ROLLBACK来检测事务状态
+			try {
+				await this.exec("BEGIN IMMEDIATE")
+				await this.exec("ROLLBACK")
+				return false
+			} catch (err) {
+				if (err.message && err.message.includes("within a transaction")) {
+					return true
+				}
+				throw err
 			}
-
-			return inTransaction
 		} catch (err) {
 			console.error("检查事务状态错误:", err)
 			return false
@@ -657,17 +659,17 @@ async function initDatabaseSchema(db: Database): Promise<void> {
 			-- 文件路径索引
 			CREATE INDEX IF NOT EXISTS idx_files_path ON files(path);
 			CREATE INDEX IF NOT EXISTS idx_content_hash ON files(content_hash);
-			
+
 			-- 符号索引
 			CREATE INDEX IF NOT EXISTS idx_symbols_file ON symbols(file_id);
 			CREATE INDEX IF NOT EXISTS idx_symbols_name ON symbols(name);
 			CREATE INDEX IF NOT EXISTS idx_symbols_type ON symbols(type);
 			CREATE INDEX IF NOT EXISTS idx_symbols_parent ON symbols(parent_id);
-			
+
 			-- 关键词索引
 			CREATE INDEX IF NOT EXISTS idx_keywords_keyword ON keywords(keyword);
 			CREATE INDEX IF NOT EXISTS idx_keywords_symbol ON keywords(symbol_id);
-			
+
 			-- 符号关系索引
 			CREATE INDEX IF NOT EXISTS idx_symbol_relations_source ON symbol_relations(source_id);
 			CREATE INDEX IF NOT EXISTS idx_symbol_relations_target ON symbol_relations(target_id);

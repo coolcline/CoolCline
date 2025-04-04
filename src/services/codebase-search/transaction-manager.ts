@@ -98,7 +98,7 @@ export class TransactionManager {
 			const dbInTransaction = await this.db.isInTransaction()
 			if (dbInTransaction || this.transactionActive) {
 				// 如果已在事务中，直接使用无事务执行方式执行操作
-				// console.log("已在事务中，跳过开启新事务")
+				console.log("检测到已在事务中，跳过开启新事务")
 				// 直接使用executeWithoutTransaction，避免嵌套事务问题
 				return await this.executeWithoutTransaction(operation)
 			}

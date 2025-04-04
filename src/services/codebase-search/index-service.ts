@@ -341,7 +341,10 @@ export class CodebaseIndexService {
 
 			// 删除不再存在的文件
 			if (filesToRemove.length > 0) {
-				await this.removeFilesFromIndex(filesToRemove)
+				// 使用事务管理器执行删除操作
+				await this.executeInTransaction(async () => {
+					await this.removeFilesFromIndex(filesToRemove, true) // true表示已在事务中
+				})
 			}
 
 			// 更新或添加修改过的文件
@@ -433,8 +436,9 @@ export class CodebaseIndexService {
 	 * 索引单个文件
 	 * @param filePath 文件路径
 	 * @param last_modified 文件最后修改时间，如果不提供将自动获取
+	 * @param inTransaction 是否已在事务中，如果是则不会创建新事务
 	 */
-	public async indexFile(filePath: string, last_modified?: number): Promise<void> {
+	public async indexFile(filePath: string, last_modified?: number, inTransaction: boolean = false): Promise<void> {
 		await this.initDatabase()
 
 		// 检查文件是否存在
@@ -449,9 +453,8 @@ export class CodebaseIndexService {
 			return
 		}
 
-		// 使用事务管理器保证文件级别的原子操作
-		const transactionManager = TransactionManager.getInstance(this.db!)
-		await transactionManager.executeInTransaction(async () => {
+		// 根据是否已在事务中决定是否创建新事务
+		const executeOperation = async () => {
 			try {
 				// 执行文件索引逻辑...
 				// const fileStats = fs.statSync(filePath)
@@ -546,7 +549,17 @@ export class CodebaseIndexService {
 				console.error(`索引文件时出错: ${filePath}`, error)
 				// 记录错误但不中断索引过程
 			}
-		})
+		}
+
+		// 根据是否已在事务中决定是否创建新事务
+		if (inTransaction) {
+			// 如果已在事务中，直接执行操作
+			await executeOperation()
+		} else {
+			// 如果不在事务中，创建新事务
+			const transactionManager = TransactionManager.getInstance(this.db!)
+			await transactionManager.executeInTransaction(executeOperation)
+		}
 	}
 
 	/**
@@ -581,13 +594,14 @@ export class CodebaseIndexService {
 	/**
 	 * 从索引中删除多个文件
 	 * @param filePaths 文件路径数组
+	 * @param inTransaction 是否已在事务中
 	 */
-	public async removeFilesFromIndex(filePaths: string[]): Promise<void> {
+	public async removeFilesFromIndex(filePaths: string[], inTransaction: boolean = false): Promise<void> {
 		await this.initDatabase()
 
 		// 使用批量删除函数
 		const { removeFilesFromIndex } = await import("./removeFileFromIndex")
-		await removeFilesFromIndex(this.db!, filePaths)
+		await removeFilesFromIndex(this.db!, filePaths, inTransaction)
 	}
 
 	/**
@@ -753,7 +767,8 @@ export class CodebaseIndexService {
 						return
 					}
 
-					await this.indexFile(task.filePath, task.lastModified)
+					// 在批处理事务中调用indexFile，传入inTransaction=true避免嵌套事务
+					await this.indexFile(task.filePath, task.lastModified, true)
 					this._progress.completed++
 
 					// 每完成一个任务就通知进度变化

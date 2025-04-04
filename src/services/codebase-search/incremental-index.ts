@@ -1,7 +1,8 @@
 import * as fs from "fs"
 import { Database } from "./database"
 import { IndexOptions } from "./types"
-import { toPosixPath, arePathsEqual, extname, join, relative } from "../../utils/path"
+import { toPosixPath, extname, join, relative } from "../../utils/path"
+import { TransactionManager } from "./transaction-manager"
 
 interface FileRecord {
 	path: string
@@ -29,34 +30,44 @@ export class IncrementalIndexer {
 	 * @param options 索引选项
 	 */
 	public async executeIncrementalIndex(workspacePath: string, options?: IndexOptions): Promise<FileRecord[]> {
-		// 扫描工作区文件
+		// 扫描工作区文件和构建内存表（这些操作不涉及数据库，可以在事务外执行）
 		const files = await this.scanWorkspace(workspacePath, options)
-
-		// 读取现有文件记录到内存
 		const memoryTable = await this.buildMemoryTable(files, options)
 
-		// 获取数据库中现有记录
-		const dbFiles = await this.db.all("SELECT path, content_hash, last_modified FROM files")
-		const dbFileMap = new Map(dbFiles.map((f) => [f.path, f]))
+		// 使用事务管理器执行所有数据库操作
+		const transactionManager = TransactionManager.getInstance(this.db)
+		try {
+			return await transactionManager.executeInTransaction(async () => {
+				// 获取数据库中现有记录
+				const dbFiles = await this.db.all("SELECT path, content_hash, last_modified FROM files")
+				const dbFileMap = new Map(dbFiles.map((f) => [f.path, f]))
 
-		// 找出需要删除的文件
-		const filesToDelete = this.findFilesToDelete(dbFiles, memoryTable)
-		// 找出更新的文件
-		const filesToUpdate = await this.findFilesToUpdate(memoryTable, dbFileMap)
+				// 找出需要删除的文件
+				const filesToDelete = this.findFilesToDelete(dbFiles, memoryTable)
 
-		// 使用removeFilesFromIndex方法批量删除不再存在的文件
-		if (filesToDelete.length > 0) {
-			// 导入removeFilesFromIndex函数
-			const { removeFilesFromIndex } = await import("./removeFileFromIndex")
-			await removeFilesFromIndex(this.db, filesToDelete)
+				// 找出需要更新的文件
+				const filesToUpdate = await this.findFilesToUpdate(memoryTable, dbFileMap)
+
+				// 删除不再存在的文件 - 在当前事务中执行
+				if (filesToDelete.length > 0) {
+					const { removeFilesFromIndex } = await import("./removeFileFromIndex")
+					await removeFilesFromIndex(this.db, filesToDelete, true) // true表示已在事务中
+				}
+
+				// 插入新文件到数据库
+				const newFiles = filesToUpdate.filter((file) => !dbFileMap.has(file.path))
+				if (newFiles.length > 0) {
+					await this.insertNewFiles(newFiles)
+				}
+
+				// 返回需要更新的文件列表
+				return filesToUpdate
+			})
+		} catch (error) {
+			console.error("准备索引文件列表失败:", error)
+			// 事务已自动回滚，可以在这里添加额外的错误处理逻辑
+			throw error // 重新抛出错误，让调用者知道操作失败
 		}
-
-		// 插入新文件到数据库
-		const newFiles = filesToUpdate.filter((file) => !dbFileMap.has(file.path))
-		await this.insertNewFiles(newFiles)
-
-		// 返回需要更新的文件列表
-		return filesToUpdate
 	}
 
 	/**
