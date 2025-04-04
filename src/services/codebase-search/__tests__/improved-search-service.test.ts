@@ -1,6 +1,6 @@
 import { CodebaseSearchService } from "../search-service"
 import { ResultType, ParsedQuery, SearchResult } from "../types"
-import { createDatabase } from "../database"
+import { getTestDatabaseInstance } from "../database"
 
 // 模拟数据库和Tree-sitter服务
 jest.mock("../database", () => {

@@ -11,9 +11,10 @@ import * as fs from "fs"
 import * as vscode from "vscode"
 import { IndexOptions, IndexProgress, IndexStats, IndexTask, ResultType } from "./types"
 import { toPosixPath, arePathsEqual, extname, join, relative } from "../../utils/path"
-import { createDatabase, Database } from "./database"
+import { getDatabaseInstance, Database } from "./database"
 import { SemanticAnalysisService, createSemanticAnalysisService } from "./semantic-analysis"
 import { IncrementalIndexer } from "./incremental-index"
+import { TransactionManager } from "./transaction-manager"
 
 // 定义索引状态接口
 export interface IndexStatus {
@@ -55,27 +56,13 @@ export class CodebaseIndexService {
 	 * @private
 	 */
 	private async executeInTransaction<T>(operation: () => Promise<T>): Promise<T> {
-		// 确保数据库已初始化
-		await this.initDatabase()
-
-		// 检查是否已在事务中
-		const inTransaction = await this.db!.isInTransaction()
-
-		if (inTransaction) {
-			// 已在事务中，直接执行操作
-			return await operation()
+		if (!this.db) {
+			throw new Error("数据库未初始化")
 		}
 
-		// 开始新事务
-		await this.db!.beginTransaction()
-		try {
-			const result = await operation()
-			await this.db!.commit()
-			return result
-		} catch (error) {
-			await this.db!.rollback()
-			throw error
-		}
+		// 使用事务管理器执行事务
+		const transactionManager = TransactionManager.getInstance(this.db)
+		return transactionManager.executeInTransaction(operation)
 	}
 
 	/**
@@ -116,11 +103,21 @@ export class CodebaseIndexService {
 	 * @private
 	 */
 	private async initDatabase(): Promise<void> {
-		// console.log("index-service.ts Initializing database123...")
-		if (!this.db) {
-			// console.log("index-service.ts Initializing database...")
-			// console.log("Creating codebase workspace path:", this.workspacePath)
-			this.db = await createDatabase(this.workspacePath)
+		if (this.db) {
+			return
+		}
+
+		try {
+			this.db = await getDatabaseInstance(this.workspacePath)
+
+			// 初始化事务管理器（确保事务管理器使用最新的数据库实例）
+			TransactionManager.getInstance(this.db)
+
+			const stats = await this.getIndexStats()
+			this.notifyStatusChange()
+		} catch (error) {
+			console.error("初始化数据库失败:", error)
+			throw error
 		}
 	}
 
@@ -413,159 +410,116 @@ export class CodebaseIndexService {
 	 * @param filePath 文件路径
 	 */
 	public async indexFile(filePath: string): Promise<void> {
-		try {
-			// 确保数据库已初始化
-			await this.initDatabase()
+		await this.initDatabase()
 
-			// 检查文件是否存在
-			if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-				console.warn(`File does not exist: ${filePath}`)
-				return
-			}
+		// 检查文件是否存在
+		if (!fs.existsSync(filePath)) {
+			console.log(`文件不存在，跳过索引: ${filePath}`)
+			return
+		}
 
+		// 检查是否在.vscode-test目录中，这些文件可能是临时的或不稳定的
+		if (filePath.includes(".vscode-test")) {
+			console.log(`跳过.vscode-test目录下的文件: ${filePath}`)
+			return
+		}
+
+		// 使用事务管理器保证文件级别的原子操作
+		const transactionManager = TransactionManager.getInstance(this.db!)
+		await transactionManager.executeInTransaction(async () => {
 			try {
-				// 获取文件内容
-				const content = await fs.promises.readFile(filePath, "utf-8")
+				// 执行文件索引逻辑...
+				const fileStats = fs.statSync(filePath)
+				const lastModified = fileStats.mtimeMs.toString()
 
-				// 计算内容哈希，用于后续增量更新
+				// 计算文件内容的哈希以检测变化
+				const content = fs.readFileSync(filePath, "utf-8")
 				const contentHash = this.calculateContentHash(content)
 
-				// 获取文件语言
-				const language = this.detectLanguage(filePath)
+				// 检查文件是否已在数据库中，并检查其内容是否有变化
+				const existingFile = await this.db!.get("SELECT id, content_hash FROM files WHERE path = ?", [filePath])
 
-				// 获取文件最后修改时间
-				let lastModified = Date.now()
-				try {
-					const stats = fs.statSync(filePath)
-					lastModified = stats.mtimeMs
-				} catch (error) {
-					console.warn(`无法获取文件状态信息，使用当前时间: ${filePath}`)
+				if (existingFile && existingFile.content_hash === contentHash) {
+					// 文件存在且内容未变化，更新索引时间
+					await this.db!.run("UPDATE files SET indexed_at = ? WHERE id = ?", [Date.now(), existingFile.id])
+					return // 跳过后续处理
 				}
 
-				// 先将文件信息保存到数据库
-				const normalizedPath = toPosixPath(filePath)
+				// 如果文件已存在但内容变化，先删除旧索引
+				if (existingFile) {
+					await this.removeFileFromIndex(filePath, true)
+				}
+
+				// 添加或更新文件信息
+				const language = this.detectLanguage(filePath)
+				const fileResult = await this.db!.run(
+					"INSERT INTO files (path, language, last_modified, indexed_at, content_hash) VALUES (?, ?, ?, ?, ?)",
+					[filePath, language, lastModified, Date.now(), contentHash],
+				)
+				const fileId = fileResult.lastID
+
+				// 提取和保存符号信息
 				try {
-					// 获取文件ID（如果已存在）
-					const existingFile = await this.db!.get("SELECT id FROM files WHERE path = ?", [normalizedPath])
-					let fileId: number
-
-					if (existingFile) {
-						fileId = existingFile.id
-						// 更新文件信息
-						await this.db!.run(
-							`UPDATE files SET language = ?, last_modified = ?, indexed_at = ?, content_hash = ? WHERE id = ?`,
-							[language, lastModified, Date.now(), contentHash, fileId],
-						)
-					} else {
-						// 插入新文件
-						const result = await this.db!.run(
-							`INSERT INTO files (path, language, last_modified, indexed_at, content_hash) 
-							VALUES (?, ?, ?, ?, ?)`,
-							[normalizedPath, language, lastModified, Date.now(), contentHash],
-						)
-						fileId = result.lastID
-					}
-
-					// 使用语义分析服务提取符号和关系
+					// 使用语义分析服务解析符号
 					const { symbols, relations } = await this.semanticAnalyzer.analyzeFile(filePath)
 
-					// 在事务中保存符号和关系，确保原子性
-					await this.executeInTransaction(async () => {
-						// 先删除该文件的旧符号相关数据
-						await this.db!.run(
-							"DELETE FROM symbol_relations WHERE source_id IN (SELECT id FROM symbols WHERE file_id = ?)",
-							[fileId],
+					// 保存符号信息
+					for (const symbol of symbols) {
+						const symbolResult = await this.db!.run(
+							`INSERT INTO symbols 
+							(file_id, name, type, signature, line, column, parent_id) 
+							VALUES (?, ?, ?, ?, ?, ?, ?)`,
+							[
+								fileId,
+								symbol.name,
+								symbol.type,
+								symbol.signature || "",
+								symbol.line,
+								symbol.column,
+								symbol.parentId || null,
+							],
 						)
-						await this.db!.run(
-							"DELETE FROM symbol_contents WHERE symbol_id IN (SELECT id FROM symbols WHERE file_id = ?)",
-							[fileId],
-						)
-						await this.db!.run(
-							"DELETE FROM keywords WHERE symbol_id IN (SELECT id FROM symbols WHERE file_id = ?)",
-							[fileId],
-						)
-						await this.db!.run("DELETE FROM symbols WHERE file_id = ?", [fileId])
 
-						// 保存新的符号
-						for (const symbol of symbols) {
-							// 插入符号
-							const result = await this.db!.run(
-								`INSERT INTO symbols 
-								(file_id, name, type, signature, line, column, parent_id) 
-								VALUES (?, ?, ?, ?, ?, ?, ?)`,
-								[
-									fileId,
-									symbol.name,
-									symbol.type,
-									symbol.signature || "",
-									symbol.line,
-									symbol.column,
-									symbol.parentId || null,
-								],
-							)
+						const symbolId = symbolResult.lastID
 
-							// 获取新插入符号的ID
-							const symbolId = result.lastID
+						// 保存符号内容 (上下文)
+						if (symbol.content) {
+							await this.db!.run("INSERT INTO symbol_contents (symbol_id, content) VALUES (?, ?)", [
+								symbolId,
+								symbol.content,
+							])
+						}
 
-							// 保存符号内容
+						// 提取和保存关键词
+						const keywords = this.extractKeywords(symbol.name, symbol.content || "")
+						for (const keyword of keywords) {
 							await this.db!.run(
-								"INSERT OR IGNORE INTO symbol_contents (symbol_id, content) VALUES (?, ?)",
-								[symbolId, symbol.content],
+								"INSERT OR IGNORE INTO keywords (keyword, symbol_id, relevance) VALUES (?, ?, ?)",
+								[keyword, symbolId, 1.0],
 							)
-
-							// 生成并保存关键词
-							const keywords = this.extractKeywords(symbol.name, symbol.content)
-							for (const keyword of keywords) {
-								// 计算关键词与符号的相关性
-								const relevance = this.semanticAnalyzer.calculateSemanticRelevance(
-									keyword,
-									symbol.content,
-								)
-
-								await this.db!.run(
-									"INSERT OR IGNORE INTO keywords (keyword, symbol_id, relevance) VALUES (?, ?, ?)",
-									[keyword, symbolId, relevance],
-								)
-							}
 						}
+					}
 
-						// 保存符号关系
-						for (const relation of relations) {
-							// 检查源和目标ID是否有效
-							if (
-								relation.sourceId !== undefined &&
-								relation.targetId !== undefined &&
-								relation.sourceId > 0 &&
-								relation.targetId > 0
-							) {
-								// // 检查关系是否已存在，避免唯一约束冲突
-								// const existingRelation = await this.db!.get(
-								// 	"SELECT id FROM symbol_relations WHERE source_id = ? AND target_id = ? AND relation_type = ?",
-								// 	[relation.sourceId, relation.targetId, relation.relationType],
-								// )
-
-								// if (!existingRelation) {
-								// 	await this.db!.run(
-								// 		"INSERT OR IGNORE INTO symbol_relations (source_id, target_id, relation_type) VALUES (?, ?, ?)",
-								// 		[relation.sourceId, relation.targetId, relation.relationType],
-								// 	)
-								// }
-								await this.db!.run(
-									"INSERT OR IGNORE INTO symbol_relations (source_id, target_id, relation_type) VALUES (?, ?, ?)",
-									[relation.sourceId, relation.targetId, relation.relationType],
-								)
-							}
+					// 保存符号关系
+					for (const relation of relations) {
+						if (relation.sourceId && relation.targetId) {
+							await this.db!.run(
+								`INSERT OR IGNORE INTO symbol_relations 
+								(source_id, target_id, relation_type) 
+								VALUES (?, ?, ?)`,
+								[relation.sourceId, relation.targetId, relation.relationType],
+							)
 						}
-					})
-				} catch (dbError) {
-					console.error(`数据库操作失败: ${normalizedPath}`, dbError)
+					}
+				} catch (parseError) {
+					console.error(`无法解析文件符号: ${filePath}`, parseError)
+					// 继续处理其他文件
 				}
-			} catch (fileError) {
-				console.error(`文件处理失败: ${filePath}`, fileError)
+			} catch (error) {
+				console.error(`索引文件时出错: ${filePath}`, error)
+				// 记录错误但不中断索引过程
 			}
-		} catch (error) {
-			console.error(`Failed to index file: ${toPosixPath(filePath)}`, error)
-		}
+		})
 	}
 
 	/**
@@ -587,73 +541,26 @@ export class CodebaseIndexService {
 	/**
 	 * 从索引中删除文件
 	 * @param filePath 文件路径
-	 * @param inTransaction 是否在外部事务中执行
+	 * @param inTransaction 是否已在事务中
 	 */
 	public async removeFileFromIndex(filePath: string, inTransaction: boolean = false): Promise<void> {
-		try {
-			// 确保数据库已初始化
-			await this.initDatabase()
+		await this.initDatabase()
 
-			const normalizedPath = toPosixPath(filePath)
-
-			// 查询文件ID
-			const fileRecord = await this.db!.get("SELECT id FROM files WHERE path = ?", [normalizedPath])
-
-			if (fileRecord && fileRecord.id) {
-				const deleteOperation = async () => {
-					// 删除与该文件相关的符号关系
-					await this.db!.run(
-						"DELETE FROM symbol_relations WHERE source_id IN (SELECT id FROM symbols WHERE file_id = ?)",
-						[fileRecord.id],
-					)
-
-					// 删除与该文件相关的符号内容
-					await this.db!.run(
-						"DELETE FROM symbol_contents WHERE symbol_id IN (SELECT id FROM symbols WHERE file_id = ?)",
-						[fileRecord.id],
-					)
-
-					// 删除与该文件相关的关键词
-					await this.db!.run(
-						"DELETE FROM keywords WHERE symbol_id IN (SELECT id FROM symbols WHERE file_id = ?)",
-						[fileRecord.id],
-					)
-
-					// 删除该文件的符号
-					await this.db!.run("DELETE FROM symbols WHERE file_id = ?", [fileRecord.id])
-
-					// 删除文件记录
-					await this.db!.run("DELETE FROM files WHERE id = ?", [fileRecord.id])
-				}
-
-				if (inTransaction) {
-					// 已在事务中，直接执行
-					await deleteOperation()
-				} else {
-					// 需要自己管理事务
-					await this.executeInTransaction(deleteOperation)
-				}
-			}
-		} catch (error) {
-			console.error(`Failed to remove file from index: ${filePath}`, error)
-			throw error
-		}
+		// 使用独立的工具函数实现
+		const { removeFileFromIndex } = await import("./removeFileFromIndex")
+		await removeFileFromIndex(this.db!, filePath, inTransaction)
 	}
 
 	/**
-	 * 从索引中批量删除文件
+	 * 从索引中删除多个文件
 	 * @param filePaths 文件路径数组
 	 */
 	public async removeFilesFromIndex(filePaths: string[]): Promise<void> {
-		if (filePaths.length === 0) {
-			return
-		}
+		await this.initDatabase()
 
-		await this.executeInTransaction(async () => {
-			for (const filePath of filePaths) {
-				await this.removeFileFromIndex(filePath, true)
-			}
-		})
+		// 使用批量删除函数
+		const { removeFilesFromIndex } = await import("./removeFileFromIndex")
+		await removeFilesFromIndex(this.db!, filePaths)
 	}
 
 	/**

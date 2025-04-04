@@ -43,12 +43,11 @@ export class IncrementalIndexer {
 		const filesToDelete = this.findFilesToDelete(dbFiles, memoryTable)
 		const filesToUpdate = await this.findFilesToUpdate(memoryTable, dbFileMap)
 
-		// 删除不再存在的文件
+		// 使用removeFilesFromIndex方法批量删除不再存在的文件
 		if (filesToDelete.length > 0) {
-			await this.db.run(
-				`DELETE FROM files WHERE path IN (${filesToDelete.map(() => "?").join(",")})`,
-				filesToDelete,
-			)
+			// 导入removeFilesFromIndex函数
+			const { removeFilesFromIndex } = await import("./removeFileFromIndex")
+			await removeFilesFromIndex(this.db, filesToDelete)
 		}
 
 		// 插入新文件到数据库

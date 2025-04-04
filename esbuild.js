@@ -78,7 +78,7 @@ const extensionConfig = {
 	sourcesContent: false,
 	platform: "node",
 	outfile: "dist/extension.js",
-	external: ["vscode"],
+	external: ["vscode", "@vscode/sqlite3"],
 }
 
 async function main() {

@@ -4,7 +4,7 @@
 import * as fs from "fs"
 import { expect } from "chai"
 import { join } from "../../../utils/path"
-import { Database, createInMemoryDatabase } from "../database"
+import { Database, getTestDatabaseInstance } from "../database"
 
 describe("数据库", () => {
 	// 创建临时测试文件路径
@@ -112,7 +112,7 @@ describe("数据库", () => {
 	// 测试内存数据库
 	it("应该能够创建内存数据库", async () => {
 		const tableName = getUniqueTableName("memtest")
-		const memDb = await createInMemoryDatabase()
+		const memDb = await getTestDatabaseInstance()
 
 		await memDb.exec(`CREATE TABLE ${tableName} (id INTEGER PRIMARY KEY, value TEXT)`)
 		await memDb.run(`INSERT INTO ${tableName} (value) VALUES (?)`, ["内存测试"])
