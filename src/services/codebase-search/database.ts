@@ -609,7 +609,7 @@ async function initDatabaseSchema(db: Database): Promise<void> {
 				language TEXT,
 				last_modified INTEGER,
 				indexed_at INTEGER,
-				content_hash TEXT
+				content_hash INTEGER
 			);
 
 			-- 符号表
@@ -656,6 +656,7 @@ async function initDatabaseSchema(db: Database): Promise<void> {
 		await db.exec(`
 			-- 文件路径索引
 			CREATE INDEX IF NOT EXISTS idx_files_path ON files(path);
+			CREATE INDEX IF NOT EXISTS idx_content_hash ON files(content_hash);
 			
 			-- 符号索引
 			CREATE INDEX IF NOT EXISTS idx_symbols_file ON symbols(file_id);

@@ -572,9 +572,9 @@ export class CodebaseIndexService {
 			await this.initDatabase()
 
 			// 从数据库获取统计信息
-			const filesCount = await this.db!.get("SELECT COUNT(*) as count FROM files")
-			const symbolsCount = await this.db!.get("SELECT COUNT(*) as count FROM symbols")
-			const keywordsCount = await this.db!.get("SELECT COUNT(*) as count FROM keywords")
+			const filesCount = await this.db!.get("SELECT COUNT(id) as count FROM files WHERE content_hash > 0")
+			const symbolsCount = await this.db!.get("SELECT COUNT(id) as count FROM symbols")
+			const keywordsCount = await this.db!.get("SELECT COUNT(symbol_id) as count FROM keywords")
 			const lastIndexed = await this.db!.get("SELECT MAX(indexed_at) as last_indexed FROM files")
 
 			return {

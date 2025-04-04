@@ -246,7 +246,7 @@ export class IncrementalIndexer {
 			if (!dbFile) {
 				// 新文件，需要索引
 				filesToUpdate.push(file)
-			} else if (file.last_modified > dbFile.last_modified) {
+			} else if (file.last_modified > dbFile.content_hash) {
 				// 文件已修改，需要重新索引
 				filesToUpdate.push(file)
 			}
@@ -263,8 +263,8 @@ export class IncrementalIndexer {
 		if (files.length === 0) return
 
 		await this.db.run(
-			`INSERT OR IGNORE INTO files (path, last_modified, language) VALUES ${files.map(() => "(?, ?, ?)").join(",")}`,
-			files.flatMap((file) => [file.path, file.last_modified, this.detectLanguage(file.path)]),
+			`INSERT OR IGNORE INTO files (path, language, last_modified, indexed_at, content_hash) VALUES ${files.map(() => "(?, ?, ?, ?, ?)").join(",")}`,
+			files.flatMap((file) => [file.path, this.detectLanguage(file.path), file.last_modified, 0, 0]),
 		)
 	}
 
