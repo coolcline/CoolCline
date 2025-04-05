@@ -327,7 +327,7 @@
 		"@types/string-similarity": "^4.0.2",
 		"@typescript-eslint/eslint-plugin": "^7.14.1",
 		"@typescript-eslint/parser": "^7.11.0",
-		"@vscode/test-cli": "^0.0.9",
+		"@vscode/test-cli": "^0.0.10",
 		"@vscode/test-electron": "^2.4.0",
 		"chai": "^4.4.1",
 		"esbuild": "^0.24.0",
