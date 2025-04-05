@@ -4,6 +4,7 @@
 .vscode/**
 .vscode-test/**
 out/**
+# 忽略大部分 node_modules
 node_modules/**
 src/**
 .gitignore
@@ -44,5 +45,8 @@ webview-ui/node_modules/**
 !assets/icons/**
 
 # 确保包含sql.js的WASM文件
-!node_modules/sql.js/dist/sql-wasm.wasm
-!node_modules/sql.js/dist/sql-wasm.js
+# !node_modules/sql.js/dist/sql-wasm.wasm
+# !node_modules/sql.js/dist/sql-wasm.js
+
+# 但保留 sqlite3 模块
+!node_modules/@vscode/sqlite3/**
