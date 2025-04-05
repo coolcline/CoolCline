@@ -47,7 +47,7 @@ export class TransactionManager {
 				// 检查当前是否在事务中
 				const inTransaction = await this.db.isInTransaction()
 				if (inTransaction) {
-					console.log("executeWithoutTransaction检测到活动事务，将直接执行操作")
+					// console.log("executeWithoutTransaction检测到活动事务，将直接执行操作")
 				}
 
 				// 直接执行操作，不管是否在事务中
@@ -98,7 +98,7 @@ export class TransactionManager {
 			const dbInTransaction = await this.db.isInTransaction()
 			if (dbInTransaction || this.transactionActive) {
 				// 如果已在事务中，直接使用无事务执行方式执行操作
-				console.log("检测到已在事务中，跳过开启新事务")
+				// console.log("检测到已在事务中，跳过开启新事务")
 				// 直接使用executeWithoutTransaction，避免嵌套事务问题
 				return await this.executeWithoutTransaction(operation)
 			}
@@ -151,7 +151,7 @@ export class TransactionManager {
 					// 再次检查是否已在事务中（双重检查，避免竞争条件）
 					const inTransaction = await this.db.isInTransaction()
 					if (inTransaction) {
-						console.log("检测到事务嵌套，直接执行操作而不开启新事务")
+						// console.log("检测到事务嵌套，直接执行操作而不开启新事务")
 						// 直接执行操作而不开启新事务
 						const result = await this.executeWithoutTransaction(task.operation)
 						task.resolve(result)
