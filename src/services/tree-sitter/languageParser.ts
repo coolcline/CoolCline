@@ -34,6 +34,15 @@ export interface LanguageParser {
 let loadedLanguages = new Map<string, Parser.Language>()
 
 /**
+ * 重置语言缓存，主要用于测试
+ * @internal 仅用于测试，不应在生产代码中使用
+ */
+export function _resetLanguageCache() {
+	loadedLanguages.clear()
+	isParserInitialized = false
+}
+
+/**
  * 加载指定语言的WASM模块
  * @param langName 语言名称
  * @param forceReload 是否强制重新加载，即使已经在缓存中

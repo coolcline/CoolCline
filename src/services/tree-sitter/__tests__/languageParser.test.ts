@@ -1,5 +1,21 @@
-import { loadRequiredLanguageParsers } from "../languageParser"
+import { loadRequiredLanguageParsers, _resetLanguageCache } from "../languageParser"
 import Parser from "web-tree-sitter"
+import * as path from "path"
+
+// 为了更有效地测试缓存机制，我们需要直接操作模块内部缓存
+
+// Mock 路径工具，确保文件路径的一致性
+jest.mock("../../../utils/path", () => ({
+	toPosixPath: (p: string) => p,
+}))
+
+// Mock 路径工具类，以控制__dirname的值
+jest.mock("../../checkpoints/CheckpointUtils", () => ({
+	PathUtils: {
+		joinPath: (dir: string, filename: string) => path.join(dir, filename),
+		extname: (file: string) => path.extname(file),
+	},
+}))
 
 // Mock web-tree-sitter
 const mockSetLanguage = jest.fn()
@@ -9,6 +25,7 @@ jest.mock("web-tree-sitter", () => {
 		default: jest.fn().mockImplementation(() => ({
 			setLanguage: mockSetLanguage,
 		})),
+		init: jest.fn().mockResolvedValue(undefined),
 	}
 })
 
@@ -25,6 +42,8 @@ ParserMock.Language = {
 describe("Language Parser", () => {
 	beforeEach(() => {
 		jest.clearAllMocks()
+		// 使用导出的函数重置缓存
+		_resetLanguageCache()
 	})
 
 	describe("loadRequiredLanguageParsers", () => {
@@ -73,7 +92,14 @@ describe("Language Parser", () => {
 			const files = ["test.js", "test.py", "test.rs", "test.go"]
 			const parsers = await loadRequiredLanguageParsers(files)
 
-			expect(ParserMock.Language.load).toHaveBeenCalledTimes(4)
+			// 确保每种语言解析器都被加载
+			expect(ParserMock.Language.load).toHaveBeenCalledWith(
+				expect.stringContaining("tree-sitter-javascript.wasm"),
+			)
+			expect(ParserMock.Language.load).toHaveBeenCalledWith(expect.stringContaining("tree-sitter-python.wasm"))
+			expect(ParserMock.Language.load).toHaveBeenCalledWith(expect.stringContaining("tree-sitter-rust.wasm"))
+			expect(ParserMock.Language.load).toHaveBeenCalledWith(expect.stringContaining("tree-sitter-go.wasm"))
+
 			expect(parsers.js).toBeDefined()
 			expect(parsers.py).toBeDefined()
 			expect(parsers.rs).toBeDefined()
@@ -102,16 +128,19 @@ describe("Language Parser", () => {
 			const files = ["test1.js", "test2.js", "test3.js"]
 			await loadRequiredLanguageParsers(files)
 
-			expect(ParserMock.Language.load).toHaveBeenCalledTimes(1)
+			// 检查是否加载了Javascript解析器
 			expect(ParserMock.Language.load).toHaveBeenCalledWith(
 				expect.stringContaining("tree-sitter-javascript.wasm"),
 			)
+			// 对同一类型的多个文件，应该只调用一次加载
+			expect(ParserMock.Language.load).toHaveBeenCalledTimes(1)
 		})
 
 		it("should set language for each parser instance", async () => {
 			const files = ["test.js", "test.py"]
 			await loadRequiredLanguageParsers(files)
 
+			// 每种文件类型都需要一个parser实例
 			expect(mockSetLanguage).toHaveBeenCalledTimes(2)
 		})
 	})
