@@ -3,7 +3,14 @@
 >
 > Detailed Documentation: [English](docs/user-docs/en/index.md) | [简体中文](https://gitee.com/coolcline/coolcline/blob/main/docs/user-docs/zh/index.md)
 
+## [4.6.5] 2025-04-05
+
+- Optimized codebase
+- Optimized editing efficiency
+- Added gemini-2.5-pro-preview-03-25 model
+
 ## [4.6.4] 2025-03-31
+
 - Optimized automatic output reading after terminal command execution
 
 ## [4.6.3] 2025-03-31

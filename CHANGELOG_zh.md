@@ -4,6 +4,12 @@
 >
 > 详细文档: [English](docs/user-docs/en/index.md) | [简体中文](https://gitee.com/coolcline/coolcline/blob/main/docs/user-docs/zh/index.md)
 
+## [4.6.5] 2025-04-05
+
+- 优化 codebase
+- 优化编辑效率
+- 新增 gemini-2.5-pro-preview-03-25 模型
+
 ## [4.6.4] 2025-03-31
 
 - 优化终端命令执行后自动读取输出
