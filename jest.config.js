@@ -3,6 +3,7 @@ module.exports = {
 	preset: "ts-jest",
 	testEnvironment: "node",
 	testTimeout: 30000,
+	maxWorkers: "75%",
 	moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json", "node"],
 	transform: {
 		"^.+\\.tsx?$": [
@@ -10,7 +11,6 @@ module.exports = {
 			{
 				tsconfig: "tsconfig.test.json",
 				diagnostics: false,
-				isolatedModules: true,
 			},
 		],
 	},

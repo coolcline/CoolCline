@@ -11,7 +11,7 @@ import * as fs from "fs"
 import * as vscode from "vscode"
 import { IndexOptions, IndexProgress, IndexStats, IndexTask, ResultType } from "./types"
 import { toPosixPath, arePathsEqual, extname, join, relative } from "../../utils/path"
-import { getDatabaseInstance, Database } from "./database"
+import { getDatabaseInstance, Database, getTestDatabaseInstance } from "./database"
 import { SemanticAnalysisService, createSemanticAnalysisService } from "./semantic-analysis"
 import { IncrementalIndexer } from "./incremental-index"
 import { TransactionManager } from "./transaction-manager"
@@ -21,6 +21,12 @@ export interface IndexStatus {
 	isIndexing: boolean
 	progress: IndexProgress
 	stats: IndexStats
+}
+
+// 索引服务选项接口
+export interface IndexServiceOptions {
+	useInMemoryDatabase?: boolean
+	useTestMode?: boolean // 测试模式使用内存数据库，不创建任何真实文件
 }
 
 /**
@@ -41,6 +47,8 @@ export class CodebaseIndexService {
 	private _onIndexStatusChange: vscode.EventEmitter<IndexStatus>
 	public readonly onIndexStatusChange: vscode.Event<IndexStatus>
 	private options: IndexOptions | undefined
+	private _useInMemoryDatabase: boolean = false
+	private _useTestMode: boolean = false
 
 	// 保存扫描状态以支持恢复
 	private _scanState: {
@@ -68,10 +76,13 @@ export class CodebaseIndexService {
 	/**
 	 * 构造函数
 	 * @param workspacePath 工作区路径
+	 * @param options 索引服务选项
 	 */
-	constructor(workspacePath: string) {
+	constructor(workspacePath: string, options?: IndexServiceOptions) {
 		this.workspacePath = toPosixPath(workspacePath)
 		this.semanticAnalyzer = createSemanticAnalysisService(this.workspacePath)
+		this._useInMemoryDatabase = options?.useInMemoryDatabase || false
+		this._useTestMode = options?.useTestMode || false // 设置测试模式标志
 
 		// 初始化事件发射器
 		try {
@@ -88,7 +99,10 @@ export class CodebaseIndexService {
 			}
 		}
 
-		this.setupFileSystemWatcher()
+		// 只在非测试模式下设置文件系统监听器
+		if (!this._useInMemoryDatabase && !this._useTestMode) {
+			this.setupFileSystemWatcher()
+		}
 	}
 
 	/**
@@ -108,11 +122,20 @@ export class CodebaseIndexService {
 		}
 
 		try {
-			this.db = await getDatabaseInstance(this.workspacePath)
+			// 根据选项选择数据库类型
+			if (this._useTestMode || this._useInMemoryDatabase) {
+				// 使用测试模式的内存数据库
+				this.db = await getTestDatabaseInstance()
+				console.log("使用测试模式内存数据库")
+			} else {
+				// 使用常规文件数据库
+				this.db = await getDatabaseInstance(this.workspacePath)
+			}
 
-			// 初始化事务管理器（确保事务管理器使用最新的数据库实例）
-			TransactionManager.getInstance(this.db)
-			// console.table(await this.db!.all("SELECT * FROM files LIMIT 20"))
+			// 初始化事务管理器
+			if (this.db) {
+				TransactionManager.getInstance(this.db)
+			}
 
 			const stats = await this.getIndexStats()
 			this.notifyStatusChange()

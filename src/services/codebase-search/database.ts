@@ -586,6 +586,10 @@ export async function getDatabaseInstance(workspacePath: string): Promise<Databa
 export async function getTestDatabaseInstance(): Promise<Database> {
 	const db = new Database(TEST_MODE)
 	await db.initialize()
+
+	// 初始化数据库表结构
+	await initDatabaseSchema(db)
+
 	return db
 }
 

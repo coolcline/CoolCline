@@ -6,14 +6,16 @@ import { join, relative } from "../../../utils/path"
 // 确保使用正确的vscode mock
 jest.mock("vscode")
 
+// 使用内存临时路径代替真实文件系统路径
+const TEST_MEMORY_PATH = "/mem/temp"
+
 // 然后导入依赖其他模块的对象
 import { CodebaseIndexService } from "../index-service"
 import { setExtensionContext } from "../extension-context"
-import { generateWorkspaceId } from "../database" // 导入工作区ID生成函数
 
-// 设置模拟的扩展上下文
+// 设置模拟的扩展上下文 - 使用内存路径避免创建文件
 const mockContext = {
-	globalStorageUri: { fsPath: join(__dirname, "test-storage") },
+	globalStorageUri: { fsPath: TEST_MEMORY_PATH },
 	workspaceState: {
 		get: jest.fn(),
 		update: jest.fn(),
@@ -23,125 +25,62 @@ const mockContext = {
 		update: jest.fn(),
 	},
 	subscriptions: [],
-	extensionPath: join(__dirname),
-	extensionUri: { fsPath: join(__dirname) },
+	extensionPath: TEST_MEMORY_PATH,
+	extensionUri: { fsPath: TEST_MEMORY_PATH },
 	environmentVariableCollection: {},
 	extensionMode: 1,
-	logUri: { fsPath: join(__dirname, "logs") },
-	logPath: join(__dirname, "logs"),
-	storageUri: { fsPath: join(__dirname, "storage") },
-	storagePath: join(__dirname, "storage"),
-	asAbsolutePath: (p: string) => join(__dirname, p),
+	logUri: { fsPath: join(TEST_MEMORY_PATH, "logs") },
+	logPath: join(TEST_MEMORY_PATH, "logs"),
+	storageUri: { fsPath: join(TEST_MEMORY_PATH, "storage") },
+	storagePath: join(TEST_MEMORY_PATH, "storage"),
+	asAbsolutePath: (p: string) => join(TEST_MEMORY_PATH, p),
 }
 
 describe("CodebaseIndexService", () => {
 	let service: CodebaseIndexService
 	let testWorkspacePath: string
-	let dbFilePath: string // 添加数据库文件路径变量
 
 	beforeAll(async () => {
-		// 先清理之前可能残留的测试数据
-		await beforeAllTests()
+		console.log("开始测试准备...")
+		// 设置环境变量
+		process.env.NODE_ENV = "test"
 
-		// 设置模拟的扩展上下文
+		// 设置模拟的扩展上下文 - 必须在初始化前设置
 		setExtensionContext(mockContext as any)
 
-		// 创建临时测试工作区和存储目录
+		// 创建临时测试工作区
 		testWorkspacePath = join(__dirname, "test-workspace")
 		if (!fs.existsSync(testWorkspacePath)) {
 			fs.mkdirSync(testWorkspacePath, { recursive: true })
 		}
 
-		// 创建测试存储目录
-		const storageDir = join(__dirname, "test-storage", "workspace_indexing")
-		if (!fs.existsSync(storageDir)) {
-			fs.mkdirSync(storageDir, { recursive: true })
-		}
+		// 创建测试文件
+		const testFile = join(testWorkspacePath, "test.ts")
+		fs.writeFileSync(testFile, 'function test() { console.log("test"); }')
 
-		// 计算数据库文件路径
-		const workspaceId = generateWorkspaceId(testWorkspacePath)
-		dbFilePath = join(__dirname, "test-storage", "workspace_indexing", `${workspaceId}.db`)
-
-		service = new CodebaseIndexService(testWorkspacePath)
+		// 创建服务实例 - 使用内存数据库
+		service = new CodebaseIndexService(testWorkspacePath, { useTestMode: true })
 	})
 
 	beforeEach(async () => {
-		// 清理测试文件
-		const files = fs.readdirSync(testWorkspacePath)
-		for (const file of files) {
-			fs.unlinkSync(join(testWorkspacePath, file))
-		}
-
-		// 清理索引
+		// 清理索引，保持干净状态
 		await service.clearIndex()
+
+		// 确保每个测试有一个干净的文件
+		const testFile = join(testWorkspacePath, "test.ts")
+		if (!fs.existsSync(testFile)) {
+			fs.writeFileSync(testFile, 'function test() { console.log("test"); }')
+		}
 	})
 
 	afterAll(async () => {
-		// 确保关闭索引服务
-		try {
-			await service.close()
-			// 关闭后强制延迟确保资源释放
-			await new Promise((resolve) => setTimeout(resolve, 1000))
-		} catch (error) {
-			console.error("关闭索引服务时出错", error)
-		}
+		// 关闭服务
+		await service.close()
 
-		// 直接删除具体数据库文件 - 68496b9.db
-		const specificDbPath = join(__dirname, "test-storage", "workspace_indexing", "68496b9.db")
-		if (fs.existsSync(specificDbPath)) {
-			try {
-				// 强制尝试删除
-				fs.unlinkSync(specificDbPath)
-				console.log(`已删除指定数据库文件: ${specificDbPath}`)
-			} catch (err) {
-				console.error(`删除指定数据库文件失败: ${err.message}`)
-			}
-		}
-
-		// 也尝试删除通过工作区ID计算的文件
-		if (dbFilePath && fs.existsSync(dbFilePath)) {
-			try {
-				fs.unlinkSync(dbFilePath)
-				console.log(`已删除计算的数据库文件: ${dbFilePath}`)
-			} catch (err) {
-				console.error(`删除计算的数据库文件失败: ${err.message}`)
-			}
-		}
-
-		// 清理测试工作区
+		// 清理工作区
 		if (fs.existsSync(testWorkspacePath)) {
 			fs.rmSync(testWorkspacePath, { recursive: true, force: true })
 		}
-
-		// 清理所有测试存储目录下的数据库文件
-		const storageDir = join(__dirname, "test-storage", "workspace_indexing")
-		if (fs.existsSync(storageDir)) {
-			try {
-				const files = fs.readdirSync(storageDir)
-				for (const file of files) {
-					if (file.endsWith(".db")) {
-						try {
-							const filePath = join(storageDir, file)
-							fs.unlinkSync(filePath)
-							console.log(`已删除数据库文件: ${filePath}`)
-						} catch (err) {
-							console.error(`删除数据库文件失败: ${file}: ${err.message}`)
-						}
-					}
-				}
-			} catch (err) {
-				console.error(`读取数据库目录失败: ${err.message}`)
-			}
-		}
-
-		// 最后清理整个测试存储目录
-		const testStorageDir = join(__dirname, "test-storage")
-		if (fs.existsSync(testStorageDir)) {
-			fs.rmSync(testStorageDir, { recursive: true, force: true })
-		}
-
-		// 使用辅助函数执行彻底清理
-		await afterAllTests()
 	})
 
 	describe("基础功能测试", () => {
@@ -152,10 +91,6 @@ describe("CodebaseIndexService", () => {
 		})
 
 		it("应该能够开始索引过程", async () => {
-			// 创建测试文件
-			const testFile = join(testWorkspacePath, "test.ts")
-			fs.writeFileSync(testFile, 'function test() { console.log("test"); }')
-
 			await service.startIndexing()
 			// 索引可能很快完成，所以接受"completed"或"indexing"状态
 			expect(["indexing", "completed"]).to.include(service.progress.status)
@@ -169,7 +104,6 @@ describe("CodebaseIndexService", () => {
 
 			await service.indexFile(testFile)
 			const stats = await service.getIndexStats()
-			// 修复：不验证具体数量，这个可能会有所不同
 			expect(stats).to.have.property("filesCount")
 			expect(stats.filesCount).to.be.greaterThan(0)
 		})
@@ -196,7 +130,6 @@ describe("CodebaseIndexService", () => {
 
 			await service.startIndexing()
 			await service.refreshIndex()
-			// 索引可能很快完成，所以接受"completed"或"indexing"状态
 			expect(["indexing", "completed"]).to.include(service.progress.status)
 		})
 	})
@@ -215,10 +148,6 @@ describe("CodebaseIndexService", () => {
 
 			// 验证索引时间在合理范围内
 			expect(endTime - startTime).to.be.lessThan(5000)
-
-			// 等待索引完成并关闭服务，避免异步操作超出测试范围
-			await new Promise((resolve) => setTimeout(resolve, 1000))
-			await service.close()
 		})
 	})
 })

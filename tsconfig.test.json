@@ -3,7 +3,8 @@
 	"compilerOptions": {
 		"module": "CommonJS",
 		"moduleResolution": "node",
-		"types": ["jest", "node"]
+		"types": ["jest", "node"],
+		"isolatedModules": true
 	},
 	"include": ["src/**/*.test.ts", "src/**/__tests__/**/*.ts"]
 }
