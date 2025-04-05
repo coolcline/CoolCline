@@ -1,3 +1,6 @@
+/**
+ * @deprecated This strategy is likely replaced by MultiBlockSearchReplaceStrategy. Retained for potential fallback or testing.
+ */
 import { DiffStrategy, DiffResult } from "../types"
 import { addLineNumbers, everyLineHasLineNumbers, stripLineNumbers } from "../../../integrations/misc/extract-text"
 import { distance } from "fastest-levenshtein"

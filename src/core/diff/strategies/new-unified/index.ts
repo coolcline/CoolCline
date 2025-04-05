@@ -1,3 +1,6 @@
+/**
+ * @deprecated This strategy might be considered replaced by MultiBlockSearchReplaceStrategy as the default. Retained for potential fallback or testing.
+ */
 import { Diff, Hunk, Change } from "./types"
 import { findBestMatch, prepareSearchString } from "./search-strategies"
 import { applyEdit } from "./edit-strategies"

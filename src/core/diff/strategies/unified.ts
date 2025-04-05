@@ -1,3 +1,6 @@
+/**
+ * @deprecated This strategy might be considered replaced by MultiBlockSearchReplaceStrategy as the default. Retained for potential fallback or testing.
+ */
 import { applyPatch } from "diff"
 import { DiffStrategy, DiffResult } from "../types"
 
