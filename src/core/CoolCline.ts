@@ -1369,10 +1369,40 @@ export class CoolCline {
 					"execute_command", // 执行命令可能会通过重定向、管道等修改文件
 				]
 
-				if (modifyingTools.includes(block.name)) {
+				// 严格检测一定会修改文件的命令
+				const isFileModifyingCommand = (command: string): boolean => {
+					// 1. 创建/修改文件（100%会修改文件）
+					const createCommands = /^(touch|cp|install|dd|tee)\s+\S+|>>?\s*\S+/
+
+					// 2. 删除文件（100%会删除文件）
+					const deleteCommands = /^(rm|rmdir)(\s+-[rf]+)*\s+\S+/
+
+					// 3. 编辑文件（100%会修改内容）
+					const editCommands = /^(sed\s+-i|awk\s+-i\s+inplace|patch|ed|ex)\s+\S+/
+
+					// 4. 重命名/移动文件（100%会修改文件）
+					const renameCommands = /^(mv|rename)\s+\S+\s+\S+/
+
+					// 只检测100%会修改文件的命令
+					return (
+						createCommands.test(command) || // 创建/修改
+						deleteCommands.test(command) || // 删除
+						editCommands.test(command) || // 编辑
+						renameCommands.test(command) // 重命名/移动
+					)
+				}
+
+				if (modifyingTools.includes(block.name) && this.awaitCreateCheckpoint) {
 					// 如果有文件修改，在 AI 响应结束时创建检查点
-					if (this.awaitCreateCheckpoint) {
+					if (
+						block.name === "execute_command" &&
+						block.params.command &&
+						isFileModifyingCommand(block.params.command)
+					) {
+						await this.checkpointSave()
+					} else if (block.name !== "execute_command") {
 						// console.log("1.AI 响应结束，生成 checkpoint")
+						// console.log("block.name:", block.name)
 						await this.checkpointSave()
 						// await new Promise(resolve => setTimeout(resolve, 1000))
 					}
