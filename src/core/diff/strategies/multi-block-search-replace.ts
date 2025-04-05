@@ -606,11 +606,11 @@ Usage:
 
 		// --- If primary parsing fails, try fallback parsing (line-based) ---
 		if (blocks.length === 0 && diffContent.trim() !== "") {
-			console.log("Primary diff parsing failed, attempting fallback...")
+			// console.log("Primary diff parsing failed, attempting fallback...")
 			fallbackBlocks = this.parseDiffBlocksFallback(diffContent) // Use the fallback parser
 			if (fallbackBlocks.length > 0) {
 				usingFallbackParser = true
-				console.log(`Fallback parser found ${fallbackBlocks.length} blocks.`)
+				// console.log(`Fallback parser found ${fallbackBlocks.length} blocks.`)
 			} else {
 				// Both parsers failed
 				return {
@@ -811,7 +811,7 @@ Usage:
 			}
 		} else {
 			// --- Path B: Process blocks parsed by Fallback (no line numbers) ---
-			console.log("Using fallback parser results (Line-based).")
+			// console.log("Using fallback parser results (Line-based).")
 			let fallbackBlockIndex = 0 // Use a separate index for fallback blocks
 
 			for (const block of fallbackBlocks) {
@@ -931,7 +931,7 @@ Usage:
 					// Update lastProcessedLine for the next block's search start
 					lastProcessedLine = matchIndex + replaceLines.length
 					appliedCount++
-					console.log(`[调试] 备用路径匹配成功 - 使用方式: ${foundUsing}`)
+					// console.log(`[调试] 备用路径匹配成功 - 使用方式: ${foundUsing}`)
 					blockProcessingResults.push({ blockIndex: blockIndexForReporting, success: true })
 				} else {
 					// Record failure for this block

@@ -4,8 +4,9 @@
 .vscode/**
 .vscode-test/**
 out/**
-# 忽略大部分 node_modules
+# 忽略大部分 node_modules，但保留必要的原生模块
 node_modules/**
+!node_modules/@vscode/sqlite3/**
 src/**
 .gitignore
 .yarnrc
@@ -49,4 +50,5 @@ webview-ui/node_modules/**
 # !node_modules/sql.js/dist/sql-wasm.js
 
 # 但保留 sqlite3 模块
+# node_modules/@vscode/sqlite3/build/release
 !node_modules/@vscode/sqlite3/**
